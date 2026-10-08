@@ -1,0 +1,59 @@
+table:
+  name: insurance_records
+  schema: public
+object_relationships:
+- name: employee
+  using:
+    foreign_key_constraint_on: employee_id
+select_permissions:
+- role: employee
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - bhxh_employer
+    - bhyt_employer
+    - bhtn_employer
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: manager
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - bhxh_employer
+    - bhyt_employer
+    - bhtn_employer
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - bhxh_employer
+    - bhyt_employer
+    - bhtn_employer
+    filter: {}
+    allow_aggregations: true

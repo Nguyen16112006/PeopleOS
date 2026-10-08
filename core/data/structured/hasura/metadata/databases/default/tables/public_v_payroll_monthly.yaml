@@ -1,0 +1,18 @@
+table:
+  name: v_payroll_monthly
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns:
+    - period_year
+    - period_month
+    - employees
+    - gross_total
+    - net_total
+    - pit_total
+    - employee_insurance_total
+    - employer_insurance_total
+    - employer_cost
+    filter: {}
+    allow_aggregations: true

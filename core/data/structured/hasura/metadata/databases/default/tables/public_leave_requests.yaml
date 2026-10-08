@@ -1,0 +1,76 @@
+table:
+  name: leave_requests
+  schema: public
+object_relationships:
+- name: employee
+  using:
+    foreign_key_constraint_on: employee_id
+- name: approver
+  using:
+    foreign_key_constraint_on: approver_id
+select_permissions:
+- role: employee
+  permission:
+    columns:
+    - id
+    - employee_id
+    - leave_type
+    - start_date
+    - end_date
+    - days
+    - reason
+    - status
+    - approver_id
+    - decision_note
+    - decided_at
+    - created_at
+    - updated_at
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: manager
+  permission:
+    columns:
+    - id
+    - employee_id
+    - leave_type
+    - start_date
+    - end_date
+    - days
+    - reason
+    - status
+    - approver_id
+    - decision_note
+    - decided_at
+    - created_at
+    - updated_at
+    filter:
+      _or:
+      - employee:
+          user_id:
+            _eq: X-Hasura-User-Id
+      - employee:
+          manager:
+            user_id:
+              _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns:
+    - id
+    - employee_id
+    - leave_type
+    - start_date
+    - end_date
+    - days
+    - reason
+    - status
+    - approver_id
+    - decision_note
+    - decided_at
+    - created_at
+    - updated_at
+    filter: {}
+    allow_aggregations: true

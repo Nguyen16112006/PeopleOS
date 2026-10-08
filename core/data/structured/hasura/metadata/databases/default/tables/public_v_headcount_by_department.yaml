@@ -1,0 +1,13 @@
+table:
+  name: v_headcount_by_department
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns:
+    - department
+    - headcount
+    - avg_base_salary
+    - total_base_salary
+    filter: {}
+    allow_aggregations: true

@@ -1,0 +1,13 @@
+table:
+  name: v_leave_summary
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns:
+    - leave_type
+    - status
+    - requests
+    - days
+    filter: {}
+    allow_aggregations: true

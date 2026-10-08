@@ -1,0 +1,13 @@
+DROP VIEW IF EXISTS v_kpi_summary, v_contracts_expiring, v_leave_summary, v_payroll_monthly, v_headcount_by_department;
+DROP TABLE IF EXISTS data_lineage, data_assets;
+DROP TRIGGER IF EXISTS trg_audit_users ON users;
+DROP TRIGGER IF EXISTS trg_audit_employees ON employees;
+DROP TRIGGER IF EXISTS trg_audit_contracts ON contracts;
+DROP TRIGGER IF EXISTS trg_audit_payrolls ON payrolls;
+DROP TRIGGER IF EXISTS trg_audit_leave_requests ON leave_requests;
+DROP TRIGGER IF EXISTS trg_audit_salary_proposals ON salary_proposals;
+DROP TRIGGER IF EXISTS trg_audit_approval_steps ON approval_steps;
+DROP TRIGGER IF EXISTS trg_audit_no_update_delete ON audit_logs;
+DROP TRIGGER IF EXISTS trg_audit_no_truncate ON audit_logs;
+DROP TABLE IF EXISTS audit_logs;
+DROP FUNCTION IF EXISTS audit_row_change(), audit_block_change(), audit_chain_before_insert();

@@ -1,0 +1,147 @@
+table:
+  name: employees
+  schema: public
+object_relationships:
+- name: user
+  using:
+    foreign_key_constraint_on: user_id
+- name: manager
+  using:
+    foreign_key_constraint_on: manager_id
+array_relationships:
+- name: contracts
+  using:
+    foreign_key_constraint_on:
+      column: employee_id
+      table:
+        name: contracts
+        schema: public
+- name: payrolls
+  using:
+    foreign_key_constraint_on:
+      column: employee_id
+      table:
+        name: payrolls
+        schema: public
+- name: insurance_records
+  using:
+    foreign_key_constraint_on:
+      column: employee_id
+      table:
+        name: insurance_records
+        schema: public
+- name: leave_balances
+  using:
+    foreign_key_constraint_on:
+      column: employee_id
+      table:
+        name: leave_balances
+        schema: public
+- name: leave_requests
+  using:
+    foreign_key_constraint_on:
+      column: employee_id
+      table:
+        name: leave_requests
+        schema: public
+- name: onboarding_tasks
+  using:
+    foreign_key_constraint_on:
+      column: employee_id
+      table:
+        name: onboarding_tasks
+        schema: public
+- name: reports
+  using:
+    foreign_key_constraint_on:
+      column: manager_id
+      table:
+        name: employees
+        schema: public
+select_permissions:
+- role: employee
+  permission:
+    columns:
+    - id
+    - user_id
+    - employee_code
+    - full_name
+    - email
+    - phone
+    - date_of_birth
+    - gender
+    - address
+    - department
+    - job_title
+    - manager_id
+    - hire_date
+    - status
+    - tax_code
+    - social_insurance_no
+    - health_insurance_no
+    - dependents
+    - region
+    - created_at
+    - updated_at
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: manager
+  permission:
+    columns:
+    - id
+    - user_id
+    - employee_code
+    - full_name
+    - email
+    - phone
+    - date_of_birth
+    - gender
+    - address
+    - department
+    - job_title
+    - manager_id
+    - hire_date
+    - status
+    - tax_code
+    - social_insurance_no
+    - health_insurance_no
+    - dependents
+    - region
+    - created_at
+    - updated_at
+    filter:
+      _or:
+      - user_id:
+          _eq: X-Hasura-User-Id
+      - manager:
+          user_id:
+            _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns:
+    - id
+    - user_id
+    - employee_code
+    - full_name
+    - email
+    - phone
+    - date_of_birth
+    - gender
+    - address
+    - department
+    - job_title
+    - manager_id
+    - hire_date
+    - status
+    - tax_code
+    - social_insurance_no
+    - health_insurance_no
+    - dependents
+    - region
+    - created_at
+    - updated_at
+    filter: {}
+    allow_aggregations: true
