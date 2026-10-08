@@ -1,0 +1,10 @@
+# Apache APISIX chạy chế độ standalone (không cần etcd): cấu hình route đọc từ apisix.yaml
+apisix:
+  node_listen: 9080
+  enable_ipv6: false
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+nginx_config:
+  error_log_level: warn
