@@ -1,0 +1,17 @@
+table:
+  name: data_assets
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    filter: {}
+    allow_aggregations: true

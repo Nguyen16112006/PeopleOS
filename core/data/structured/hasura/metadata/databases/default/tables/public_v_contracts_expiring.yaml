@@ -1,0 +1,16 @@
+table:
+  name: v_contracts_expiring
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns:
+    - id
+    - contract_no
+    - full_name
+    - department
+    - contract_type
+    - end_date
+    - days_left
+    filter: {}
+    allow_aggregations: true

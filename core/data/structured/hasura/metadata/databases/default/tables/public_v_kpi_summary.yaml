@@ -1,0 +1,21 @@
+table:
+  name: v_kpi_summary
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns:
+    - headcount
+    - onboarding_count
+    - active_contracts
+    - avg_base_salary
+    - pending_leave
+    - pending_proposals
+    - expiring_contracts
+    - latest_year
+    - latest_month
+    - latest_gross
+    - latest_net
+    - latest_employer_cost
+    filter: {}
+    allow_aggregations: true

@@ -1,0 +1,52 @@
+table:
+  name: leave_balances
+  schema: public
+object_relationships:
+- name: employee
+  using:
+    foreign_key_constraint_on: employee_id
+select_permissions:
+- role: employee
+  permission:
+    columns:
+    - id
+    - employee_id
+    - year
+    - entitled_days
+    - used_days
+    - sick_days_used
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: manager
+  permission:
+    columns:
+    - id
+    - employee_id
+    - year
+    - entitled_days
+    - used_days
+    - sick_days_used
+    filter:
+      _or:
+      - employee:
+          user_id:
+            _eq: X-Hasura-User-Id
+      - employee:
+          manager:
+            user_id:
+              _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns:
+    - id
+    - employee_id
+    - year
+    - entitled_days
+    - used_days
+    - sick_days_used
+    filter: {}
+    allow_aggregations: true

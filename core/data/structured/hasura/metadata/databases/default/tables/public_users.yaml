@@ -1,0 +1,44 @@
+table:
+  name: users
+  schema: public
+select_permissions:
+- role: employee
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter:
+      id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: manager
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter:
+      id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter: {}
+    allow_aggregations: true

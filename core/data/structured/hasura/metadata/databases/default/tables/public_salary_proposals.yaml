@@ -1,0 +1,54 @@
+table:
+  name: salary_proposals
+  schema: public
+object_relationships:
+- name: employee
+  using:
+    foreign_key_constraint_on: employee_id
+- name: proposer
+  using:
+    foreign_key_constraint_on: proposer_id
+array_relationships:
+- name: approval_steps
+  using:
+    foreign_key_constraint_on:
+      column: proposal_id
+      table:
+        name: approval_steps
+        schema: public
+select_permissions:
+- role: manager
+  permission:
+    columns:
+    - id
+    - employee_id
+    - proposer_id
+    - proposal_type
+    - current_amount
+    - proposed_amount
+    - reason
+    - effective_date
+    - status
+    - created_at
+    - updated_at
+    filter:
+      proposer:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns:
+    - id
+    - employee_id
+    - proposer_id
+    - proposal_type
+    - current_amount
+    - proposed_amount
+    - reason
+    - effective_date
+    - status
+    - created_at
+    - updated_at
+    filter: {}
+    allow_aggregations: true
