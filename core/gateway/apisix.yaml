@@ -1,0 +1,96 @@
+# =====================================================================
+# Định tuyến API Gateway của PeopleOS (APISIX standalone)
+# - Mọi route nghiệp vụ đều bắt buộc Bearer JWT do Keycloak phát hành
+#   (plugin openid-connect, bearer_only, kiểm chữ ký bằng JWKS).
+# - /api/internal/* bị chặn ở gateway (chỉ n8n gọi trực tiếp trong mạng Docker).
+# - Nếu truy cập frontend từ origin khác http://localhost:3000, sửa allow_origins.
+# =====================================================================
+plugin_configs:
+  - id: secured
+    plugins:
+      cors:
+        allow_origins: "http://localhost:3000"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        allow_headers: "Authorization,Content-Type,x-hasura-role"
+        expose_headers: "Content-Disposition"
+        max_age: 3600
+      openid-connect:
+        client_id: people-workspace
+        client_secret: not-used-in-bearer-only-mode
+        discovery: http://keycloak:8080/realms/peopleos/.well-known/openid-configuration
+        bearer_only: true
+        use_jwks: true
+        realm: peopleos
+        scope: openid
+        token_signing_alg_values_expected: RS256
+
+routes:
+  # --- Chặn API nội bộ ----------------------------------------------
+  - id: block-internal
+    uri: /api/internal/*
+    priority: 100
+    plugins:
+      fault-injection:
+        abort:
+          http_status: 404
+          body: "Not Found"
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+
+  # --- Dữ liệu cấu trúc: GraphQL (Hasura) -----------------------------
+  - id: graphql
+    uri: /graphql
+    methods: [GET, POST, OPTIONS]
+    plugin_config_id: secured
+    plugins:
+      proxy-rewrite:
+        uri: /v1/graphql
+    upstream:
+      type: roundrobin
+      nodes:
+        "hasura:8080": 1
+
+  # --- BFF của People Workspace -----------------------------------------
+  - id: bff-api
+    uri: /api/*
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    plugin_config_id: secured
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
+
+  # --- AI Assistant (RAG) -----------------------------------------------
+  - id: ai
+    uri: /ai/*
+    methods: [GET, POST, OPTIONS]
+    plugin_config_id: secured
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/ai/(.*)", "/$1"]
+    upstream:
+      type: roundrobin
+      nodes:
+        "rag-service:8001": 1
+      timeout:
+        connect: 5
+        send: 120
+        read: 120
+
+  # --- WebSocket realtime ---------------------------------------------
+  # Trình duyệt không gửi được header Authorization khi mở WebSocket,
+  # nên token được truyền qua query ?token=... và BFF xác thực chữ ký JWT.
+  - id: realtime
+    uri: /ws
+    enable_websocket: true
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+#END

@@ -1,0 +1,165 @@
+{
+  "realm": "peopleos",
+  "enabled": true,
+  "displayName": "PeopleOS",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 36000,
+  "ssoSessionMaxLifespan": 72000,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Quản trị hệ thống / Giám đốc - duyệt cấp cuối"
+      },
+      {
+        "name": "hr",
+        "description": "Nhân sự - quản lý hồ sơ, hợp đồng, lương, duyệt cấp 1"
+      },
+      {
+        "name": "manager",
+        "description": "Quản lý - duyệt nghỉ phép nhóm, đề xuất tăng lương"
+      },
+      {
+        "name": "employee",
+        "description": "Nhân viên - cổng tự phục vụ"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "people-workspace",
+      "name": "People Workspace",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@peopleos.local",
+      "firstName": "Nguyễn Văn",
+      "lastName": "An",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Peopleos@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin",
+        "employee"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "username": "hr",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "hr@peopleos.local",
+      "firstName": "Trần Thị",
+      "lastName": "Bình",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Peopleos@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "hr",
+        "employee"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "username": "manager",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "manager@peopleos.local",
+      "firstName": "Lê Minh",
+      "lastName": "Cường",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Peopleos@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "manager",
+        "employee"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "username": "employee",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "employee@peopleos.local",
+      "firstName": "Phạm Thu",
+      "lastName": "Dung",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Peopleos@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "employee"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "username": "employee2",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "employee2@peopleos.local",
+      "firstName": "Hoàng Văn",
+      "lastName": "Em",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Peopleos@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "employee"
+      ]
+    }
+  ]
+}
