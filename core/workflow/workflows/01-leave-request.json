@@ -1,0 +1,93 @@
+{
+  "id": "956a6bf0-e4a8-5113-a9d6-534bb19c7ec5",
+  "name": "PeopleOS - Nghỉ phép: gửi đơn",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leave-request",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "b88c8353-632e-5d7b-88f2-96170ed7b210",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "c9ef09b5-d180-5920-9e30-de06e42fb043"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Payload từ BFF: { request_id, employee_name, employee_user_id, manager_user_id, leave_type, start_date, end_date, days }\nconst b = $input.first().json.body;\nconst items = [];\n// Người duyệt: quản lý trực tiếp, nếu chưa có tài khoản thì chuyển cho HR\nconst target = b.manager_user_id ? { user_id: b.manager_user_id } : { role: 'hr' };\nitems.push({ json: { ...target, title: 'Đơn nghỉ phép chờ duyệt',\n  message: `${b.employee_name} xin nghỉ ${b.days} ngày (${b.start_date} → ${b.end_date}).`,\n  ref_type: 'leave_request', ref_id: b.request_id, kind: 'leave.pending' } });\nif (b.employee_user_id) items.push({ json: { user_id: b.employee_user_id, title: 'Đã gửi đơn nghỉ phép',\n  message: 'Đơn của bạn đang chờ quản lý duyệt.', ref_type: 'leave_request', ref_id: b.request_id, kind: 'leave.submitted' } });\nreturn items;"
+      },
+      "id": "2038dac4-9638-5899-a203-7136c3e1afa4",
+      "name": "Soan thong bao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BFF_URL }}/api/internal/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-key",
+              "value": "={{ $env.INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "b3fa8202-c47d-5142-a749-60df6e4c07dc",
+      "name": "Gui thong bao (BFF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Soan thong bao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Soan thong bao": {
+      "main": [
+        [
+          {
+            "node": "Gui thong bao (BFF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

@@ -1,0 +1,93 @@
+{
+  "id": "c63b35b7-a2bb-594b-a3c5-7bbbbcfa9b5e",
+  "name": "PeopleOS - Đề xuất tăng lương: duyệt nhiều cấp",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "salary-proposal",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "ca9c8365-31f0-59ea-99d0-11b4472365ea",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "28039256-0e41-5f57-895b-743cc23dbe59"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Payload: { event: 'created'|'step_approved'|'approved'|'rejected', proposal_id, employee_name, proposer_user_id,\n//            proposal_type, current_amount, proposed_amount, next_role, actor_name, actor_role, comment }\nconst b = $input.first().json.body;\nconst vnd = n => Number(n).toLocaleString('vi-VN') + ' đ';\nconst what = b.proposal_type === 'raise' ? 'lương cơ bản' : 'phụ cấp';\nconst delta = `${b.employee_name}: ${what} ${vnd(b.current_amount)} → ${vnd(b.proposed_amount)}`;\nconst base = { ref_type: 'salary_proposal', ref_id: b.proposal_id };\nconst items = [];\nif (b.event === 'created') {\n  items.push({ json: { ...base, role: 'hr', title: 'Đề xuất tăng lương chờ HR duyệt', message: delta, kind: 'proposal.pending_hr' } });\n} else if (b.event === 'step_approved') {\n  items.push({ json: { ...base, role: b.next_role, title: 'Đề xuất tăng lương chờ bạn duyệt', message: delta, kind: 'proposal.pending_' + b.next_role } });\n  if (b.proposer_user_id) items.push({ json: { ...base, user_id: b.proposer_user_id, title: 'Đề xuất đã qua cấp ' + b.actor_role.toUpperCase(),\n    message: `${b.actor_name} đã duyệt. ${delta}`, kind: 'proposal.step_approved' } });\n} else if (b.event === 'approved') {\n  if (b.proposer_user_id) items.push({ json: { ...base, user_id: b.proposer_user_id, title: 'Đề xuất tăng lương đã được duyệt hoàn tất', message: delta, kind: 'proposal.approved' } });\n  items.push({ json: { ...base, role: 'hr', title: 'Điều chỉnh lương đã được áp dụng vào hợp đồng', message: delta, kind: 'proposal.applied' } });\n} else if (b.event === 'rejected') {\n  if (b.proposer_user_id) items.push({ json: { ...base, user_id: b.proposer_user_id, title: 'Đề xuất tăng lương bị từ chối',\n    message: `${b.actor_name} (${b.actor_role}) từ chối. ${delta}` + (b.comment ? ` Lý do: ${b.comment}` : ''), kind: 'proposal.rejected' } });\n}\nreturn items;"
+      },
+      "id": "0cbaf2ff-05c9-59d0-a159-57de4d10e537",
+      "name": "Dinh tuyen theo cap duyet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BFF_URL }}/api/internal/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-key",
+              "value": "={{ $env.INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "b3fa8202-c47d-5142-a749-60df6e4c07dc",
+      "name": "Gui thong bao (BFF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Dinh tuyen theo cap duyet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dinh tuyen theo cap duyet": {
+      "main": [
+        [
+          {
+            "node": "Gui thong bao (BFF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}
