@@ -1,0 +1,93 @@
+{
+  "id": "3e3283e9-d08a-5bbe-b17a-69fc6b6eba0d",
+  "name": "PeopleOS - Nghỉ phép: kết quả duyệt",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leave-decision",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "8c4e16d8-1108-50f6-96ed-a2858f3ff393",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "2c5cea40-69b2-510d-9bbb-10adf9ba6b05"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Payload: { request_id, decision: 'approved'|'rejected', approver_name, employee_name, employee_user_id, start_date, end_date, days, note }\nconst b = $input.first().json.body;\nconst ok = b.decision === 'approved';\nconst items = [];\nif (b.employee_user_id) items.push({ json: { user_id: b.employee_user_id,\n  title: ok ? 'Đơn nghỉ phép đã được duyệt' : 'Đơn nghỉ phép bị từ chối',\n  message: `${b.approver_name} ${ok ? 'đã duyệt' : 'đã từ chối'} đơn nghỉ ${b.days} ngày (${b.start_date} → ${b.end_date}).` + (b.note ? ` Ghi chú: ${b.note}` : ''),\n  ref_type: 'leave_request', ref_id: b.request_id, kind: ok ? 'leave.approved' : 'leave.rejected' } });\nif (ok) items.push({ json: { role: 'hr', title: 'Cập nhật chấm công nghỉ phép',\n  message: `${b.employee_name} nghỉ ${b.days} ngày (${b.start_date} → ${b.end_date}) đã được duyệt.`,\n  ref_type: 'leave_request', ref_id: b.request_id, kind: 'leave.hr_fyi' } });\nreturn items;"
+      },
+      "id": "2038dac4-9638-5899-a203-7136c3e1afa4",
+      "name": "Soan thong bao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BFF_URL }}/api/internal/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-key",
+              "value": "={{ $env.INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "b3fa8202-c47d-5142-a749-60df6e4c07dc",
+      "name": "Gui thong bao (BFF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Soan thong bao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Soan thong bao": {
+      "main": [
+        [
+          {
+            "node": "Gui thong bao (BFF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}

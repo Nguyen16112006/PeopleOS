@@ -1,0 +1,155 @@
+{
+  "id": "716a776d-1651-5eed-bca2-0c242058251c",
+  "name": "PeopleOS - Onboarding nhân viên mới",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "onboarding",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "9881f5a9-b8c6-51f6-9b47-568a04f787c6",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "2f88b285-822a-53b5-9606-6df0ee5d42d9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Payload: { employee_id, employee_name, employee_user_id, manager_user_id, hire_date, job_title }\nconst b = $input.first().json.body;\nconst add = (d) => { const x = new Date(b.hire_date); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };\nconst tasks = [\n  { title: 'Ký hợp đồng và nộp hồ sơ cá nhân', assignee_role: 'hr', due_date: add(0) },\n  { title: 'Tạo tài khoản email và SSO', assignee_role: 'hr', due_date: add(1) },\n  { title: 'Cấp laptop và thiết bị làm việc', assignee_role: 'hr', due_date: add(3) },\n  { title: 'Đăng ký BHXH, BHYT và mã số thuế', assignee_role: 'hr', due_date: add(14) },\n  { title: 'Phân công mentor và giới thiệu nhóm', assignee_role: 'manager', due_date: add(3) },\n  { title: 'Hoàn thành khóa nội quy và an toàn thông tin', assignee_role: 'employee', due_date: add(14) },\n];\nconst notifications = [\n  { role: 'hr', title: 'Nhân viên mới cần onboarding', message: `${b.employee_name} (${b.job_title}) bắt đầu ngày ${b.hire_date}. Checklist đã được tạo.`, ref_type: 'employee', ref_id: b.employee_id, kind: 'onboarding.started' },\n];\nif (b.manager_user_id) notifications.push({ user_id: b.manager_user_id, title: 'Nhân viên mới trong nhóm của bạn',\n  message: `${b.employee_name} sẽ bắt đầu ngày ${b.hire_date}. Vui lòng phân công mentor.`, ref_type: 'employee', ref_id: b.employee_id, kind: 'onboarding.manager' });\nif (b.employee_user_id) notifications.push({ user_id: b.employee_user_id, title: 'Chào mừng bạn đến với PeopleOS!',\n  message: 'Hãy hoàn thành checklist hội nhập trong 2 tuần đầu.', ref_type: 'employee', ref_id: b.employee_id, kind: 'onboarding.welcome' });\nreturn [{ json: { employee_id: b.employee_id, tasks, notifications } }];"
+      },
+      "id": "b3f0554b-22dd-59d0-960b-7fed8470739d",
+      "name": "Chuan bi checklist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BFF_URL }}/api/internal/onboarding-tasks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-key",
+              "value": "={{ $env.INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ employee_id: $json.employee_id, tasks: $json.tasks }) }}",
+        "options": {}
+      },
+      "id": "739b1b28-1328-51fc-b876-de39eb04f3ba",
+      "name": "Tao checklist (BFF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tách danh sách thông báo thành từng item để node HTTP gọi lần lượt\nconst list = $('Chuan bi checklist').first().json.notifications;\nreturn list.map(n => ({ json: n }));"
+      },
+      "id": "18206b5b-9995-5f1f-81e9-d31247aa4e48",
+      "name": "Tach thong bao",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BFF_URL }}/api/internal/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-internal-key",
+              "value": "={{ $env.INTERNAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "b3fa8202-c47d-5142-a749-60df6e4c07dc",
+      "name": "Gui thong bao (BFF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Chuan bi checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chuan bi checklist": {
+      "main": [
+        [
+          {
+            "node": "Tao checklist (BFF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tao checklist (BFF)": {
+      "main": [
+        [
+          {
+            "node": "Tach thong bao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tach thong bao": {
+      "main": [
+        [
+          {
+            "node": "Gui thong bao (BFF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}
