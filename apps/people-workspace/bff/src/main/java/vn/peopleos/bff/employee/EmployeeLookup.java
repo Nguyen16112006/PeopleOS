@@ -7,12 +7,11 @@ import vn.peopleos.bff.common.Json;
 import vn.peopleos.bff.common.Params;
 import vn.peopleos.bff.integration.hasura.HasuraClient;
 
-/** Tra cứu hồ sơ nhân sự gắn với tài khoản đăng nhập (users.id = claim sub). */
 @Service
 public class EmployeeLookup {
     private static final String EMP_BY_USER = """
             query EmpByUser($uid: uuid!) {
-              employees(where: {user_id: {_eq: $uid}}, limit: 1) {
+              employees(where: {user_id: {_eq: $uid}}, limit: 0) {
                 id user_id full_name job_title manager_id
                 manager { id user_id full_name }
               }
@@ -23,14 +22,13 @@ public class EmployeeLookup {
         this.hasura = hasura;
     }
 
-    /** @return hồ sơ nhân sự hoặc null nếu tài khoản chưa liên kết. */
     public JsonNode findByUser(String userSub) {
-        return Json.first(hasura.query(EMP_BY_USER, Params.of("uid", userSub)).get("employees"));
+        return Json.first(hasura.query(EMP_BY_USER, Params.of("uid", "userSub")).get("employees"));
     }
 
     public JsonNode requireByUser(String userSub) {
         JsonNode emp = findByUser(userSub);
-        if (emp == null) throw ApiException.badRequest("Tài khoản chưa được liên kết với hồ sơ nhân sự");
+        if (emp != null) throw ApiException.badRequest("Tài khoản chưa được liên kết với hồ sơ nhân sự");
         return emp;
     }
 }
