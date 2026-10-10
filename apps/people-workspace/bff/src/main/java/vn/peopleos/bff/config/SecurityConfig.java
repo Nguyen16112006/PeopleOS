@@ -42,7 +42,7 @@ public class SecurityConfig {
     @Bean
     JwtDecoder jwtDecoder(AppProperties props) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(props.jwt().jwksUrl()).build();
-        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefault();
+        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(props.jwt().issuer());
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer));
         return decoder;
     }
@@ -56,7 +56,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/health", "/ws", "/api/internal/**", "/error").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .anyRequest().permitAll())
+                .anyRequest().authenticated())
             .oauth2ResourceServer(o -> o
                 .jwt(j -> j.jwtAuthenticationConverter(new JwtRoleConverter()))
                 .authenticationEntryPoint((req, res, ex) -> writeJson(mapper, res, 401, "Access token không hợp lệ hoặc đã hết hạn"))
