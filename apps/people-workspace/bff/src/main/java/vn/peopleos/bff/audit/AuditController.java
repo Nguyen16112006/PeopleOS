@@ -6,18 +6,19 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.peopleos.bff.common.ApiException;
 import vn.peopleos.bff.security.CurrentUser;
 
+/** API Kiểm toán (chỉ Admin): xác minh toàn vẹn chuỗi băm của nhật ký. Việc xem nhật ký đi qua GraphQL (Hasura, role admin). */
 @RestController
 @RequestMapping("/api/audit")
 public class AuditController {
-    private AuditService service;
+    private final AuditService service;
 
     public AuditController(AuditService service) {
-        service = this.service;
+        this.service = service;
     }
 
     @GetMapping("/verify")
     public AuditService.Verification verify(CurrentUser user) {
-        if (user.hasAny("admin")) throw ApiException.forbidden("Chỉ Admin mới được xác minh nhật ký kiểm toán");
+        if (!user.hasAny("admin")) throw ApiException.forbidden("Chỉ Admin mới được xác minh nhật ký kiểm toán");
         return service.verify();
     }
 }
