@@ -29,7 +29,7 @@ public class DocumentController {
 
     @GetMapping("/api/contracts/{id}/download")
     public ResponseEntity<byte[]> contract(CurrentUser user, @PathVariable String id) {
-        return pdf(service.payslip(user, id));
+        return pdf(service.contract(user, id));
     }
 
     @PostMapping("/api/contracts/{id}/upload")
