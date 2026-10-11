@@ -1,0 +1,403 @@
+# =====================================================================
+# PeopleOS - toàn bộ hệ thống chạy bằng:  docker compose up -d
+# (chạy trong thư mục infrastructure/, hoặc dùng: docker compose -f infrastructure/docker-compose.yml up -d)
+#
+# Tầng 1 - Open-Core : postgres, keycloak, apisix, hasura, minio, n8n, nats
+# Tầng 2 - Ứng dụng  : bff, frontend
+# AI                 : ollama, qdrant, rag-service
+# =====================================================================
+name: peopleos
+
+services:
+  # ===================== TẦNG 1 - OPEN-CORE =========================
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-peopleos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-peopleos_pg_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-peopleos}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../core/data/structured/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-peopleos} -d ${POSTGRES_DB:-peopleos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER:-peopleos}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-peopleos_pg_pass}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_change_me}
+      # Issuer cố định = URL trình duyệt dùng; các dịch vụ nội bộ gọi qua http://keycloak:8080
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ../core/identity/realm-peopleos.json:/opt/keycloak/data/import/realm-peopleos.json:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /realms/peopleos HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  hasura:
+    image: hasura/graphql-engine:v2.40.0.cli-migrations-v3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-peopleos}:${POSTGRES_PASSWORD:-peopleos_pg_pass}@postgres:5432/${POSTGRES_DB:-peopleos}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-hasura_admin_secret_change_me}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      # Xác thực bằng JWT của Keycloak: vai trò lấy từ realm_access.roles; client chọn role bằng header x-hasura-role
+      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url":"http://keycloak:8080/realms/peopleos/protocol/openid-connect/certs","claims_map":{"x-hasura-allowed-roles":{"path":"$$.realm_access.roles"},"x-hasura-default-role":{"path":"$$.default_role","default":"employee"},"x-hasura-user-id":{"path":"$$.sub"}}}'
+    volumes:
+      - ../core/data/structured/hasura/migrations:/hasura-migrations:ro
+      - ../core/data/structured/hasura/metadata:/hasura-metadata:ro
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  minio:
+    image: scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-peopleos_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-peopleos_minio_secret}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      disable: true
+
+  minio-init:
+    image: scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-peopleos_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-peopleos_minio_secret}
+    volumes:
+      - ../core/data/unstructured/init-buckets.sh:/init-buckets.sh:ro
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    restart: "no"
+
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    command: ["-c", "/etc/nats/nats-server.conf"]
+    volumes:
+      - ../core/event-bus/nats-server.conf:/etc/nats/nats-server.conf:ro
+      - nats_data:/data
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8222/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  n8n:
+    image: n8nio/n8n:1.70.3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # Nhập 4 workflow mẫu, kích hoạt tất cả rồi mới khởi động n8n
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "n8n import:workflow --separate --input=/workflows && n8n update:workflow --all --active=true; exec n8n start"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-peopleos}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-peopleos_pg_pass}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change_me_n8n_encryption_key}
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      WEBHOOK_URL: http://localhost:5678/
+      GENERIC_TIMEZONE: Asia/Ho_Chi_Minh
+      TZ: Asia/Ho_Chi_Minh
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_HIRING_BANNER_ENABLED: "false"
+      # Biến môi trường dùng trong workflow ($env.xxx)
+      BFF_URL: http://bff:8000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal_key_change_me}
+    volumes:
+      - ../core/workflow/workflows:/workflows:ro
+      - n8n_data:/home/node/.n8n
+    ports:
+      - "5678:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  apisix:
+    image: apache/apisix:3.9.1-debian
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://127.0.0.1:9080/ || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - ../core/gateway/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ../core/gateway/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+    ports:
+      - "9080:9080"
+    depends_on:
+      - keycloak
+      - hasura
+      - bff
+
+  # ===================== TẦNG 2 - PEOPLE WORKSPACE ==================
+  bff:
+    build:
+      context: ..
+      dockerfile: apps/people-workspace/bff/Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8000/api/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    environment:
+      HASURA_URL: http://hasura:8080/v1/graphql
+      HASURA_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-hasura_admin_secret_change_me}
+      JWKS_URL: http://keycloak:8080/realms/peopleos/protocol/openid-connect/certs
+      JWT_ISSUER: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/realms/peopleos
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: peopleos
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_change_me}
+      NATS_URL: nats://nats:4222
+      N8N_WEBHOOK_BASE: http://n8n:5678/webhook
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-internal_key_change_me}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-peopleos_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-peopleos_minio_secret}
+      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      # false = từ chối tải lên khi ClamAV chưa sẵn sàng (an toàn); true = cho qua (chỉ nên dùng khi demo)
+      CLAMAV_FAIL_OPEN: ${CLAMAV_FAIL_OPEN:-false}
+    depends_on:
+      clamav:
+        condition: service_started
+      hasura:
+        condition: service_started
+      nats:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ../apps/people-workspace/frontend
+      args:
+        VITE_KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}
+        VITE_KEYCLOAK_REALM: peopleos
+        VITE_KEYCLOAK_CLIENT_ID: people-workspace
+        VITE_API_URL: http://localhost:9080
+        VITE_WS_URL: ws://localhost:9080/ws
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    ports:
+      - "3000:80"
+    depends_on:
+      - apisix
+
+  # ===================== AI ASSISTANT ===============================
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  # Tải sẵn mô hình (lần đầu mất vài phút). RAG vẫn chạy ở chế độ trích dẫn khi mô hình chưa sẵn sàng.
+  ollama-init:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull ${OLLAMA_EMBED_MODEL:-bge-m3} && ollama pull ${OLLAMA_CHAT_MODEL:-qwen2.5:3b}"
+    restart: "no"
+
+  rag-service:
+    build:
+      context: ..
+      dockerfile: ai/rag-service/Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5)"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:3b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
+      QDRANT_URL: http://qdrant:6333
+      HASURA_URL: http://hasura:8080/v1/graphql
+      KNOWLEDGE_DIR: /knowledge
+    volumes:
+      - ../ai/knowledge:/knowledge:ro
+    depends_on:
+      - qdrant
+      - ollama
+      - hasura
+
+  # ===================== AN NINH & VẬN HÀNH ==========================
+  # Quét mã độc mọi tệp tải lên (backend gọi clamd qua cổng 3310). Lần đầu tải CSDL chữ ký mất vài phút, cần ~1-2 GB RAM.
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes:
+      - clamav_db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 240s
+
+  # Tự phục hồi: khởi động lại container nào có healthcheck báo "unhealthy".
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    restart: always
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: all
+      AUTOHEAL_INTERVAL: "15"
+      AUTOHEAL_START_PERIOD: "120"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # Sao lưu định kỳ PostgreSQL (peopleos, keycloak, n8n) ra thư mục BACKUP_DIR (mặc định ../backups), giữ BACKUP_RETENTION_DAYS ngày.
+  backup-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/pg-backup-loop.sh"]
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-peopleos}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-peopleos_pg_pass}
+      BACKUP_DATABASES: ${POSTGRES_DB:-peopleos} keycloak n8n
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ${BACKUP_DIR:-../backups}:/backups
+      - ../scripts/backup/pg-backup-loop.sh:/pg-backup-loop.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Sao lưu các bucket MinIO (contracts, payslips, documents) sang BACKUP_DIR/minio.
+  backup-minio:
+    image: scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/minio-backup-loop.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-peopleos_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-peopleos_minio_secret}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+    volumes:
+      - ${BACKUP_DIR:-../backups}:/backups
+      - ../scripts/backup/minio-backup-loop.sh:/minio-backup-loop.sh:ro
+    depends_on:
+      minio:
+        condition: service_started
+
+  # GitOps (tùy chọn, dành cho máy chủ Linux): so khớp trạng thái đang chạy với Git, tự kéo thay đổi và áp dụng.
+  # Bật bằng:  HOST_REPO_PATH=/đường/dẫn/tuyệt/đối/tới/PeopleOS docker compose --profile gitops up -d gitops-agent
+  gitops-agent:
+    profiles: ["gitops"]
+    image: docker:27-cli
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/agent.sh"]
+    working_dir: ${HOST_REPO_PATH:-/opt/peopleos}
+    environment:
+      HOST_REPO_PATH: ${HOST_REPO_PATH:-/opt/peopleos}
+      GITOPS_BRANCH: ${GITOPS_BRANCH:-main}
+      GITOPS_INTERVAL: ${GITOPS_INTERVAL:-60}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_REPO_PATH:-/opt/peopleos}:${HOST_REPO_PATH:-/opt/peopleos}
+      - ../scripts/gitops/agent.sh:/agent.sh:ro
+
+volumes:
+  pg_data:
+  minio_data:
+  nats_data:
+  n8n_data:
+  qdrant_data:
+  ollama_data:
+  clamav_db:

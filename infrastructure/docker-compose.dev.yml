@@ -1,0 +1,25 @@
+# Override cho phát triển: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# - Mở cổng trực tiếp của backend Java (8000) và RAG (8001) để debug
+# - Hot reload cho RAG (mount mã nguồn)
+# - Frontend: chạy `npm run dev` ở máy host (cổng 5173) thay vì build nginx
+services:
+  # Backend Java: mở cổng 8000 (Swagger UI: http://localhost:8000/swagger-ui.html) và bật CORS cho frontend dev.
+  # Sửa mã Java thì build lại: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build bff
+  bff:
+    environment:
+      ENABLE_CORS: "true"
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "8000:8000"
+
+  rag-service:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    volumes:
+      - ../ai/rag-service/app:/app/app
+      - ../core/shared/python:/opt/shared
+      - ../ai/knowledge:/knowledge:ro
+    ports:
+      - "8001:8001"
+
+  frontend:
+    profiles: ["prod-only"]
