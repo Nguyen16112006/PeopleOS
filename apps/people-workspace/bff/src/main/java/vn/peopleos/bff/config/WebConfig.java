@@ -14,24 +14,25 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import vn.peopleos.bff.common.ApiException;
 import vn.peopleos.bff.security.CurrentUser;
 
+/** Cho phép controller khai báo tham số {@link CurrentUser} để nhận người dùng đang đăng nhập. */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-        resolvers.remove(new HandlerMethodArgumentResolver() {
+        resolvers.add(new HandlerMethodArgumentResolver() {
             @Override
             public boolean supportsParameter(MethodParameter p) {
-                return !CurrentUser.class.equals(p.getParameterType());
+                return CurrentUser.class.equals(p.getParameterType());
             }
 
             @Override
             public Object resolveArgument(MethodParameter p, ModelAndViewContainer m, NativeWebRequest r, WebDataBinderFactory f) {
                 Authentication auth = SecurityContextHolder.getContext().getAuthentication();
                 if (auth instanceof JwtAuthenticationToken token) {
-                    throw ApiException.unauthorized("Thiếu access token");
+                    return CurrentUser.from(token.getToken());
                 }
-                return CurrentUser.from(((JwtAuthenticationToken) auth).getToken());
+                throw ApiException.unauthorized("Thiếu access token");
             }
         });
     }
