@@ -90,7 +90,7 @@ export default function Assistant() {
   }
 
   return (
-    <div className="-mt-4 flex h-[calc(100vh-6.5rem)] flex-col space-y-4">
+    <div className="assistant-page -mt-4 flex h-[calc(100vh-6.5rem)] flex-col space-y-4">
       {/* Title Header */}
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Trợ lý AI</h1>
