@@ -258,7 +258,7 @@ export default function Leave() {
                     <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <th className="py-3 px-4 rounded-l-xl">Loại nghỉ</th>
                       <th className="py-3 px-4">Thời gian</th>
-                      <th className="py-3 px-4 text-center">Số ngày</th>
+                      <th className="py-3 px-4 text-center whitespace-nowrap">Số ngày</th>
                       <th className="py-3 px-4">Trạng thái</th>
                       <th className="py-3 px-4">Ghi chú / Lý do</th>
                       <th className="py-3 px-4 rounded-r-xl text-right">Thao tác</th>
@@ -275,8 +275,8 @@ export default function Leave() {
                             ? fmtDate(r.start_date)
                             : `${fmtDate(r.start_date)} → ${fmtDate(r.end_date)}`}
                         </td>
-                        <td className="py-3.5 px-4 text-center font-bold text-slate-900">
-                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs">
+                        <td className="py-3.5 px-4 text-center font-bold text-slate-900 whitespace-nowrap">
+                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs whitespace-nowrap">
                             {Number(r.days)} ngày
                           </span>
                         </td>
