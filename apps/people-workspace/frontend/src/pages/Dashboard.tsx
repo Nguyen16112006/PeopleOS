@@ -148,12 +148,12 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="flex items-center justify-between pt-2 pb-2">
+      <div className="flex items-start justify-between -mt-4 pb-0">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
             Xin chào, {user.name} 👋
           </h1>
-          <p className="mt-2 text-base font-medium text-slate-500">
+          <p className="mt-1 text-base font-medium text-slate-500">
             {me ? `${me.job_title} · ${me.department}` : 'Tài khoản chưa liên kết hồ sơ nhân sự'}
           </p>
         </div>

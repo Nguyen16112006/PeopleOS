@@ -175,7 +175,7 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <header className="flex items-center justify-end gap-6 px-8 py-4">
+        <header className="flex items-center justify-end gap-5 px-8 pt-2.5 pb-1">
           <Bell_ />
 
           {/* User profile widget */}
@@ -203,7 +203,7 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="mx-auto w-full max-w-7xl flex-1 px-8 py-4 pb-12">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-8 pt-0 pb-12">
           <Outlet />
         </main>
       </div>
