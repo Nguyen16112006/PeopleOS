@@ -170,6 +170,13 @@ export default function Layout() {
       <div className="app-main flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header className="app-topbar flex items-center justify-end gap-5 px-8 pt-2.5 pb-1">
+          <div className="app-topbar-context">
+            <span className="app-topbar-context-mark" aria-hidden="true" />
+            <div>
+              <p className="app-topbar-context-title">People Workspace</p>
+              <p className="app-topbar-context-caption">Không gian làm việc nhân sự</p>
+            </div>
+          </div>
           <div className="app-mobile-brand flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2563EB] text-white">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -181,30 +188,34 @@ export default function Layout() {
             </div>
             <span className="text-sm font-bold tracking-tight">PeopleOS</span>
           </div>
-          <Bell_ />
 
-          {/* User profile widget */}
-          <div className="flex items-center gap-2.5 cursor-pointer select-none">
-            <UserAvatar name={user.name} />
-            <div className="text-left leading-tight">
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-semibold text-slate-800">{user.name}</span>
-                <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+          <div className="app-topbar-actions">
+            <Bell_ />
+            <span className="app-topbar-divider" aria-hidden="true" />
+
+            {/* User profile widget */}
+            <div className="app-user-summary flex items-center gap-2.5 select-none">
+              <UserAvatar name={user.name} />
+              <div className="text-left leading-tight">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-slate-800">{user.name}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                </div>
+                <span className="text-xs font-medium text-slate-500">
+                  {ROLE_LABEL[user.role] ?? user.role}
+                </span>
               </div>
-              <span className="text-xs font-medium text-slate-500">
-                {ROLE_LABEL[user.role] ?? user.role}
-              </span>
             </div>
-          </div>
 
-          {/* Logout button */}
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors"
-          >
-            <LogOut className="h-4 w-4 text-slate-600" />
-            <span>Đăng xuất</span>
-          </button>
+            {/* Logout button */}
+            <button
+              onClick={logout}
+              className="app-logout flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            >
+              <LogOut className="h-4 w-4 text-slate-600" />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
         </header>
 
         <nav className="app-mobile-nav" aria-label="Điều hướng chính">

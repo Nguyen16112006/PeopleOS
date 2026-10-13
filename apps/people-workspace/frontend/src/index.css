@@ -120,11 +120,80 @@
 
 .app-topbar {
   min-height: 66px;
-  justify-content: flex-end;
-  gap: 20px;
+  justify-content: space-between;
+  gap: 24px;
   padding: 10px 32px;
   border-bottom: 1px solid #e2e7e8;
   background: #fff;
+}
+
+.app-topbar-context {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-right: auto;
+}
+
+.app-topbar-context-mark {
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: #287185;
+}
+
+.app-topbar-context-title {
+  color: #263f49;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.app-topbar-context-caption {
+  margin-top: 2px;
+  color: #78878c;
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-topbar-divider {
+  width: 1px;
+  height: 30px;
+  background: #e3e8e9;
+}
+
+.app-user-summary {
+  min-height: 40px;
+}
+
+.app-topbar-actions > .relative > button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #52666e;
+}
+
+.app-topbar-actions > .relative > button:hover {
+  border-color: #e1e8e9;
+  background: #f4f7f7;
+}
+
+.app-logout {
+  min-height: 38px;
+  border-color: #dce4e6;
+  border-radius: 7px;
+  padding-inline: 12px;
+  box-shadow: none;
+}
+
+.app-logout:hover {
+  border-color: #bdced1;
+  background: #f5f8f8;
 }
 
 .app-mobile-brand,
@@ -290,8 +359,14 @@
     top: 0;
     min-height: 58px;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
     padding: 8px 14px;
+  }
+
+  .app-topbar-context,
+  .app-user-summary,
+  .app-topbar-divider {
+    display: none;
   }
 
   .app-mobile-brand {
@@ -299,21 +374,17 @@
     min-width: 0;
   }
 
-  .app-topbar > .relative {
+  .app-topbar-actions {
+    gap: 8px;
     margin-left: auto;
   }
 
-  .app-topbar > div:nth-last-child(2) {
-    display: none;
-  }
-
-  .app-topbar button:last-child {
+  .app-logout {
     min-height: 36px;
-    padding: 7px 9px;
-    font-size: 0;
+    padding: 7px 10px;
   }
 
-  .app-topbar button:last-child svg {
+  .app-logout svg {
     width: 17px;
     height: 17px;
   }
@@ -380,7 +451,7 @@
 }
 
 @media (max-width: 480px) {
-  .app-topbar > button:last-child span {
+  .app-logout span {
     display: none;
   }
 
