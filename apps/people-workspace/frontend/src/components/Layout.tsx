@@ -19,7 +19,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { useRealtime } from '@/hooks/realtime'
@@ -102,14 +102,34 @@ function UserAvatar({ name }: { name?: string }) {
 export default function Layout() {
   const { user, logout, hasRole } = useAuth()
   const { connected } = useRealtime()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!userMenuOpen) return
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) setUserMenuOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setUserMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [userMenuOpen])
 
   return (
-    <div className="flex min-h-screen bg-[#F4F7FC]">
+    <div className="app-shell flex min-h-screen bg-[#F4F7FC]">
       {/* Sidebar */}
-      <aside className="relative hidden w-64 shrink-0 flex-col bg-[#071739] text-white md:flex overflow-hidden">
+      <aside className="app-sidebar relative hidden w-64 shrink-0 flex-col bg-[#071739] text-white md:flex overflow-hidden">
         {/* Logo / Brand */}
-        <div className="flex items-center gap-3 px-6 py-6 z-10">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563EB] shadow-md text-white">
+        <div className="app-brand flex items-center gap-3 px-6 py-6 z-10">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2563EB] shadow-md text-white">
             <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
               {/* Stylized PeopleOS 3-person silhouette */}
               <circle cx="12" cy="7" r="3" />
@@ -127,7 +147,7 @@ export default function Layout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1.5 px-3 py-2 z-10 overflow-y-auto">
+        <nav className="app-nav flex-1 space-y-1.5 px-3 py-2 z-10 overflow-y-auto">
           {NAV.filter((n) => !n.roles || hasRole(...n.roles)).map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -135,9 +155,9 @@ export default function Layout() {
               end={end}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3.5 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150',
+                  'app-nav-link flex items-center gap-3.5 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-150',
                   isActive
-                    ? 'bg-[#1D68F2] text-white shadow-sm font-semibold'
+                    ? 'app-nav-link-active bg-[#1D68F2] text-white shadow-sm font-semibold'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 )
               }
@@ -148,14 +168,8 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* Abstract decorative wave circles at bottom */}
-        <div className="pointer-events-none absolute -bottom-12 -left-12 h-64 w-64 overflow-hidden opacity-25">
-          <div className="absolute h-64 w-64 rounded-full border-[28px] border-blue-500/20" />
-          <div className="absolute -bottom-8 -left-8 h-48 w-48 rounded-full border-[18px] border-blue-400/30" />
-        </div>
-
         {/* Realtime Status Footer */}
-        <div className="relative z-10 border-t border-slate-800/80 px-6 py-4 text-xs">
+        <div className="app-realtime relative z-10 border-t border-slate-800/80 px-6 py-4 text-xs">
           <span className="flex items-center gap-2">
             {connected ? (
               <Wifi className="h-4 w-4 text-emerald-400" />
@@ -173,37 +187,94 @@ export default function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="app-main flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <header className="flex items-center justify-end gap-5 px-8 pt-2.5 pb-1">
-          <Bell_ />
-
-          {/* User profile widget */}
-          <div className="flex items-center gap-2.5 cursor-pointer select-none">
-            <UserAvatar name={user.name} />
-            <div className="text-left leading-tight">
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-semibold text-slate-800">{user.name}</span>
-                <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-              </div>
-              <span className="text-xs font-medium text-slate-500">
-                {ROLE_LABEL[user.role] ?? user.role}
-              </span>
+        <header className="app-topbar flex items-center justify-end gap-5 px-8 pt-2.5 pb-1">
+          <div className="app-topbar-context">
+            <span className="app-topbar-context-mark" aria-hidden="true" />
+            <div>
+              <p className="app-topbar-context-title">People Workspace</p>
+              <p className="app-topbar-context-caption">Không gian làm việc nhân sự</p>
             </div>
           </div>
+          <div className="app-mobile-brand flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#2563EB] text-white">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="7" r="3" />
+                <path d="M7 19v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2" />
+                <circle cx="5" cy="9" r="2.2" opacity="0.8" />
+                <circle cx="19" cy="9" r="2.2" opacity="0.8" />
+              </svg>
+            </div>
+            <span className="text-sm font-bold tracking-tight">PeopleOS</span>
+          </div>
 
-          {/* Logout button */}
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors"
-          >
-            <LogOut className="h-4 w-4 text-slate-600" />
-            <span>Đăng xuất</span>
-          </button>
+          <div className="app-topbar-actions">
+            <Bell_ />
+            <span className="app-topbar-divider" aria-hidden="true" />
+
+            <div className="app-user-menu relative" ref={userMenuRef}>
+              <button
+                type="button"
+                className="app-user-trigger flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-50"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                onClick={() => setUserMenuOpen((open) => !open)}
+              >
+                <UserAvatar name={user.name} />
+                <span className="app-user-summary text-left leading-tight">
+                  <span className="flex items-center gap-1">
+                    <span className="text-sm font-semibold text-slate-800">{user.name}</span>
+                    <ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 transition-transform', userMenuOpen && 'rotate-180')} />
+                  </span>
+                  <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                    {ROLE_LABEL[user.role] ?? user.role}
+                  </span>
+                </span>
+              </button>
+
+              {userMenuOpen && (
+                <div className="app-user-dropdown absolute right-0 top-full z-50 mt-2" role="menu">
+                  <div className="app-user-dropdown-heading">
+                    <span className="block truncate text-sm font-semibold text-slate-800">{user.name}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">{ROLE_LABEL[user.role] ?? user.role}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="app-user-logout flex w-full items-center gap-2.5 text-left text-sm font-medium transition-colors"
+                    onClick={() => {
+                      setUserMenuOpen(false)
+                      logout()
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
+        <nav className="app-mobile-nav" aria-label="Điều hướng chính">
+          {NAV.filter((n) => !n.roles || hasRole(...n.roles)).map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                cn('app-mobile-nav-link', isActive && 'app-mobile-nav-link-active')
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
         {/* Page Content */}
-        <main className="mx-auto w-full max-w-7xl flex-1 px-8 pt-0 pb-12">
+        <main className="app-content mx-auto w-full max-w-7xl flex-1 px-8 pt-0 pb-12">
           <Outlet />
         </main>
       </div>
