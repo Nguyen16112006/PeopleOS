@@ -9,12 +9,20 @@ import {
   User,
   Wallet,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Empty, ErrorBox, Loading } from '@/components/common'
 import { useMe } from '@/hooks/useMe'
 import { useQuery } from '@/hooks/useQuery'
 import { fmtDate, monthLabel, vnd } from '@/lib/format'
+
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) return 'Chào buổi sáng'
+  if (hour >= 12 && hour < 18) return 'Chào buổi chiều'
+  return 'Chào buổi tối'
+}
 
 const Q = `query Dash($uid: uuid!, $year: smallint!) {
   employees(where: {user_id: {_eq: $uid}}, limit: 1) { full_name job_title department hire_date }
@@ -137,6 +145,12 @@ export default function Dashboard() {
   const { user } = useAuth()
   const { data, loading, error } = useQuery<any>(Q, { uid: user.sub, year: new Date().getFullYear() })
   const meInfo = useMe()
+  const [greeting, setGreeting] = useState(getGreeting)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setGreeting(getGreeting()), 60_000)
+    return () => window.clearInterval(interval)
+  }, [])
 
   if (loading) return <Loading />
   if (error) return <ErrorBox message={error} />
@@ -151,7 +165,7 @@ export default function Dashboard() {
       <div className="flex items-start justify-between -mt-4 pb-0">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-            Xin chào, {user.name} 👋
+            {greeting}, {user.name} 👋
           </h1>
           <p className="mt-1 text-base font-medium text-slate-500">
             {me ? `${me.job_title} · ${me.department}` : 'Tài khoản chưa liên kết hồ sơ nhân sự'}
