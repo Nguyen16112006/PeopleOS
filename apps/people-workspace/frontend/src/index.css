@@ -168,32 +168,55 @@
   background: #e3e8e9;
 }
 
+.app-user-trigger {
+  min-height: 46px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.app-user-trigger:hover,
+.app-user-trigger[aria-expanded="true"] {
+  border-color: #e4eaeb;
+  background: #f7f9f9;
+}
+
 .app-user-summary {
   min-height: 40px;
 }
 
-.app-topbar-actions > .relative > button {
+.app-topbar-actions > .relative:not(.app-user-menu) > button {
   border: 1px solid transparent;
   border-radius: 8px;
   color: #52666e;
 }
 
-.app-topbar-actions > .relative > button:hover {
+.app-topbar-actions > .relative:not(.app-user-menu) > button:hover {
   border-color: #e1e8e9;
   background: #f4f7f7;
 }
 
-.app-logout {
-  min-height: 38px;
-  border-color: #dce4e6;
-  border-radius: 7px;
-  padding-inline: 12px;
-  box-shadow: none;
+.app-user-dropdown {
+  width: 224px;
+  overflow: hidden;
+  border: 1px solid #dce4e6;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgb(24 55 70 / 14%), 0 2px 6px rgb(24 55 70 / 6%);
 }
 
-.app-logout:hover {
-  border-color: #bdced1;
-  background: #f5f8f8;
+.app-user-dropdown-heading {
+  padding: 13px 15px 12px;
+  border-bottom: 1px solid #edf0f1;
+}
+
+.app-user-logout {
+  min-height: 44px;
+  padding: 0 15px;
+  color: #a33c38;
+}
+
+.app-user-logout:hover {
+  background: #fbf3f2;
 }
 
 .app-mobile-brand,
@@ -364,7 +387,6 @@
   }
 
   .app-topbar-context,
-  .app-user-summary,
   .app-topbar-divider {
     display: none;
   }
@@ -379,14 +401,18 @@
     margin-left: auto;
   }
 
-  .app-logout {
-    min-height: 36px;
-    padding: 7px 10px;
+  .app-user-trigger {
+    gap: 5px;
+    min-height: 40px;
+    padding: 3px;
   }
 
-  .app-logout svg {
-    width: 17px;
-    height: 17px;
+  .app-user-summary > span:first-child > span:first-child {
+    display: none;
+  }
+
+  .app-user-summary > span:last-child {
+    display: none;
   }
 
   .app-mobile-nav {
@@ -451,10 +477,6 @@
 }
 
 @media (max-width: 480px) {
-  .app-logout span {
-    display: none;
-  }
-
   .app-content {
     padding-inline: 12px;
   }

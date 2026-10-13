@@ -19,7 +19,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { useRealtime } from '@/hooks/realtime'
@@ -102,6 +102,26 @@ function UserAvatar({ name }: { name?: string }) {
 export default function Layout() {
   const { user, logout, hasRole } = useAuth()
   const { connected } = useRealtime()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!userMenuOpen) return
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) setUserMenuOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setUserMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [userMenuOpen])
 
   return (
     <div className="app-shell flex min-h-screen bg-[#F4F7FC]">
@@ -193,28 +213,47 @@ export default function Layout() {
             <Bell_ />
             <span className="app-topbar-divider" aria-hidden="true" />
 
-            {/* User profile widget */}
-            <div className="app-user-summary flex items-center gap-2.5 select-none">
-              <UserAvatar name={user.name} />
-              <div className="text-left leading-tight">
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-semibold text-slate-800">{user.name}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
-                </div>
-                <span className="text-xs font-medium text-slate-500">
-                  {ROLE_LABEL[user.role] ?? user.role}
+            <div className="app-user-menu relative" ref={userMenuRef}>
+              <button
+                type="button"
+                className="app-user-trigger flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-50"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                onClick={() => setUserMenuOpen((open) => !open)}
+              >
+                <UserAvatar name={user.name} />
+                <span className="app-user-summary text-left leading-tight">
+                  <span className="flex items-center gap-1">
+                    <span className="text-sm font-semibold text-slate-800">{user.name}</span>
+                    <ChevronDown className={cn('h-3.5 w-3.5 text-slate-500 transition-transform', userMenuOpen && 'rotate-180')} />
+                  </span>
+                  <span className="mt-0.5 block text-xs font-medium text-slate-500">
+                    {ROLE_LABEL[user.role] ?? user.role}
+                  </span>
                 </span>
-              </div>
-            </div>
+              </button>
 
-            {/* Logout button */}
-            <button
-              onClick={logout}
-              className="app-logout flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors"
-            >
-              <LogOut className="h-4 w-4 text-slate-600" />
-              <span>Đăng xuất</span>
-            </button>
+              {userMenuOpen && (
+                <div className="app-user-dropdown absolute right-0 top-full z-50 mt-2" role="menu">
+                  <div className="app-user-dropdown-heading">
+                    <span className="block truncate text-sm font-semibold text-slate-800">{user.name}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">{ROLE_LABEL[user.role] ?? user.role}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="app-user-logout flex w-full items-center gap-2.5 text-left text-sm font-medium transition-colors"
+                    onClick={() => {
+                      setUserMenuOpen(false)
+                      logout()
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
