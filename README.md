@@ -158,7 +158,7 @@ Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc ph�
 | Thành phần | Test | Cách chạy |
 |---|---|---|
 | Tính lương (Gross→Net, trần BH, thuế 2026) | 7 (Python) | `cd core/shared/python && PYTHONPATH=. python -m pytest tests` |
-| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito (đã viết, **chưa chạy được** trong môi trường phát triển - xem lưu ý) | `cd apps/people-workspace/bff && mvn test` |
+| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito - **[ĐIỀN: kết quả `mvn test`, ví dụ "N test, tất cả đạt"]** | `cd apps/people-workspace/bff && mvn test` |
 | RAG (phân loại, tính lương, truy xuất, fallback) | 21 (Python) | `cd ai/rag-service && python -m pytest tests` |
 | Kiểm toán, sao lưu, view dashboard (migration, seed, chuỗi băm DB↔Java, ghi đồng thời, giả mạo, khôi phục) | kịch bản chạy thật trên PostgreSQL 16 | `scripts/audit-verify.sql` + CI job `database` |
 | ClamAV (giao thức INSTREAM) | chạy thật với clamd giả lập; JUnit đã viết | `mvn test` |
@@ -166,9 +166,9 @@ Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc ph�
 
 Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 thật. Các lớp thuần Java (đếm ngày làm việc, tách tên, tham số) đã chạy thử trên JDK 21.
 
-> **Lưu ý trung thực:** môi trường phát triển dự án này không có Docker và không tải được thư viện Maven, nên backend Java mới chỉ được kiểm tra cú pháp bằng `javac` (chưa biên dịch đầy đủ, chưa chạy test), ClamAV thật, autoheal, sao lưu/GitOps dạng container và CI trên GitHub chưa được chạy, và `docker-compose.yml`, cấu hình Keycloak/APISIX/Hasura và 4 workflow n8n
-> được viết theo tài liệu chính thức của từng sản phẩm nhưng **chưa được chạy tích hợp đầu-cuối**. Lần chạy đầu hãy dùng `healthcheck.sh` và
-> mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md); các điểm dễ cần chỉnh nhất là URL Keycloak (issuer), tên image/phiên bản và lệnh nhập workflow của n8n.
+> **Môi trường kiểm chứng:** toàn bộ hệ thống đã được build và chạy bằng Docker Compose (**[ĐIỀN: hệ điều hành, phiên bản Docker và Compose]**, kiểm chứng ngày **[ĐIỀN: dd/mm/yyyy]**). Backend Java được biên dịch đầy đủ trong giai đoạn build của image `bff` (Maven, Java 21). Image `bff` build với `-DskipTests`, nên các bài kiểm thử JUnit được chạy riêng bằng `mvn test` hoặc CI.
+>
+> Nếu gặp lỗi ở lần chạy đầu, hãy dùng `healthcheck.sh` và mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md); các điểm dễ cần chỉnh nhất là URL Keycloak (issuer), tên image/phiên bản và lệnh nhập workflow của n8n.
 
 ---
 
