@@ -105,7 +105,7 @@ Bản sao lưu nằm ở `backups/` (đổi bằng `BACKUP_DIR`); chi tiết: [g
 | Thông báo realtime không tới | WebSocket bị chặn (proxy) hoặc NATS lỗi | Kiểm `GET /api/health` (trường `nats`), console trình duyệt tab Network → WS |
 | Trợ lý AI trả "đoạn trích" thay vì câu trả lời | Ollama đang tải mô hình | Chờ `ollama-init` kết thúc; kiểm `GET /ai/health` |
 | `ollama-init` lỗi tải mô hình | Không có Internet | Dùng `--no-ai` hoặc nạp mô hình thủ công: `docker compose exec ollama ollama pull bge-m3` |
-| Build `bff` lỗi ở bước Maven | Mất mạng hoặc lỗi biên dịch (backend Java chưa được biên dịch đầy đủ trong môi trường phát triển) | `docker compose build bff` và gửi log lỗi; kiểm tra mạng tới repo.maven.apache.org |
+| Build `bff` lỗi ở bước Maven | Mất mạng hoặc lỗi biên dịch | `docker compose build bff` và gửi log lỗi; kiểm tra mạng tới repo.maven.apache.org |
 | Tải hợp đồng lên báo 503 "quét mã độc chưa sẵn sàng" | ClamAV đang tải chữ ký lần đầu (vài phút) | Chờ `docker compose ps clamav` thành healthy; hoặc tạm đặt `CLAMAV_FAIL_OPEN=true` khi demo |
 | Workflow n8n không chạy | Chưa kích hoạt | Mở n8n, bật công tắc Active; hoặc `docker compose restart n8n` |
 

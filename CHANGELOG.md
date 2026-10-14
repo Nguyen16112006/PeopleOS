@@ -11,7 +11,7 @@
 - Tài liệu `docs/governance.md`.
 
 ### Fixed
-- Image MinIO chuyển sang `quay.io/minio/*` (Docker Hub không còn phát hành `minio/minio`).
+- Image MinIO dùng bản mirror `scnd/minio-mirror` (Docker Hub không còn phát hành `minio/minio`).
 
 ### Added
 - **Tầng 1 - Open-Core:** Keycloak (realm, 4 vai trò, 5 tài khoản demo), APISIX (JWT, CORS, chặn API nội bộ), PostgreSQL + Hasura (11 bảng, quyền theo vai trò),
@@ -19,4 +19,4 @@
 - **Tầng 2 - People Workspace:** frontend React 19 (10 trang), backend **Java 21 / Spring Boot 3** chia theo mục (nghỉ phép, đề xuất lương nhiều cấp, onboarding, PDF, realtime, tích hợp Hasura/MinIO/NATS/n8n/Keycloak).
 - **AI Assistant:** RAG trên Luật Lao động 2019, Luật BHXH 2024, thuế TNCN 2026, chính sách nội bộ; tính Gross↔Net; tra cứu dữ liệu theo quyền.
 - Tài liệu: architecture, api-reference, deployment, demo-script; scripts setup/init-db/seed-data; healthcheck.
-- Test: 7 (tính lương) + 21 (RAG) bằng pytest đã chạy; JUnit 5 + Mockito cho backend Java đã viết nhưng chưa chạy được trong môi trường phát triển.
+- Test: 7 (tính lương) + 21 (RAG) bằng pytest; JUnit 5 + Mockito cho backend Java chạy tự động trong CI bằng `mvn verify`. Toàn bộ hệ thống đã được build và chạy bằng Docker Compose; backend Java được biên dịch trong giai đoạn build image `bff`.
