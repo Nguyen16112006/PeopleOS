@@ -135,4 +135,9 @@ Trang **Dashboard điều hành** (HR/Admin) đọc 5 view SQL qua Hasura: nhân
 | Giao thức ClamAV (INSTREAM): sạch, EICAR, 1 MB nhiều khối, lỗi, mất kết nối | Chạy thật với clamd **giả lập** |
 | Sơ đồ phả hệ (bố cục 8 cột) | Dựng thật bằng đúng hàm layout |
 | Frontend (3 trang mới) | Kiểm tra kiểu + build thành công |
-| **ClamAV thật, autoheal, backup/gitops container, CI trên GitHub, backend Java biên dịch đầy đủ** | **Chưa chạy được** trong môi trường phát triển (không có Docker/Maven/GitHub) |
+| Backend Java biên dịch đầy đủ | Chạy thật: biên dịch bằng Maven trong giai đoạn build image `bff` (Docker) |
+| Sao lưu PostgreSQL/MinIO dạng container | Chạy thật: sinh ra các bản `pg_dump` và bản sao MinIO trong `backups/` |
+| CI trên GitHub | Chạy thật: workflow `ci.yml` gồm 6 job (Python, backend Java `mvn verify`, frontend, database, kiểm tra cấu hình, build image) |
+| ClamAV thật (container `clamav`) | Chưa kiểm chứng riêng; giao thức đã chạy thật với clamd giả lập (dòng trên) |
+| autoheal | Chưa kiểm chứng riêng |
+| gitops-agent | Chưa kiểm chứng riêng |
