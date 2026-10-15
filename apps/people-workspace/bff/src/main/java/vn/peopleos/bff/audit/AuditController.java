@@ -18,7 +18,7 @@ public class AuditController {
 
     @GetMapping("/verify")
     public AuditService.Verification verify(CurrentUser user) {
-        if (!user.hasAny("admin")) throw ApiException.forbidden("Chỉ Admin mới được xác minh nhật ký kiểm toán");
+        if (!user.hasAny("sysadmin", "director", "hr")) throw ApiException.forbidden("Chỉ Admin kỹ thuật, Giám đốc hoặc HR mới được xác minh nhật ký kiểm toán");
         return service.verify();
     }
 }
