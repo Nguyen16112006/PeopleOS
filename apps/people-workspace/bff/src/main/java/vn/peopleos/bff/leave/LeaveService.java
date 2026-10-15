@@ -20,10 +20,16 @@ import vn.peopleos.bff.notification.NotificationService.Target;
 import vn.peopleos.bff.security.CurrentUser;
 
 /**
- * Quy trình Nghỉ phép / Nghỉ ốm: pending → approved | rejected | cancelled.
+ * Quy trình Nghỉ phép / Nghỉ ốm: pending → approved | rejected | cancelled, theo từng giai đoạn (stage):
+ * <ul>
+ *   <li>Nhân viên: Quản lý trực tiếp duyệt (stage manager) → báo HR chỉnh công.</li>
+ *   <li>Quản lý, Kế toán, Admin: HR kiểm tra ngày phép (stage hr) → Giám đốc duyệt (stage director).</li>
+ *   <li>HR: Giám đốc duyệt trực tiếp (stage director).</li>
+ *   <li>Giám đốc: tự ghi nhận (approved ngay), HR được thông báo để lưu lại.</li>
+ * </ul>
  *
  * <p>Quy tắc: số ngày = ngày làm việc T2-T6; phép năm kiểm tra quỹ phép (đã tính đơn đang chờ);
- * chỉ quản lý trực tiếp hoặc HR/Admin được duyệt; không ai tự duyệt đơn của mình.
+ * mỗi giai đoạn chỉ đúng người/vai trò được duyệt; không ai tự duyệt đơn của mình.
  */
 @Service
 public class LeaveService {
@@ -59,17 +65,31 @@ public class LeaveService {
         if (!check.get("overlap").isEmpty()) throw ApiException.conflict("Đã có đơn nghỉ phép trùng thời gian này");
         if ("annual".equals(req.leaveType())) checkAnnualBalance(check, days);
 
+        // Chọn giai đoạn duyệt đầu tiên theo vai trò người xin nghỉ
+        String stage;
+        String status = "pending";
+        if (user.isDirector()) { stage = "done"; status = "approved"; }
+        else if (user.isHr()) stage = "director";
+        else if (user.hasAny("manager", "accountant", "sysadmin")) stage = "hr";
+        else stage = "manager";
+
         JsonNode created = hasura.query(LeaveQueries.INSERT, Params.of("obj", Params.of(
                 "employee_id", employeeId, "leave_type", req.leaveType(),
                 "start_date", req.startDate().toString(), "end_date", req.endDate().toString(),
-                "days", days, "reason", req.reason()))).get("insert_leave_requests_one");
+                "days", days, "reason", req.reason(), "status", status, "stage", stage))).get("insert_leave_requests_one");
         String requestId = created.get("id").asText();
+        if ("approved".equals(status)) {   // Giám đốc tự ghi nhận: trừ phép và báo HR lưu lại
+            useBalance(req.leaveType(), employeeId, req.startDate().getYear(), days);
+            notifications.notify(Target.role("hr"), "Giám đốc ghi nhận nghỉ phép",
+                    emp.get("full_name").asText() + " nghỉ " + days + " ngày (" + req.startDate() + " → " + req.endDate() + ").",
+                    "leave_request", requestId, "leave.recorded");
+        }
 
         Map<String, Object> payload = Params.of(
                 "request_id", requestId, "employee_name", emp.get("full_name").asText(), "employee_user_id", user.sub(),
-                "manager_user_id", Json.text(emp.path("manager"), "user_id"), "leave_type", req.leaveType(),
+                "manager_user_id", Json.text(emp.path("manager"), "user_id"), "stage", stage, "leave_type", req.leaveType(),
                 "start_date", req.startDate().toString(), "end_date", req.endDate().toString(), "days", days);
-        workflows.trigger("leave-request", payload, this::notifySubmittedFallback);
+        if (!"done".equals(stage)) workflows.trigger("leave-request", payload, this::notifySubmittedFallback);
         audit.record(user, "LEAVE.CREATED", "leave_request", requestId,
                 Params.of("leave_type", req.leaveType(), "days", days, "start_date", req.startDate().toString()));
         return new LeaveResult(requestId, created.get("status").asText(), days);
@@ -91,7 +111,10 @@ public class LeaveService {
     /** Dự phòng khi n8n không chạy: tự gửi thông báo cho người duyệt. */
     private void notifySubmittedFallback(Map<String, Object> p) {
         Object manager = p.get("manager_user_id");
-        Target target = manager != null ? Target.user(manager.toString()) : Target.role("hr");
+        String stage = String.valueOf(p.get("stage"));
+        Target target = "hr".equals(stage) ? Target.role("hr")
+                : "director".equals(stage) ? Target.role("director")
+                : manager != null ? Target.user(manager.toString()) : Target.role("hr");
         notifications.notify(target, "Đơn nghỉ phép chờ duyệt",
                 p.get("employee_name") + " xin nghỉ " + p.get("days") + " ngày (" + p.get("start_date") + " → " + p.get("end_date") + ").",
                 "leave_request", p.get("request_id").toString(), "leave.pending");
@@ -104,37 +127,70 @@ public class LeaveService {
 
         JsonNode emp = req.get("employee");
         if (user.sub().equals(Json.text(emp, "user_id"))) throw ApiException.forbidden("Không thể tự duyệt đơn của chính mình");
+        String stage = req.path("stage").asText("manager");
         boolean directManager = user.sub().equals(Json.text(emp.path("manager"), "user_id"));
-        if (!(directManager || user.hasAny("hr", "admin"))) {
-            throw ApiException.forbidden("Chỉ quản lý trực tiếp hoặc HR/Admin mới được duyệt đơn này");
+        switch (stage) {
+            case "manager" -> {
+                if (!directManager) throw ApiException.forbidden("Giai đoạn này do quản lý trực tiếp của nhân viên duyệt");
+            }
+            case "hr" -> {
+                if (!user.isHr()) throw ApiException.forbidden("Giai đoạn này do HR kiểm tra ngày phép");
+            }
+            case "director" -> {
+                if (!user.isDirector()) throw ApiException.forbidden("Giai đoạn này do Giám đốc duyệt");
+            }
+            default -> { /* stage done: xử lý ở kiểm tra trạng thái bên dưới */ }
         }
         String current = req.get("status").asText();
         if (!"pending".equals(current)) throw ApiException.conflict("Đơn đã ở trạng thái '" + current + "'");
 
         JsonNode approver = employees.findByUser(user.sub());
-        String status = "approve".equals(body.decision()) ? "approved" : "rejected";
-        hasura.query(LeaveQueries.DECIDE, Params.of("id", requestId, "status", status,
-                "approver", approver == null ? null : approver.get("id").asText(), "note", body.note()));
+        String approverId = approver == null ? null : approver.get("id").asText();
+        String approverName = approver == null ? user.name() : approver.get("full_name").asText();
+        boolean approve = "approve".equals(body.decision());
 
-        String type = req.get("leave_type").asText();
-        if ("approved".equals(status) && ("annual".equals(type) || "sick".equals(type))) {
-            String column = "annual".equals(type) ? "used_days" : "sick_days_used";
-            hasura.query(LeaveQueries.USE_BALANCE.formatted(column), Params.of(
-                    "eid", req.get("employee_id").asText(),
-                    "year", Integer.parseInt(req.get("start_date").asText().substring(0, 4)),
-                    "d", req.get("days").asDouble()));
+        // HR kiểm tra ngày phép xong thì chuyển lên Giám đốc (đơn vẫn pending)
+        if ("hr".equals(stage) && approve) {
+            hasura.query(LeaveQueries.STAGE, Params.of("id", requestId, "stage", "director"));
+            notifications.notify(Target.role("director"), "Đơn nghỉ phép chờ Giám đốc duyệt",
+                    emp.get("full_name").asText() + " xin nghỉ " + req.get("days").asDouble() + " ngày (HR đã kiểm tra ngày phép).",
+                    "leave_request", requestId, "leave.pending");
+            audit.record(user, "LEAVE.HR_CHECKED", "leave_request", requestId,
+                    Params.of("employee", emp.get("full_name").asText(), "note", body.note()));
+            return LeaveResult.of(requestId, "pending");
+        }
+
+        String status = approve ? "approved" : "rejected";
+        hasura.query(LeaveQueries.DECIDE, Params.of("id", requestId, "status", status,
+                "approver", approverId, "note", body.note()));
+
+        if ("approved".equals(status)) {
+            useBalance(req.get("leave_type").asText(), req.get("employee_id").asText(),
+                    Integer.parseInt(req.get("start_date").asText().substring(0, 4)), req.get("days").asDouble());
+            // Báo HR chỉnh công / lưu lại
+            notifications.notify(Target.role("hr"), "Đơn nghỉ phép đã duyệt - cần chỉnh công",
+                    emp.get("full_name").asText() + " nghỉ " + req.get("days").asDouble() + " ngày ("
+                            + req.get("start_date").asText() + " → " + req.get("end_date").asText() + ").",
+                    "leave_request", requestId, "leave.adjust_timesheet");
         }
 
         Map<String, Object> payload = Params.of(
-                "request_id", requestId, "decision", status,
-                "approver_name", approver == null ? user.name() : approver.get("full_name").asText(),
+                "request_id", requestId, "decision", status, "approver_name", approverName,
                 "employee_name", emp.get("full_name").asText(), "employee_user_id", Json.text(emp, "user_id"),
                 "start_date", req.get("start_date").asText(), "end_date", req.get("end_date").asText(),
                 "days", req.get("days").asDouble(), "note", body.note());
         workflows.trigger("leave-decision", payload, this::notifyDecisionFallback);
         audit.record(user, "LEAVE." + status.toUpperCase(), "leave_request", requestId,
-                Params.of("employee", emp.get("full_name").asText(), "days", req.get("days").asDouble(), "note", body.note()));
+                Params.of("employee", emp.get("full_name").asText(), "days", req.get("days").asDouble(),
+                        "stage", stage, "note", body.note()));
         return LeaveResult.of(requestId, status);
+    }
+
+    /** Trừ quỹ phép năm / nghỉ ốm khi đơn được duyệt xong. */
+    private void useBalance(String type, String employeeId, int year, double days) {
+        if (!"annual".equals(type) && !"sick".equals(type)) return;
+        String column = "annual".equals(type) ? "used_days" : "sick_days_used";
+        hasura.query(LeaveQueries.USE_BALANCE.formatted(column), Params.of("eid", employeeId, "year", year, "d", days));
     }
 
     private void notifyDecisionFallback(Map<String, Object> p) {
