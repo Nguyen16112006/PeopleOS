@@ -100,9 +100,9 @@ public class DocumentService {
         return new PdfFile(filename, content);
     }
 
-    // ------------------------------------------------------------------ 3. Tải bản ký lên (HR/Admin)
+    // ------------------------------------------------------------------ 3. Tải bản ký lên (chỉ HR)
     public Map<String, Object> uploadSignedContract(CurrentUser user, String contractId, MultipartFile file) {
-        if (!user.hasAny("hr", "admin")) throw ApiException.forbidden("Cần một trong các vai trò: hr, admin");
+        if (!user.hasAny("hr")) throw ApiException.forbidden("Chỉ HR được tải lên bản hợp đồng đã ký");
         JsonNode c = hasura.query(CONTRACT, Params.of("id", contractId)).get("contracts_by_pk");
         if (Json.isMissing(c)) throw ApiException.notFound("Không tìm thấy hợp đồng");
 
@@ -149,7 +149,9 @@ public class DocumentService {
     }
 
     private static boolean allowed(CurrentUser user, JsonNode employee) {
-        return user.hasAny("hr", "admin") || user.sub().equals(Json.text(employee, "user_id"));
+        // HR (hợp đồng, hồ sơ) và Kế toán (phiếu lương, hợp đồng) xem được của mọi người; còn lại chỉ xem của chính mình.
+        // Admin kỹ thuật và Giám đốc KHÔNG xem chứng từ cá nhân của người khác.
+        return user.hasAny("hr", "accountant") || user.sub().equals(Json.text(employee, "user_id"));
     }
 
     /** Đọc từ MinIO; chưa có thì sinh PDF, lưu MinIO và ghi file_key vào CSDL. */
