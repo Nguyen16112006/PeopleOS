@@ -1,34 +1,30 @@
 package vn.peopleos.bff.security;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.util.List;
-import java.util.Map;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.junit.jupiter.api.Test;
 
-/** Người dùng đang đăng nhập, trích từ JWT của Keycloak. */
-public record CurrentUser(String sub, String username, String name, String email, List<String> roles) {
-    /** Thứ tự ưu tiên vai trò (cao -> thấp). */
-    private static final List<String> ROLE_ORDER = List.of("admin", "hr", "manager", "employee");
-
-    @SuppressWarnings("unchecked")
-    public static CurrentUser from(Jwt jwt) {
-        Map<String, Object> realm = jwt.getClaimAsMap("realm_access");
-        List<String> roles = realm == null ? List.of() : (List<String>) realm.getOrDefault("roles", List.of());
-        String username = jwt.getClaimAsString("preferred_username");
-        String name = jwt.getClaimAsString("name");
-        String email = jwt.getClaimAsString("email");
-        return new CurrentUser(jwt.getSubject(), username == null ? "" : username, name == null ? "" : name,
-                email == null ? "" : email, roles);
+class CurrentUserTest {
+    @Test
+    void primaryRoleIsHighestPriority() {
+        assertEquals("manager", new CurrentUser("u", "u", "U", "", List.of("employee", "manager")).role());
+        assertEquals("sysadmin", new CurrentUser("u", "u", "U", "", List.of("employee", "sysadmin", "hr")).role());
+        assertEquals("director", new CurrentUser("u", "u", "U", "", List.of("employee", "director")).role());
+        assertEquals("accountant", new CurrentUser("u", "u", "U", "", List.of("employee", "accountant", "hr")).role());
     }
 
-    /** Vai trò chính (cao nhất) của người dùng. */
-    public String role() {
-        return ROLE_ORDER.stream().filter(roles::contains).findFirst().orElse("employee");
+    @Test
+    void defaultsToEmployee() {
+        assertEquals("employee", new CurrentUser("u", "u", "U", "", List.of()).role());
     }
 
-    public boolean hasAny(String... wanted) {
-        for (String r : wanted) {
-            if (roles.contains(r)) return true;
-        }
-        return false;
+    @Test
+    void hasAnyChecksMembership() {
+        CurrentUser hr = new CurrentUser("u", "u", "U", "", List.of("hr", "employee"));
+        assertTrue(hr.hasAny("sysadmin", "hr"));
+        assertFalse(hr.hasAny("sysadmin", "manager"));
     }
 }
