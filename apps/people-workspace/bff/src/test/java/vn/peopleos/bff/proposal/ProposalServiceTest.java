@@ -44,7 +44,9 @@ class ProposalServiceTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private final CurrentUser manager = new CurrentUser("u-cuong", "manager", "Lê Minh Cường", "", List.of("manager", "employee"));
     private final CurrentUser hr = new CurrentUser("u-hr", "hr", "Trần Thị Bình", "", List.of("hr", "employee"));
-    private final CurrentUser admin = new CurrentUser("u-admin", "admin", "Nguyễn Văn An", "", List.of("admin", "employee"));
+    private final CurrentUser accountant = new CurrentUser("u-kt", "accountant", "Vũ Thị Lan", "", List.of("accountant", "employee"));
+    private final CurrentUser director = new CurrentUser("u-gd", "director", "Hoàng Quốc Hùng", "", List.of("director", "employee"));
+    private final CurrentUser admin = new CurrentUser("u-admin", "sysadmin", "Nguyễn Văn An", "", List.of("sysadmin", "employee"));
 
     private static JsonNode json(String s) {
         try {
@@ -60,15 +62,16 @@ class ProposalServiceTest {
                  "contracts":[{"id":"c1","base_salary":18000000,"allowance":2000000}]}}"""));
     }
 
-    private void stubProposal(String status, String hrStatus, String adminStatus) {
+    private void stubProposal(String status, String hrStatus, String accStatus, String dirStatus) {
         when(hasura.query(eq(ProposalQueries.BY_ID), any())).thenReturn(json("""
                 {"salary_proposals_by_pk":{"id":"P1","status":"%s","proposal_type":"raise","current_amount":18000000,
                  "proposed_amount":21000000,"employee_id":"e-dung",
                  "employee":{"id":"e-dung","user_id":"u-dung","full_name":"Phạm Thu Dung"},
                  "proposer":{"id":"e-cuong","user_id":"u-cuong","full_name":"Lê Minh Cường"},
                  "approval_steps":[{"id":"s1","step_order":1,"approver_role":"hr","status":"%s"},
-                                   {"id":"s2","step_order":2,"approver_role":"admin","status":"%s"}]}}
-                """.formatted(status, hrStatus, adminStatus)));
+                                   {"id":"s2","step_order":2,"approver_role":"accountant","status":"%s"},
+                                   {"id":"s3","step_order":3,"approver_role":"director","status":"%s"}]}}
+                """.formatted(status, hrStatus, accStatus, dirStatus)));
         when(employees.findByUser(any())).thenReturn(json("{\"id\":\"e-x\",\"full_name\":\"Người duyệt\"}"));
     }
 
@@ -99,7 +102,7 @@ class ProposalServiceTest {
     }
 
     @Test
-    void createsTwoStepChainHrThenAdmin() {
+    void createsThreeStepChainHrAccountantDirector() {
         stubTarget();
         when(employees.requireByUser("u-cuong")).thenReturn(json("{\"id\":\"e-cuong\"}"));
         when(hasura.query(eq(ProposalQueries.CREATE), any())).thenReturn(json(
@@ -112,26 +115,41 @@ class ProposalServiceTest {
     }
 
     @Test
-    void hrApprovalMovesToAdminStep() {
-        stubProposal("pending_hr", "pending", "waiting");
+    void hrApprovalMovesToAccountantStep() {
+        stubProposal("pending_hr", "pending", "waiting", "waiting");
         ProposalResult r = service.decide(hr, "P1", new ProposalDecisionRequest("approve", null));
-        assertEquals("pending_admin", r.status());
-        verify(workflows).trigger(eq("salary-proposal"), argThat(m -> "admin".equals(m.get("next_role"))), any());
+        assertEquals("pending_accountant", r.status());
+        verify(workflows).trigger(eq("salary-proposal"), argThat(m -> "accountant".equals(m.get("next_role"))), any());
     }
 
     @Test
-    void hrCannotApproveAdminStep() {
-        stubProposal("pending_admin", "approved", "pending");
+    void accountantApprovalMovesToDirectorStep() {
+        stubProposal("pending_accountant", "approved", "pending", "waiting");
+        ProposalResult r = service.decide(accountant, "P1", new ProposalDecisionRequest("approve", "Còn trong quỹ lương"));
+        assertEquals("pending_director", r.status());
+        verify(workflows).trigger(eq("salary-proposal"), argThat(m -> "director".equals(m.get("next_role"))), any());
+    }
+
+    @Test
+    void adminCannotApproveAnyBusinessStep() {
+        stubProposal("pending_director", "approved", "approved", "pending");
+        ApiException e = assertThrows(ApiException.class, () -> service.decide(admin, "P1", new ProposalDecisionRequest("approve", null)));
+        assertEquals(HttpStatus.FORBIDDEN, e.status());
+    }
+
+    @Test
+    void hrCannotApproveDirectorStep() {
+        stubProposal("pending_director", "approved", "approved", "pending");
         ApiException e = assertThrows(ApiException.class, () -> service.decide(hr, "P1", new ProposalDecisionRequest("approve", null)));
         assertEquals(HttpStatus.FORBIDDEN, e.status());
     }
 
     @Test
     void finalApprovalAppliesNewSalaryToContract() {
-        stubProposal("pending_admin", "approved", "pending");
+        stubProposal("pending_director", "approved", "approved", "pending");
         when(hasura.query(eq(ProposalQueries.ACTIVE_CONTRACT), any())).thenReturn(json("{\"contracts\":[{\"id\":\"c1\"}]}"));
 
-        ProposalResult r = service.decide(admin, "P1", new ProposalDecisionRequest("approve", null));
+        ProposalResult r = service.decide(director, "P1", new ProposalDecisionRequest("approve", null));
 
         assertEquals("approved", r.status());
         verify(hasura).query(eq(ProposalQueries.APPLY.formatted("base_salary")), argThat(m -> Long.valueOf(21_000_000L).equals(m.get("v"))));
@@ -139,7 +157,7 @@ class ProposalServiceTest {
 
     @Test
     void rejectionEndsChainWithoutApplying() {
-        stubProposal("pending_hr", "pending", "waiting");
+        stubProposal("pending_hr", "pending", "waiting", "waiting");
         ProposalResult r = service.decide(hr, "P1", new ProposalDecisionRequest("reject", "Vượt ngân sách"));
         assertEquals("rejected", r.status());
         verify(hasura, never()).query(eq(ProposalQueries.APPLY.formatted("base_salary")), any());
@@ -147,7 +165,7 @@ class ProposalServiceTest {
 
     @Test
     void proposerCannotApproveOwnProposal() {
-        stubProposal("pending_hr", "pending", "waiting");
+        stubProposal("pending_hr", "pending", "waiting", "waiting");
         CurrentUser proposerHr = new CurrentUser("u-cuong", "m", "Cường", "", List.of("manager", "hr"));
         ApiException e = assertThrows(ApiException.class, () -> service.decide(proposerHr, "P1", new ProposalDecisionRequest("approve", null)));
         assertEquals(HttpStatus.FORBIDDEN, e.status());
