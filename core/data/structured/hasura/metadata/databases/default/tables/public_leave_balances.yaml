@@ -50,3 +50,42 @@ select_permissions:
     - sick_days_used
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - employee_id
+    - year
+    - entitled_days
+    - used_days
+    - sick_days_used
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - employee_id
+    - year
+    - entitled_days
+    - used_days
+    - sick_days_used
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - employee_id
+    - year
+    - entitled_days
+    - used_days
+    - sick_days_used
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true

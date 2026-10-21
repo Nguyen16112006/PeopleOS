@@ -60,3 +60,57 @@ select_permissions:
     - created_at
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - employee_id
+    - contract_no
+    - contract_type
+    - start_date
+    - end_date
+    - base_salary
+    - allowance
+    - status
+    - file_key
+    - created_at
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - employee_id
+    - contract_no
+    - contract_type
+    - start_date
+    - end_date
+    - base_salary
+    - allowance
+    - status
+    - file_key
+    - created_at
+    filter: {}
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - employee_id
+    - contract_no
+    - contract_type
+    - start_date
+    - end_date
+    - base_salary
+    - allowance
+    - status
+    - file_key
+    - created_at
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true

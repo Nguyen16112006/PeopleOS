@@ -18,3 +18,21 @@ select_permissions:
     - transform
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - source_id
+    - target_id
+    - transform
+    filter: {}
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - source_id
+    - target_id
+    - transform
+    filter: {}
+    allow_aggregations: true

@@ -51,6 +51,51 @@ select_permissions:
       user_id:
         _eq: X-Hasura-User-Id
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true
 update_permissions:
 - role: employee
   permission:
@@ -67,6 +112,27 @@ update_permissions:
       user_id:
         _eq: X-Hasura-User-Id
 - role: hr
+  permission:
+    columns:
+    - is_read
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+- role: director
+  permission:
+    columns:
+    - is_read
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+- role: accountant
+  permission:
+    columns:
+    - is_read
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+- role: sysadmin
   permission:
     columns:
     - is_read

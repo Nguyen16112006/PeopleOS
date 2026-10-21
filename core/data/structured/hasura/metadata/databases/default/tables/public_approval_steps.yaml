@@ -39,3 +39,29 @@ select_permissions:
     - decided_at
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - proposal_id
+    - step_order
+    - approver_role
+    - status
+    - approver_id
+    - comment
+    - decided_at
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - proposal_id
+    - step_order
+    - approver_role
+    - status
+    - approver_id
+    - comment
+    - decided_at
+    filter: {}
+    allow_aggregations: true

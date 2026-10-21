@@ -145,3 +145,83 @@ select_permissions:
     - updated_at
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - user_id
+    - employee_code
+    - full_name
+    - email
+    - phone
+    - date_of_birth
+    - gender
+    - address
+    - department
+    - job_title
+    - manager_id
+    - hire_date
+    - status
+    - tax_code
+    - social_insurance_no
+    - health_insurance_no
+    - dependents
+    - region
+    - created_at
+    - updated_at
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - user_id
+    - employee_code
+    - full_name
+    - email
+    - phone
+    - date_of_birth
+    - gender
+    - address
+    - department
+    - job_title
+    - manager_id
+    - hire_date
+    - status
+    - tax_code
+    - social_insurance_no
+    - health_insurance_no
+    - dependents
+    - region
+    - created_at
+    - updated_at
+    filter: {}
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - user_id
+    - employee_code
+    - full_name
+    - email
+    - phone
+    - date_of_birth
+    - gender
+    - address
+    - department
+    - job_title
+    - manager_id
+    - hire_date
+    - status
+    - tax_code
+    - social_insurance_no
+    - health_insurance_no
+    - dependents
+    - region
+    - created_at
+    - updated_at
+    filter:
+      user_id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true

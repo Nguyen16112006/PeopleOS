@@ -1,0 +1,26 @@
+table:
+  name: tax_year_closings
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns: &id001
+    - year
+    - status
+    - hr_confirmed_by
+    - hr_confirmed_at
+    - settled_by
+    - settled_at
+    - certificates_issued
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true

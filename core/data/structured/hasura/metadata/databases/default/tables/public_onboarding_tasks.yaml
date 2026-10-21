@@ -53,3 +53,42 @@ select_permissions:
     - completed_at
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - employee_id
+    - title
+    - assignee_role
+    - status
+    - due_date
+    - completed_at
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - employee_id
+    - title
+    - assignee_role
+    - status
+    - due_date
+    - completed_at
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - employee_id
+    - title
+    - assignee_role
+    - status
+    - due_date
+    - completed_at
+    filter: {}
+    allow_aggregations: true

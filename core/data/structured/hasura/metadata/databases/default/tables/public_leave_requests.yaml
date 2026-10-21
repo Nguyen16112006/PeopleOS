@@ -25,6 +25,8 @@ select_permissions:
     - decided_at
     - created_at
     - updated_at
+    - stage
+    - hr_adjusted_at
     filter:
       employee:
         user_id:
@@ -46,6 +48,8 @@ select_permissions:
     - decided_at
     - created_at
     - updated_at
+    - stage
+    - hr_adjusted_at
     filter:
       _or:
       - employee:
@@ -72,5 +76,73 @@ select_permissions:
     - decided_at
     - created_at
     - updated_at
+    - stage
+    - hr_adjusted_at
     filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - employee_id
+    - leave_type
+    - start_date
+    - end_date
+    - days
+    - reason
+    - status
+    - approver_id
+    - decision_note
+    - decided_at
+    - created_at
+    - updated_at
+    - stage
+    - hr_adjusted_at
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - employee_id
+    - leave_type
+    - start_date
+    - end_date
+    - days
+    - reason
+    - status
+    - approver_id
+    - decision_note
+    - decided_at
+    - created_at
+    - updated_at
+    - stage
+    - hr_adjusted_at
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - employee_id
+    - leave_type
+    - start_date
+    - end_date
+    - days
+    - reason
+    - status
+    - approver_id
+    - decision_note
+    - decided_at
+    - created_at
+    - updated_at
+    - stage
+    - hr_adjusted_at
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true

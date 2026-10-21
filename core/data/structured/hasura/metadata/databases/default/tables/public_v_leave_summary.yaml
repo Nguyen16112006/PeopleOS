@@ -11,3 +11,12 @@ select_permissions:
     - days
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - leave_type
+    - status
+    - requests
+    - days
+    filter: {}
+    allow_aggregations: true

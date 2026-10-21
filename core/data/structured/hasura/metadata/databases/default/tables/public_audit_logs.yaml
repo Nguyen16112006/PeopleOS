@@ -1,3 +1,30 @@
 table:
   name: audit_logs
   schema: public
+select_permissions:
+- role: sysadmin
+  permission:
+    columns: &id001
+    - seq
+    - occurred_at
+    - actor_id
+    - actor_name
+    - actor_role
+    - action
+    - entity_type
+    - entity_id
+    - details
+    - prev_hash
+    - hash
+    filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true

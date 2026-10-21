@@ -11,3 +11,12 @@ select_permissions:
     - total_base_salary
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - department
+    - headcount
+    - avg_base_salary
+    - total_base_salary
+    filter: {}
+    allow_aggregations: true

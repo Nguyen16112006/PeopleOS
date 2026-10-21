@@ -15,3 +15,29 @@ select_permissions:
     - description
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    filter: {}
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    filter: {}
+    allow_aggregations: true
