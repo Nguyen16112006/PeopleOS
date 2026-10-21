@@ -1,0 +1,43 @@
+table:
+  name: kpi_cycles
+  schema: public
+select_permissions:
+- role: employee
+  permission:
+    columns: &id001
+    - id
+    - name
+    - year
+    - quarter
+    - start_date
+    - end_date
+    - status
+    - created_by
+    - created_at
+    filter: {}
+    allow_aggregations: true
+- role: manager
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
