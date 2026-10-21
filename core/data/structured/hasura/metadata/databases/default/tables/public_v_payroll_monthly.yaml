@@ -16,3 +16,31 @@ select_permissions:
     - employer_cost
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - period_year
+    - period_month
+    - employees
+    - gross_total
+    - net_total
+    - pit_total
+    - employee_insurance_total
+    - employer_insurance_total
+    - employer_cost
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - period_year
+    - period_month
+    - employees
+    - gross_total
+    - net_total
+    - pit_total
+    - employee_insurance_total
+    - employer_insurance_total
+    - employer_cost
+    filter: {}
+    allow_aggregations: true
