@@ -1,0 +1,23 @@
+table:
+  name: app_settings
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns: &id001
+    - key
+    - value
+    - updated_at
+    filter: {}
+- role: accountant
+  permission:
+    columns: *id001
+    filter: {}
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
+- role: sysadmin
+  permission:
+    columns: *id001
+    filter: {}

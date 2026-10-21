@@ -1,0 +1,46 @@
+table:
+  name: temp_access_requests
+  schema: public
+object_relationships:
+- name: requester
+  using:
+    foreign_key_constraint_on: requester_id
+select_permissions:
+- role: sysadmin
+  permission:
+    columns: &id001
+    - id
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    filter:
+      requester:
+        user_id:
+          _eq: X-Hasura-User-Id
+- role: hr
+  permission:
+    columns: *id001
+    filter:
+      data_owner_role:
+        _eq: hr
+- role: accountant
+  permission:
+    columns: *id001
+    filter:
+      data_owner_role:
+        _eq: accountant
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
