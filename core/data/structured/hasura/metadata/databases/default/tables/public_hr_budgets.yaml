@@ -1,0 +1,28 @@
+table:
+  name: hr_budgets
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns: &id001
+    - year
+    - payroll_fund
+    - headcount_plan
+    - note
+    - status
+    - proposed_by
+    - approved_by
+    - approved_at
+    - updated_at
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true

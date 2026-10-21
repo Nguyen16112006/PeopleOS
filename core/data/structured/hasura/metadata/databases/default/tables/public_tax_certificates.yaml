@@ -1,0 +1,53 @@
+table:
+  name: tax_certificates
+  schema: public
+object_relationships:
+- name: employee
+  using:
+    foreign_key_constraint_on: employee_id
+select_permissions:
+- role: employee
+  permission:
+    columns: &id001
+    - id
+    - year
+    - employee_id
+    - months
+    - gross_total
+    - insurance_total
+    - taxable_total
+    - pit_withheld
+    - net_total
+    - dependents
+    - tax_code
+    - issued_at
+    filter: &id002
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: manager
+  permission:
+    columns: *id001
+    filter: *id002
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter: *id002
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns: *id001
+    filter: *id002
+    allow_aggregations: true

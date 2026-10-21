@@ -3,6 +3,7 @@
 # - Mọi route nghiệp vụ đều bắt buộc Bearer JWT do Keycloak phát hành
 #   (plugin openid-connect, bearer_only, kiểm chữ ký bằng JWKS).
 # - /api/internal/* bị chặn ở gateway (chỉ n8n gọi trực tiếp trong mạng Docker).
+# - Một số nhóm API có lớp kiểm tra vai trò ở gateway (xem các route guard-*); /graphql chặn vai trò "admin".
 # - Nếu truy cập frontend từ origin khác http://localhost:3000, sửa allow_origins.
 # =====================================================================
 plugin_configs:
@@ -47,10 +48,277 @@ routes:
     plugins:
       proxy-rewrite:
         uri: /v1/graphql
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local role = core.request.header(ctx, "x-hasura-role")
+              if role and string.lower(role) == "admin" then
+                return 403, { message = "Vai trò 'admin' (siêu quyền Hasura) không được phép qua gateway" }
+              end
+            end
     upstream:
       type: roundrobin
       nodes:
         "hasura:8080": 1
+
+  # =====================================================================
+  # Lớp bảo vệ theo vai trò (phòng thủ nhiều lớp): gateway kiểm tra claim
+  # realm_access.roles trong JWT đã được openid-connect xác thực chữ ký, rồi
+  # từ chối sớm (403) nếu vai trò không thuộc danh sách. Phân quyền chi tiết
+  # vẫn do BFF và Hasura quyết định.
+  # =====================================================================
+  # Thuế, báo cáo năm, ngân sách: chỉ HR, Kế toán, Giám đốc
+  - id: guard-tax-year
+    uris:
+      - /api/tax-year/*
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    priority: 10
+    plugin_config_id: secured
+    plugins:
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local allowed = { hr = true, accountant = true, director = true }
+              if ngx.req.get_method() == "OPTIONS" then return end   -- preflight CORS không mang token
+              local auth = core.request.header(ctx, "Authorization") or ""
+              local token = auth:match("^[Bb]earer%s+(.+)$")
+              if not token then return 401, { message = "Thiếu Bearer token" } end
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then return 401, { message = "Token không hợp lệ" } end
+              payload = payload:gsub("%-", "+"):gsub("_", "/")
+              local pad = #payload % 4
+              if pad > 0 then payload = payload .. string.rep("=", 4 - pad) end
+              local decoded = ngx.decode_base64(payload)
+              local claims = decoded and core.json.decode(decoded)
+              local roles = claims and claims.realm_access and claims.realm_access.roles or {}
+              for _, r in ipairs(roles) do
+                if allowed[r] then return end
+              end
+              return 403, { message = "Vai trò của bạn không được phép gọi API này" }
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
+
+  # Kỳ lương hằng tháng: chỉ HR, Kế toán, Giám đốc
+  - id: guard-payroll-runs
+    uris:
+      - /api/payroll-runs
+      - /api/payroll-runs/*
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    priority: 10
+    plugin_config_id: secured
+    plugins:
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local allowed = { hr = true, accountant = true, director = true }
+              if ngx.req.get_method() == "OPTIONS" then return end   -- preflight CORS không mang token
+              local auth = core.request.header(ctx, "Authorization") or ""
+              local token = auth:match("^[Bb]earer%s+(.+)$")
+              if not token then return 401, { message = "Thiếu Bearer token" } end
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then return 401, { message = "Token không hợp lệ" } end
+              payload = payload:gsub("%-", "+"):gsub("_", "/")
+              local pad = #payload % 4
+              if pad > 0 then payload = payload .. string.rep("=", 4 - pad) end
+              local decoded = ngx.decode_base64(payload)
+              local claims = decoded and core.json.decode(decoded)
+              local roles = claims and claims.realm_access and claims.realm_access.roles or {}
+              for _, r in ipairs(roles) do
+                if allowed[r] then return end
+              end
+              return 403, { message = "Vai trò của bạn không được phép gọi API này" }
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
+
+  # Quyền tạm thời: Admin tạo; HR, Kế toán, Giám đốc duyệt
+  - id: guard-temp-access
+    uris:
+      - /api/temp-access-requests
+      - /api/temp-access-requests/*
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    priority: 10
+    plugin_config_id: secured
+    plugins:
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local allowed = { sysadmin = true, hr = true, accountant = true, director = true }
+              if ngx.req.get_method() == "OPTIONS" then return end   -- preflight CORS không mang token
+              local auth = core.request.header(ctx, "Authorization") or ""
+              local token = auth:match("^[Bb]earer%s+(.+)$")
+              if not token then return 401, { message = "Thiếu Bearer token" } end
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then return 401, { message = "Token không hợp lệ" } end
+              payload = payload:gsub("%-", "+"):gsub("_", "/")
+              local pad = #payload % 4
+              if pad > 0 then payload = payload .. string.rep("=", 4 - pad) end
+              local decoded = ngx.decode_base64(payload)
+              local claims = decoded and core.json.decode(decoded)
+              local roles = claims and claims.realm_access and claims.realm_access.roles or {}
+              for _, r in ipairs(roles) do
+                if allowed[r] then return end
+              end
+              return 403, { message = "Vai trò của bạn không được phép gọi API này" }
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
+
+  # Nhật ký kiểm toán: Admin kỹ thuật, Giám đốc, HR
+  - id: guard-audit
+    uris:
+      - /api/audit/*
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    priority: 10
+    plugin_config_id: secured
+    plugins:
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local allowed = { sysadmin = true, director = true, hr = true }
+              if ngx.req.get_method() == "OPTIONS" then return end   -- preflight CORS không mang token
+              local auth = core.request.header(ctx, "Authorization") or ""
+              local token = auth:match("^[Bb]earer%s+(.+)$")
+              if not token then return 401, { message = "Thiếu Bearer token" } end
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then return 401, { message = "Token không hợp lệ" } end
+              payload = payload:gsub("%-", "+"):gsub("_", "/")
+              local pad = #payload % 4
+              if pad > 0 then payload = payload .. string.rep("=", 4 - pad) end
+              local decoded = ngx.decode_base64(payload)
+              local claims = decoded and core.json.decode(decoded)
+              local roles = claims and claims.realm_access and claims.realm_access.roles or {}
+              for _, r in ipairs(roles) do
+                if allowed[r] then return end
+              end
+              return 403, { message = "Vai trò của bạn không được phép gọi API này" }
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
+
+  # Đề xuất lương: Quản lý đề xuất; HR, Kế toán, Giám đốc duyệt
+  - id: guard-salary-proposals
+    uris:
+      - /api/salary-proposals
+      - /api/salary-proposals/*
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    priority: 10
+    plugin_config_id: secured
+    plugins:
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local allowed = { manager = true, hr = true, accountant = true, director = true }
+              if ngx.req.get_method() == "OPTIONS" then return end   -- preflight CORS không mang token
+              local auth = core.request.header(ctx, "Authorization") or ""
+              local token = auth:match("^[Bb]earer%s+(.+)$")
+              if not token then return 401, { message = "Thiếu Bearer token" } end
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then return 401, { message = "Token không hợp lệ" } end
+              payload = payload:gsub("%-", "+"):gsub("_", "/")
+              local pad = #payload % 4
+              if pad > 0 then payload = payload .. string.rep("=", 4 - pad) end
+              local decoded = ngx.decode_base64(payload)
+              local claims = decoded and core.json.decode(decoded)
+              local roles = claims and claims.realm_access and claims.realm_access.roles or {}
+              for _, r in ipairs(roles) do
+                if allowed[r] then return end
+              end
+              return 403, { message = "Vai trò của bạn không được phép gọi API này" }
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
+
+  # Tạo hồ sơ nhân viên mới (onboarding): chỉ HR
+  - id: guard-employees
+    uris:
+      - /api/employees
+      - /api/employees/*
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    priority: 10
+    plugin_config_id: secured
+    plugins:
+      serverless-post-function:
+        phase: access
+        functions:
+          - |
+            return function(conf, ctx)
+              local core = require("apisix.core")
+              local allowed = { hr = true }
+              if ngx.req.get_method() == "OPTIONS" then return end   -- preflight CORS không mang token
+              local auth = core.request.header(ctx, "Authorization") or ""
+              local token = auth:match("^[Bb]earer%s+(.+)$")
+              if not token then return 401, { message = "Thiếu Bearer token" } end
+              local payload = token:match("^[^.]+%.([^.]+)%.")
+              if not payload then return 401, { message = "Token không hợp lệ" } end
+              payload = payload:gsub("%-", "+"):gsub("_", "/")
+              local pad = #payload % 4
+              if pad > 0 then payload = payload .. string.rep("=", 4 - pad) end
+              local decoded = ngx.decode_base64(payload)
+              local claims = decoded and core.json.decode(decoded)
+              local roles = claims and claims.realm_access and claims.realm_access.roles or {}
+              for _, r in ipairs(roles) do
+                if allowed[r] then return end
+              end
+              return 403, { message = "Vai trò của bạn không được phép gọi API này" }
+            end
+    upstream:
+      type: roundrobin
+      nodes:
+        "bff:8000": 1
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
 
   # --- BFF của People Workspace -----------------------------------------
   - id: bff-api

@@ -14,3 +14,15 @@ select_permissions:
     - days_left
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - contract_no
+    - full_name
+    - department
+    - contract_type
+    - end_date
+    - days_left
+    filter: {}
+    allow_aggregations: true

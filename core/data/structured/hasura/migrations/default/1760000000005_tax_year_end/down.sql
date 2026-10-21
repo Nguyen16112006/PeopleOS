@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS hr_budgets CASCADE;
+DROP TABLE IF EXISTS annual_reports CASCADE;
+DROP TABLE IF EXISTS tax_certificates CASCADE;
+DROP TABLE IF EXISTS tax_year_closings CASCADE;

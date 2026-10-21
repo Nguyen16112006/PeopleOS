@@ -57,3 +57,54 @@ select_permissions:
     - bhtn_employer
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - bhxh_employer
+    - bhyt_employer
+    - bhtn_employer
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - bhxh_employer
+    - bhyt_employer
+    - bhtn_employer
+    filter: {}
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - bhxh_employer
+    - bhyt_employer
+    - bhtn_employer
+    filter:
+      employee:
+        user_id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true

@@ -42,3 +42,41 @@ select_permissions:
     - created_at
     filter: {}
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter:
+      id:
+        _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter: {}
+    allow_aggregations: true

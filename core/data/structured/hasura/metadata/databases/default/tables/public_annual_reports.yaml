@@ -1,0 +1,22 @@
+table:
+  name: annual_reports
+  schema: public
+select_permissions:
+- role: accountant
+  permission:
+    columns: &id001
+    - year
+    - status
+    - figures
+    - prepared_by
+    - prepared_at
+    - approved_by
+    - approved_at
+    - director_comment
+    filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true

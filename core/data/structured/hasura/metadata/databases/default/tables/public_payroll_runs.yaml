@@ -1,0 +1,37 @@
+table:
+  name: payroll_runs
+  schema: public
+select_permissions:
+- role: hr
+  permission:
+    columns: &id001
+    - id
+    - period_year
+    - period_month
+    - status
+    - timesheet_closed_by
+    - timesheet_closed_at
+    - calculated_by
+    - calculated_at
+    - hr_reviewed_by
+    - hr_reviewed_at
+    - approved_by
+    - approved_at
+    - paid_by
+    - paid_at
+    - employee_count
+    - total_gross
+    - total_net
+    - return_comment
+    filter: {}
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter: {}
+    allow_aggregations: true
