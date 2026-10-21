@@ -30,27 +30,32 @@ E = lambda n: f"10000000-0000-4000-8000-00000000000{n}"
 
 # ----- người dùng (khớp realm Keycloak) -----------------------------------------
 users = [
-  (1, "admin",     "admin@peopleos.local",     "Nguyễn Văn An",  "admin"),
+  (1, "admin",     "admin@peopleos.local",     "Nguyễn Văn An",  "sysadmin"),
   (2, "hr",        "hr@peopleos.local",        "Trần Thị Bình",  "hr"),
   (3, "manager",   "manager@peopleos.local",   "Lê Minh Cường",  "manager"),
   (4, "employee",  "employee@peopleos.local",  "Phạm Thu Dung",  "employee"),
   (5, "employee2", "employee2@peopleos.local", "Hoàng Văn Em",   "employee"),
+  (6, "director",   "director@peopleos.local",   "Hoàng Quốc Hùng", "director"),
+  (7, "accountant", "accountant@peopleos.local", "Vũ Thị Lan",      "accountant"),
 ]
 # ----- nhân sự --------------------------------------------------------------------
 # (n, user_n, code, name, dept, title, mgr, hire, base, allow, deps, status, gender, dob, phone)
 emps = [
-  (1, 1, "NV0001", "Nguyễn Văn An", "Ban Giám đốc", "Giám đốc điều hành", None, date(2020,1,1), 50_000_000, 10_000_000, 2, "active", "Nam", date(1984,3,12), "0901000001"),
-  (2, 2, "NV0002", "Trần Thị Bình", "Phòng Nhân sự", "Trưởng phòng Nhân sự", 1, date(2021,5,10), 22_000_000, 3_000_000, 1, "active", "Nữ", date(1990,7,21), "0901000002"),
-  (3, 3, "NV0003", "Lê Minh Cường", "Phòng Kỹ thuật", "Trưởng phòng Kỹ thuật", 1, date(2022,2,1), 35_000_000, 5_000_000, 2, "active", "Nam", date(1988,11,5), "0901000003"),
+  (1, 1, "NV0001", "Nguyễn Văn An", "Phòng Công nghệ thông tin", "Quản trị hệ thống", 7, date(2020,1,1), 28_000_000, 3_000_000, 1, "active", "Nam", date(1984,3,12), "0901000001"),
+  (2, 2, "NV0002", "Trần Thị Bình", "Phòng Nhân sự", "Trưởng phòng Nhân sự", 7, date(2021,5,10), 22_000_000, 3_000_000, 1, "active", "Nữ", date(1990,7,21), "0901000002"),
+  (3, 3, "NV0003", "Lê Minh Cường", "Phòng Kỹ thuật", "Trưởng phòng Kỹ thuật", 7, date(2022,2,1), 35_000_000, 5_000_000, 2, "active", "Nam", date(1988,11,5), "0901000003"),
   (4, 4, "NV0004", "Phạm Thu Dung", "Phòng Kỹ thuật", "Kỹ sư phần mềm", 3, date(2024,7,1), 18_000_000, 2_000_000, 0, "active", "Nữ", date(1998,2,17), "0901000004"),
   (5, 5, "NV0005", "Hoàng Văn Em", "Phòng Kỹ thuật", "Kỹ sư kiểm thử", 3, date(2025,10,15), 14_000_000, 1_500_000, 0, "active", "Nam", date(1999,9,9), "0901000005"),
   (6, None, "NV0006", "Vũ Thị Phương", "Phòng Kỹ thuật", "Kỹ sư phần mềm mới", 3, date(2026,9,1), 12_000_000, 0, 0, "onboarding", "Nữ", date(2002,4,30), "0901000006"),
+  (7, 6, "NV0007", "Hoàng Quốc Hùng", "Ban Giám đốc", "Giám đốc", None, date(2019,1,1), 60_000_000, 10_000_000, 2, "active", "Nam", date(1980,5,20), "0901000007"),
+  (8, 7, "NV0008", "Vũ Thị Lan", "Phòng Kế toán", "Kế toán trưởng", 7, date(2021,3,1), 25_000_000, 3_000_000, 1, "active", "Nữ", date(1991,12,3), "0901000008"),
 ]
 E_BY = {e[0]: e for e in emps}
 
 out.append("-- Sinh bởi generate_seed.py - KHÔNG sửa tay. Chạy lại sẽ XÓA dữ liệu demo cũ.")
 out.append("TRUNCATE users, employees, contracts, payrolls, insurance_records, leave_balances, leave_requests,"
-           " salary_proposals, approval_steps, onboarding_tasks, notifications, data_lineage, data_assets CASCADE;")
+           " salary_proposals, approval_steps, onboarding_tasks, notifications, data_lineage, data_assets,"
+           " advance_requests, temp_access_requests, approval_events CASCADE;")
 insert("users", [dict(id=U(n), username=un, email=em, full_name=fn, role=r) for n, un, em, fn, r in users])
 
 # employees: chèn không có manager_id trước rồi cập nhật (tránh phụ thuộc thứ tự)
@@ -66,7 +71,8 @@ for e in emps:
 
 # ----- hợp đồng ---------------------------------------------------------------------
 ctype = {1: ("indefinite", None), 2: ("indefinite", None), 3: ("indefinite", None),
-         4: ("fixed_term", date(2027,6,30)), 5: ("fixed_term", date(2027,10,14)), 6: ("probation", date(2026,10,31))}
+         4: ("fixed_term", date(2027,6,30)), 5: ("fixed_term", date(2027,10,14)), 6: ("probation", date(2026,10,31)),
+         7: ("indefinite", None), 8: ("indefinite", None)}
 for e in emps:
     t, end = ctype[e[0]]
     insert("contracts", [dict(id=uid(f"contract-{e[0]}"), employee_id=E(e[0]), contract_no=f"HD-{e[7].year}-{e[0]:03d}",
@@ -85,7 +91,7 @@ for e in emps:
         if hire > date(2026, m, 28): continue
         base, allow = salary_at(e, date(2026, m, 1))
         ot = ((n * 3 + m) % 4) * 400_000 if n in (4, 5) else 0
-        bonus = 2_000_000 if (m in (6, 9) and n in (3, 4, 5)) else (10_000_000 if (m == 6 and n == 1) else 0)
+        bonus = 2_000_000 if (m in (6, 9) and n in (3, 4, 5)) else (10_000_000 if (m == 6 and n == 7) else 0)
         gross = base + allow + ot + bonus
         r = compute_net(gross, dependents=e[10], region=1, on=date(2026, m, 1), insured_salary=base + allow)
         insert("payrolls", [dict(id=uid(f"payroll-{n}-{m}"), employee_id=E(n), period_year=2026, period_month=m,
@@ -110,9 +116,11 @@ leaves = [  # (key, emp, type, start, end, status, approver_emp, note, created)
   ("l2", 4, "sick",   date(2026,8,10), date(2026,8,10), "approved", 3, "Chúc bạn mau khỏe", date(2026,8,10)),
   ("l3", 4, "annual", date(2026,10,19), date(2026,10,20), "pending", None, None, date(2026,10,2)),
   ("l4", 5, "annual", date(2026,10,12), date(2026,10,12), "pending", None, None, date(2026,10,3)),
-  ("l5", 3, "annual", date(2026,4,27), date(2026,4,29), "approved", 1, "Đồng ý", date(2026,4,15)),
-  ("l6", 2, "annual", date(2026,7,20), date(2026,7,20), "approved", 1, "Đồng ý", date(2026,7,10)),
+  ("l5", 3, "annual", date(2026,4,27), date(2026,4,29), "approved", 7, "Đồng ý", date(2026,4,15)),
+  ("l6", 2, "annual", date(2026,7,20), date(2026,7,20), "approved", 7, "Đồng ý", date(2026,7,10)),
+  ("l7", 3, "annual", date(2026,11,2), date(2026,11,3), "pending", None, None, date(2026,10,10)),  # Quản lý xin nghỉ: HR kiểm tra -> Giám đốc
 ]
+LEAVE_STAGE = {"l7": "hr"}   # các đơn pending còn lại ở giai đoạn manager; đơn đã quyết định ở giai đoạn done
 used, sick = {}, {}
 for key, emp, lt, s, e_, st, appr, note, created in leaves:
     d = wd(s, e_)
@@ -120,7 +128,8 @@ for key, emp, lt, s, e_, st, appr, note, created in leaves:
         (used if lt == "annual" else sick)[emp] = (used if lt == "annual" else sick).get(emp, 0) + d
     insert("leave_requests", [dict(id=uid(key), employee_id=E(emp), leave_type=lt, start_date=s, end_date=e_, days=d,
         reason={"annual": "Nghỉ phép năm", "sick": "Nghỉ ốm có giấy khám", "unpaid": "", "personal": ""}[lt],
-        status=st, approver_id=E(appr) if appr else None, decision_note=note,
+        status=st, stage=("done" if st != "pending" else LEAVE_STAGE.get(key, "manager")),
+        approver_id=E(appr) if appr else None, decision_note=note,
         decided_at=f"{created.isoformat()} 17:00:00+07" if appr else None, created_at=f"{created.isoformat()} 09:00:00+07")])
 for e in emps:
     n, hire = e[0], e[7]
@@ -134,11 +143,11 @@ for e in emps:
 # ----- đề xuất tăng lương (duyệt nhiều cấp) ---------------------------------------------
 props = [
   ("p1", 4, 3, "raise", 18_000_000, 21_000_000, "Hoàn thành vượt KPI 2 quý liên tiếp, đảm nhận vai trò tech lead module thanh toán.", "pending_hr", date(2026,10,1),
-     [("hr", "pending", None, None), ("admin", "waiting", None, None)]),
-  ("p2", 5, 3, "allowance", 1_500_000, 2_500_000, "Đảm nhận trực hệ thống ngoài giờ theo ca.", "pending_admin", date(2026,9,25),
-     [("hr", "approved", 2, "Phù hợp chính sách phụ cấp trách nhiệm"), ("admin", "pending", None, None)]),
+     [("hr", "pending", None, None), ("accountant", "waiting", None, None), ("director", "waiting", None, None)]),
+  ("p2", 5, 3, "allowance", 1_500_000, 2_500_000, "Đảm nhận trực hệ thống ngoài giờ theo ca.", "pending_director", date(2026,9,25),
+     [("hr", "approved", 2, "Phù hợp chính sách phụ cấp trách nhiệm"), ("accountant", "approved", 8, "Còn trong quỹ lương"), ("director", "pending", None, None)]),
   ("p3", 4, 3, "raise", 16_000_000, 18_000_000, "Điều chỉnh sau hết thời gian thử việc và đánh giá năm 2025.", "approved", date(2025,11,10),
-     [("hr", "approved", 2, "Đồng ý"), ("admin", "approved", 1, "Duyệt")]),
+     [("hr", "approved", 2, "Đồng ý"), ("accountant", "approved", 8, "Còn trong quỹ lương"), ("director", "approved", 7, "Duyệt")]),
 ]
 for key, emp, proposer, typ, cur, new, reason, st, created, steps in props:
     insert("salary_proposals", [dict(id=uid(key), employee_id=E(emp), proposer_id=E(proposer), proposal_type=typ,
@@ -151,7 +160,7 @@ for key, emp, proposer, typ, cur, new, reason, st, created, steps in props:
 
 # ----- checklist onboarding cho nhân viên mới (Phương) -----------------------------------
 tasks = [("Ký hợp đồng thử việc và nộp hồ sơ cá nhân", "hr", "done", date(2026,9,1)),
-         ("Tạo tài khoản email và SSO", "hr", "done", date(2026,9,2)),
+         ("Tạo tài khoản email và SSO", "sysadmin", "done", date(2026,9,2)),
          ("Cấp laptop và thiết bị làm việc", "hr", "todo", date(2026,10,8)),
          ("Đăng ký BHXH, BHYT và mã số thuế", "hr", "todo", date(2026,10,15)),
          ("Phân công mentor và giới thiệu nhóm", "manager", "todo", date(2026,10,9)),
@@ -164,18 +173,29 @@ for i, (t, role, st, due) in enumerate(tasks, 1):
 notes = [
  (3, "Đơn nghỉ phép chờ duyệt", "Phạm Thu Dung xin nghỉ 2 ngày (2026-10-19 → 2026-10-20).", "leave_request", uid("l3")),
  (3, "Đơn nghỉ phép chờ duyệt", "Hoàng Văn Em xin nghỉ 1 ngày (2026-10-12).", "leave_request", uid("l4")),
- (2, "Đề xuất tăng lương chờ HR duyệt", "Phạm Thu Dung: 18.000.000 đ → 21.000.000 đ.", "salary_proposal", uid("p1")),
- (1, "Đề xuất chờ Giám đốc duyệt", "Hoàng Văn Em - tăng phụ cấp 1.500.000 đ → 2.500.000 đ.", "salary_proposal", uid("p2")),
+ (2, "Đề xuất tăng lương chờ HR thẩm định", "Phạm Thu Dung: 18.000.000 đ → 21.000.000 đ.", "salary_proposal", uid("p1")),
+ (6, "Đề xuất chờ Giám đốc duyệt", "Hoàng Văn Em - tăng phụ cấp 1.500.000 đ → 2.500.000 đ.", "salary_proposal", uid("p2")),
 ]
 for i, (u, t, m, rt, rid) in enumerate(notes, 1):
     insert("notifications", [dict(id=uid(f"note-{i}"), user_id=U(u), title=t, message=m, ref_type=rt, ref_id=rid)])
 
 
+# ----- tạm ứng / chi phí (ngưỡng duyệt cấp 2: 20.000.000 đ) ---------------------------------
+insert("advance_requests", [
+  dict(id=uid("a1"), employee_id=E(4), request_type="expense", amount=3_500_000, reason="Thanh toán chi phí hội thảo kỹ thuật", stage="manager", status="pending"),
+  dict(id=uid("a2"), employee_id=E(5), request_type="advance", amount=25_000_000, reason="Tạm ứng công tác dự án khách hàng (vượt ngưỡng 20 triệu)", stage="director_l2", status="pending"),
+])
+insert("approval_events", [dict(id=uid("ae-a2-manager"), ref_type="advance", ref_id=uid("a2"), stage="manager", actor_id=E(3), decision="approved", comment="Đồng ý, cần Giám đốc duyệt cấp 2")])
+
+# ----- cấp quyền tạm thời (Admin xử lý sự cố) -------------------------------------------------
+insert("temp_access_requests", [dict(id=uid("t1"), requester_id=E(1), scope="payrolls", data_owner_role="accountant",
+    reason="Khắc phục lỗi hiển thị phiếu lương tháng 9", duration_minutes=30, status="pending")])
+
 # ----- danh mục dữ liệu + phả hệ (data lineage) -----------------------------------------
 # layer: 1 Nguồn · 2 Lưu trữ lõi · 3 Xử lý · 4 Tiêu thụ
 ASSETS = [
   # id, name, type, system, layer, classification, owner, description
-  ("src_keycloak", "Tài khoản & vai trò", "source", "Keycloak", 1, "confidential", "IT", "Danh tính SSO: sub, email, vai trò admin/hr/manager/employee"),
+  ("src_keycloak", "Tài khoản & vai trò", "source", "Keycloak", 1, "confidential", "IT", "Danh tính SSO: sub, email, vai trò employee/manager/hr/director/accountant/sysadmin"),
   ("src_hr_forms", "Biểu mẫu HR (hồ sơ, tải hợp đồng)", "source", "Frontend", 1, "pii", "HR", "HR nhập hồ sơ nhân viên mới và tải bản hợp đồng đã ký"),
   ("src_requests", "Đơn nghỉ phép / đề xuất lương", "source", "Frontend", 1, "internal", "Nhân viên, Quản lý", "Nhân viên và quản lý tạo đơn, đề xuất, quyết định duyệt"),
   ("src_law", "Kho tri thức pháp luật", "source", "ai/knowledge", 1, "public", "HR", "Luật Lao động, BHXH, thuế TNCN, chính sách nội bộ (Markdown)"),
@@ -193,7 +213,7 @@ ASSETS = [
   ("vec_knowledge", "Qdrant: peopleos_knowledge", "vector_store", "Qdrant", 2, "public", "IT", "Vector embedding của kho tri thức pháp luật"),
   ("proc_onboarding", "Quy trình onboarding", "process", "Backend + n8n", 3, "internal", "HR", "Tạo hồ sơ, hợp đồng, quỹ phép, tài khoản SSO, checklist"),
   ("proc_leave", "Quy trình nghỉ phép", "process", "Backend + n8n", 3, "internal", "HR", "Kiểm tra quỹ phép, định tuyến duyệt, thông báo"),
-  ("proc_proposal", "Quy trình đề xuất lương nhiều cấp", "process", "Backend + n8n", 3, "internal", "HR", "Quản lý → HR → Giám đốc; áp dụng vào hợp đồng"),
+  ("proc_proposal", "Quy trình đề xuất lương nhiều cấp", "process", "Backend + n8n", 3, "internal", "HR", "Quản lý → HR → Kế toán → Giám đốc; áp dụng vào hợp đồng"),
   ("proc_payroll", "Module tính lương", "process", "peopleos_shared", 3, "internal", "HR", "Gross → Net theo luật 2026: bảo hiểm, giảm trừ, thuế lũy tiến"),
   ("proc_pdf", "Sinh PDF", "process", "Backend", 3, "internal", "IT", "Tạo phiếu lương và hợp đồng PDF, lưu MinIO"),
   ("proc_clamav", "Quét mã độc", "process", "ClamAV", 3, "internal", "IT", "Quét mọi tệp tải lên trước khi lưu MinIO"),
@@ -240,7 +260,7 @@ EDGES = [
   ("tbl_insurance", "view_kpi", "Chi phí bảo hiểm doanh nghiệp"),
   ("tbl_leave", "view_kpi", "Thống kê nghỉ phép"),
   ("tbl_proposals", "view_kpi", "Số đề xuất đang chờ"),
-  ("view_kpi", "out_dashboard", "GraphQL (HR/Admin)"),
+  ("view_kpi", "out_dashboard", "GraphQL (Giám đốc/HR/Kế toán theo quyền)"),
   ("tbl_employees", "out_portal", "GraphQL theo quyền hàng"),
   ("tbl_contracts", "out_portal", "GraphQL theo quyền hàng"),
   ("tbl_payrolls", "out_portal", "GraphQL theo quyền hàng"),
