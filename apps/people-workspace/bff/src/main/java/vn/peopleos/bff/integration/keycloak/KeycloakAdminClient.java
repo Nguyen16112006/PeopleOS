@@ -12,7 +12,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import vn.peopleos.bff.config.AppProperties;
 
-/** Tạo tài khoản SSO trong Keycloak (Admin REST API) khi onboarding nhân viên mới. */
+/** Quản lý tài khoản SSO trong Keycloak (Admin REST API): tạo khi onboarding, khóa khi offboarding. */
 @Component
 public class KeycloakAdminClient {
     private final RestClient http = RestClient.create();
@@ -48,6 +48,17 @@ public class KeycloakAdminClient {
                     .body(List.of(roleRep)).retrieve().toBodilessEntity();
         }
         return userId;
+    }
+
+    /** Khóa tài khoản (enabled=false) và đăng xuất mọi phiên đang mở; dùng khi nhân viên nghỉ việc. */
+    public void disableUser(String userId) {
+        String adminToken = adminToken();
+        String realmUrl = cfg.url() + "/admin/realms/" + cfg.realm();
+        http.put().uri(realmUrl + "/users/" + userId)
+                .headers(h -> h.setBearerAuth(adminToken)).contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("enabled", false)).retrieve().toBodilessEntity();
+        http.post().uri(realmUrl + "/users/" + userId + "/logout")
+                .headers(h -> h.setBearerAuth(adminToken)).retrieve().toBodilessEntity();
     }
 
     private String adminToken() {

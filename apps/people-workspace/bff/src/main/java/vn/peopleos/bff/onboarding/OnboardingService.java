@@ -57,7 +57,8 @@ public class OnboardingService {
 
     // ------------------------------------------------------------------ 1. Tạo nhân viên mới
     public NewEmployeeResponse createEmployee(CurrentUser user, NewEmployeeRequest req) {
-        if (!user.hasAny("hr", "admin")) throw ApiException.forbidden("Cần một trong các vai trò: hr, admin");
+        // HR tạo hồ sơ + hợp đồng; tài khoản Keycloak được hệ thống tạo kèm (mọi tài khoản mới chỉ có vai trò employee)
+        if (!user.hasAny("hr")) throw ApiException.forbidden("Chỉ HR được tạo hồ sơ nhân viên mới");
 
         int count = hasura.query(OnboardingQueries.COUNT, null).get("employees_aggregate").get("aggregate").get("count").asInt();
         String code = String.format("NV%04d", count + 1);
@@ -141,7 +142,8 @@ public class OnboardingService {
 
         JsonNode emp = t.get("employee");
         String role = t.get("assignee_role").asText();
-        boolean allowed = user.hasAny("hr", "admin")
+        boolean allowed = user.hasAny("hr")
+                || (("sysadmin".equals(role) || "accountant".equals(role) || "director".equals(role)) && user.hasAny(role))
                 || ("manager".equals(role) && user.sub().equals(Json.text(emp.path("manager"), "user_id")))
                 || ("employee".equals(role) && user.sub().equals(Json.text(emp, "user_id")));
         if (!allowed) throw ApiException.forbidden("Bạn không phải người phụ trách công việc này");

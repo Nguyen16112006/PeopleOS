@@ -11,7 +11,9 @@ class CurrentUserTest {
     @Test
     void primaryRoleIsHighestPriority() {
         assertEquals("manager", new CurrentUser("u", "u", "U", "", List.of("employee", "manager")).role());
-        assertEquals("admin", new CurrentUser("u", "u", "U", "", List.of("employee", "admin", "hr")).role());
+        assertEquals("sysadmin", new CurrentUser("u", "u", "U", "", List.of("employee", "sysadmin", "hr")).role());
+        assertEquals("director", new CurrentUser("u", "u", "U", "", List.of("employee", "director")).role());
+        assertEquals("accountant", new CurrentUser("u", "u", "U", "", List.of("employee", "accountant", "hr")).role());
     }
 
     @Test
@@ -22,7 +24,7 @@ class CurrentUserTest {
     @Test
     void hasAnyChecksMembership() {
         CurrentUser hr = new CurrentUser("u", "u", "U", "", List.of("hr", "employee"));
-        assertTrue(hr.hasAny("admin", "hr"));
-        assertFalse(hr.hasAny("admin", "manager"));
+        assertTrue(hr.hasAny("sysadmin", "hr"));
+        assertFalse(hr.hasAny("sysadmin", "manager"));
     }
 }

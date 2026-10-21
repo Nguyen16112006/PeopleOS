@@ -15,13 +15,13 @@ final class LeaveQueries {
 
     static final String INSERT = """
             mutation NewLeave($obj: leave_requests_insert_input!) {
-              insert_leave_requests_one(object: $obj) { id status days }
+              insert_leave_requests_one(object: $obj) { id status stage days }
             }""";
 
     static final String BY_ID = """
             query LeaveById($id: uuid!) {
               leave_requests_by_pk(id: $id) {
-                id status leave_type days start_date end_date employee_id
+                id status stage leave_type days start_date end_date employee_id
                 employee { id user_id full_name manager { user_id } }
               }
             }""";
@@ -29,7 +29,13 @@ final class LeaveQueries {
     static final String DECIDE = """
             mutation Decide($id: uuid!, $status: String!, $approver: uuid, $note: String) {
               update_leave_requests_by_pk(pk_columns: {id: $id},
-                _set: {status: $status, approver_id: $approver, decision_note: $note, decided_at: "now()"}) { id status }
+                _set: {status: $status, stage: "done", approver_id: $approver, decision_note: $note, decided_at: "now()"}) { id status }
+            }""";
+
+    /** Chuyển đơn sang giai đoạn duyệt kế tiếp (đơn vẫn ở trạng thái pending). */
+    static final String STAGE = """
+            mutation LeaveStage($id: uuid!, $stage: String!) {
+              update_leave_requests_by_pk(pk_columns: {id: $id}, _set: {stage: $stage}) { id stage }
             }""";
 
     /** %s = used_days (phép năm) hoặc sick_days_used (nghỉ ốm). */
