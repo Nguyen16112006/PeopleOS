@@ -34,7 +34,7 @@ export default function Proposals() {
     setSending(true)
     try {
       await api('/api/salary-proposals', 'POST', { ...form, proposed_amount: Number(form.proposed_amount) })
-      push({ title: 'Đã gửi đề xuất', message: 'Chuỗi duyệt: HR → Giám đốc. Bạn sẽ nhận thông báo realtime.', kind: 'success' })
+      push({ title: 'Đã gửi đề xuất', message: 'Chuỗi duyệt: HR → Kế toán → Giám đốc. Bạn sẽ nhận thông báo realtime.', kind: 'success' })
       setForm((f) => ({ ...f, proposed_amount: '', reason: '' }))
       list.reload()
     } catch (x) { push({ title: 'Không gửi được đề xuất', message: errMsg(x), kind: 'error' }) }
@@ -45,9 +45,9 @@ export default function Proposals() {
   if (team.error || list.error) return <ErrorBox message={(team.error || list.error)!} />
   return (
     <div>
-      <PageHeader title="Đề xuất tăng lương / phụ cấp" description={user.role === 'manager' ? 'Đề xuất cho nhân viên trong nhóm của bạn. Quy trình duyệt: HR → Giám đốc.' : 'Tạo và theo dõi đề xuất. Quy trình duyệt: HR → Giám đốc.'} />
+      <PageHeader title="Đề xuất tăng lương / phụ cấp" description={user.role === 'manager' ? 'Đề xuất cho nhân viên trong nhóm của bạn. Quy trình duyệt: HR → Kế toán → Giám đốc.' : 'Theo dõi các đề xuất tăng lương. Quy trình duyệt: HR thẩm định → Kế toán kiểm ngân sách → Giám đốc duyệt cuối.'} />
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
+        {user.role === 'manager' && <Card>
           <CardHeader><CardTitle>Tạo đề xuất</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={submit} className="space-y-3">
@@ -68,8 +68,8 @@ export default function Proposals() {
               <p className="text-xs text-muted-foreground">Mức mới phải cao hơn mức hiện tại trong hợp đồng; hệ thống sẽ báo nếu chưa hợp lệ.</p>
             </form>
           </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
+        </Card>}
+        <Card className={user.role === 'manager' ? 'lg:col-span-2' : 'lg:col-span-3'}>
           <CardHeader><CardTitle>Các đề xuất</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {list.data!.salary_proposals.length === 0 && <Empty text="Chưa có đề xuất nào" />}
@@ -86,7 +86,7 @@ export default function Proposals() {
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   {p.approval_steps.map((s: any, i: number) => (
                     <div key={s.id} className="flex items-center gap-1.5">{i > 0 && <span className="text-slate-300">→</span>}
-                      <span>{s.approver_role === 'hr' ? 'HR' : 'Giám đốc'}</span><StepBadge status={s.status} /></div>
+                      <span>{({ hr: 'HR', accountant: 'Kế toán', director: 'Giám đốc' } as Record<string, string>)[s.approver_role]}</span><StepBadge status={s.status} /></div>
                   ))}
                 </div>
               </div>
