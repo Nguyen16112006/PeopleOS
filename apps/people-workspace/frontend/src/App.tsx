@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthProvider'
 import Layout from '@/components/Layout'
 import { RealtimeProvider } from '@/hooks/realtime'
 import { ToastProvider } from '@/hooks/toast'
+import Advances from '@/pages/Advances'
 import Approvals from '@/pages/Approvals'
 import Audit from '@/pages/Audit'
 import Executive from '@/pages/Executive'
@@ -11,7 +12,12 @@ import Assistant from '@/pages/Assistant'
 import Contracts from '@/pages/Contracts'
 import Dashboard from '@/pages/Dashboard'
 import Insurance from '@/pages/Insurance'
+import Kpi from '@/pages/Kpi'
 import Leave from '@/pages/Leave'
+import Payroll from '@/pages/Payroll'
+import TaxYear from '@/pages/TaxYear'
+import Offboarding from '@/pages/Offboarding'
+import TempAccess from '@/pages/TempAccess'
 import Onboarding from '@/pages/Onboarding'
 import Payslips from '@/pages/Payslips'
 import Profile from '@/pages/Profile'
@@ -38,13 +44,19 @@ export default function App() {
                 <Route path="payslips" element={<Payslips />} />
                 <Route path="insurance" element={<Insurance />} />
                 <Route path="leave" element={<Leave />} />
-                <Route path="approvals" element={<Guard roles={['manager', 'hr', 'admin']}><Approvals /></Guard>} />
-                <Route path="proposals" element={<Guard roles={['manager', 'hr', 'admin']}><Proposals /></Guard>} />
-                <Route path="onboarding" element={<Guard roles={['hr', 'admin']}><Onboarding /></Guard>} />
+                <Route path="tax-year" element={<TaxYear />} />
+                <Route path="kpi" element={<Kpi />} />
+                <Route path="offboarding" element={<Offboarding />} />
+                <Route path="payroll" element={<Guard roles={['hr', 'accountant', 'director']}><Payroll /></Guard>} />
+                <Route path="advances" element={<Advances />} />
+                <Route path="approvals" element={<Guard roles={['manager', 'hr', 'accountant', 'director']}><Approvals /></Guard>} />
+                <Route path="proposals" element={<Guard roles={['manager', 'hr', 'accountant', 'director']}><Proposals /></Guard>} />
+                <Route path="onboarding" element={<Guard roles={['hr']}><Onboarding /></Guard>} />
                 <Route path="assistant" element={<Assistant />} />
-                <Route path="executive" element={<Guard roles={['hr', 'admin']}><Executive /></Guard>} />
-                <Route path="lineage" element={<Guard roles={['hr', 'admin']}><Lineage /></Guard>} />
-                <Route path="audit" element={<Guard roles={['admin']}><Audit /></Guard>} />
+                <Route path="executive" element={<Guard roles={['hr', 'director']}><Executive /></Guard>} />
+                <Route path="lineage" element={<Guard roles={['hr', 'director', 'sysadmin']}><Lineage /></Guard>} />
+                <Route path="temp-access" element={<Guard roles={['sysadmin', 'hr', 'accountant', 'director']}><TempAccess /></Guard>} />
+                <Route path="audit" element={<Guard roles={['sysadmin', 'director', 'hr']}><Audit /></Guard>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>

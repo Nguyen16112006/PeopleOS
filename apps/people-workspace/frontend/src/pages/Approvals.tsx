@@ -12,8 +12,12 @@ import { api } from '@/lib/api'
 import { fmtDate, LEAVE_TYPES, vnd } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const QL = `query PendingLeave($uid: uuid!) {
-  leave_requests(where: {status: {_eq: "pending"}, employee: {user_id: {_neq: $uid}}}, order_by: {created_at: asc}) {
+// Đơn nghỉ phép được duyệt theo giai đoạn: Quản lý (nhân viên) → HR (kiểm ngày phép) → Giám đốc
+const STAGE_BY_ROLE: Record<string, string> = { manager: 'manager', hr: 'hr', director: 'director' }
+const PROPOSAL_STEPS_BY_ROLE: Record<string, string[]> = { hr: ['pending_hr'], accountant: ['pending_accountant'], director: ['pending_director'] }
+
+const QL = `query PendingLeave($uid: uuid!, $stage: String!) {
+  leave_requests(where: {status: {_eq: "pending"}, stage: {_eq: $stage}, employee: {user_id: {_neq: $uid}}}, order_by: {created_at: asc}) {
     id leave_type start_date end_date days reason employee { full_name job_title }
   }
 }`
@@ -39,7 +43,7 @@ function DecisionBar({ onDecide, busy }: { onDecide: (d: 'approve' | 'reject', n
 function LeaveTab() {
   const { user } = useAuth()
   const { push } = useToast()
-  const { data, loading, error, reload } = useQuery<{ leave_requests: any[] }>(QL, { uid: user.sub })
+  const { data, loading, error, reload } = useQuery<{ leave_requests: any[] }>(QL, { uid: user.sub, stage: STAGE_BY_ROLE[user.role] ?? '__none__' })
   const [busy, setBusy] = useState(false)
   const decide = async (id: string, decision: string, note: string) => {
     setBusy(true)
@@ -74,7 +78,7 @@ function LeaveTab() {
 function ProposalTab() {
   const { user } = useAuth()
   const { push } = useToast()
-  const steps = user.role === 'admin' ? ['pending_hr', 'pending_admin'] : ['pending_hr']
+  const steps = PROPOSAL_STEPS_BY_ROLE[user.role] ?? ['__none__']
   const { data, loading, error, reload } = useQuery<{ salary_proposals: any[] }>(QP, { steps })
   const [busy, setBusy] = useState(false)
   const decide = async (id: string, decision: string, comment: string) => {
@@ -92,7 +96,7 @@ function ProposalTab() {
   return (
     <div className="space-y-3">
       {data!.salary_proposals.map((p) => {
-        const mine = p.status === 'pending_admin' ? user.role === 'admin' : (user.role === 'hr' || user.role === 'admin')
+        const mine = p.status === `pending_${user.role}`
         return (
           <Card key={p.id}>
             <CardContent className="pt-5">
@@ -107,7 +111,7 @@ function ProposalTab() {
                 {p.approval_steps.map((s: any, i: number) => (
                   <div key={s.id} className="flex items-center gap-2">
                     {i > 0 && <span className="text-slate-300">→</span>}
-                    <span className={cn('font-medium', s.status === 'pending' && 'text-amber-700')}>{s.approver_role === 'hr' ? 'HR' : 'Giám đốc'}</span>
+                    <span className={cn('font-medium', s.status === 'pending' && 'text-amber-700')}>{({ hr: 'HR', accountant: 'Kế toán', director: 'Giám đốc' } as Record<string, string>)[s.approver_role]}</span>
                     <StepBadge status={s.status} />
                     {s.comment && <span className="text-muted-foreground">({s.approver?.full_name}: {s.comment})</span>}
                   </div>
@@ -124,19 +128,20 @@ function ProposalTab() {
 
 export default function Approvals() {
   const { user } = useAuth()
-  const canProposals = user.role === 'hr' || user.role === 'admin'
-  const [tab, setTab] = useState<'leave' | 'proposal'>('leave')
+  const canProposals = ['hr', 'accountant', 'director'].includes(user.role)
+  const canLeave = ['manager', 'hr', 'director'].includes(user.role)
+  const [tab, setTab] = useState<'leave' | 'proposal'>(canLeave ? 'leave' : 'proposal')
   return (
     <div>
-      <PageHeader title="Phê duyệt" description={user.role === 'manager' ? 'Đơn nghỉ phép của nhân viên trong nhóm bạn' : 'Đơn nghỉ phép và đề xuất tăng lương đang chờ bạn xử lý'} />
-      {canProposals && (
+      <PageHeader title="Phê duyệt" description={user.role === 'manager' ? 'Đơn nghỉ phép của nhân viên trong nhóm bạn' : user.role === 'accountant' ? 'Đề xuất tăng lương chờ bạn kiểm tra ngân sách' : 'Đơn nghỉ phép và đề xuất tăng lương đang chờ bạn xử lý'} />
+      {canProposals && canLeave && (
         <div className="mb-4 inline-flex rounded-lg border bg-white p-1 text-sm">
           {([['leave', 'Đơn nghỉ phép'], ['proposal', 'Đề xuất tăng lương']] as const).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className={cn('rounded-md px-4 py-1.5 font-medium', tab === k ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100')}>{label}</button>
           ))}
         </div>
       )}
-      {tab === 'leave' || !canProposals ? <LeaveTab /> : <ProposalTab />}
+      {canLeave && (tab === 'leave' || !canProposals) ? <LeaveTab /> : <ProposalTab />}
     </div>
   )
 }
