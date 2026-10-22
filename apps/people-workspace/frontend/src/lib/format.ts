@@ -20,7 +20,7 @@ export const LEAVE_STATUS: Record<string, string> = {
   pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', cancelled: 'Đã huỷ',
 }
 export const PROPOSAL_STATUS: Record<string, string> = {
-  pending_hr: 'Chờ HR duyệt', pending_admin: 'Chờ Giám đốc duyệt', approved: 'Đã duyệt', rejected: 'Từ chối',
+  pending_hr: 'Chờ HR thẩm định', pending_accountant: 'Chờ Kế toán kiểm ngân sách', pending_director: 'Chờ Giám đốc duyệt', approved: 'Đã duyệt', rejected: 'Từ chối',
 }
 export const STEP_STATUS: Record<string, string> = {
   waiting: 'Chưa tới lượt', pending: 'Đang chờ', approved: 'Đã duyệt', rejected: 'Từ chối',
@@ -29,11 +29,11 @@ export const CONTRACT_TYPES: Record<string, string> = {
   probation: 'Thử việc', fixed_term: 'Xác định thời hạn', indefinite: 'Không xác định thời hạn',
 }
 export const ROLE_LABEL: Record<string, string> = {
-  admin: 'Admin / Giám đốc', hr: 'Nhân sự (HR)', manager: 'Quản lý', employee: 'Nhân viên',
+  sysadmin: 'Admin (quản trị hệ thống)', director: 'Giám đốc', accountant: 'Kế toán', hr: 'Nhân sự (HR)', manager: 'Quản lý', employee: 'Nhân viên',
 }
 export const EMP_STATUS: Record<string, string> = {
   onboarding: 'Đang onboarding', active: 'Đang làm việc', on_leave: 'Nghỉ dài hạn', terminated: 'Đã nghỉ việc',
 }
 export const ASSIGNEE_LABEL: Record<string, string> = {
-  hr: 'HR', manager: 'Quản lý', employee: 'Nhân viên', admin: 'Admin',
+  hr: 'HR', manager: 'Quản lý', employee: 'Nhân viên', sysadmin: 'Admin', director: 'Giám đốc', accountant: 'Kế toán',
 }
