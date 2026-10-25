@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.payroll;
 
 /** Truy vấn/đột biến GraphQL cho kỳ lương hằng tháng và khiếu nại phiếu lương. */

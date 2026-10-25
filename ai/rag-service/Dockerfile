@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # Build context = thư mục gốc của repo (xem docker-compose.yml)
 FROM python:3.12-slim
 WORKDIR /app

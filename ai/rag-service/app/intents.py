@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Phân loại câu hỏi + trích xuất tham số (số tiền, người phụ thuộc, vùng)."""
 import re
 import unicodedata

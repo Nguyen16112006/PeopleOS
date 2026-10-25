@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { useMemo, useState } from 'react'
 import { ErrorBox, Loading, PageHeader } from '@/components/common'
 import { Badge } from '@/components/ui/badge'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.advance;
 
 /** Truy vấn/đột biến GraphQL cho quy trình tạm ứng / hoàn ứng / thanh toán chi phí. */

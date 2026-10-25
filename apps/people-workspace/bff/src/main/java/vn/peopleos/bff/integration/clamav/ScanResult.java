@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.integration.clamav;
 
 /** Kết quả quét mã độc một tệp. */

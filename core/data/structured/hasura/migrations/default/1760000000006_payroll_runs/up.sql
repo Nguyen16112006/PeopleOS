@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: Apache-2.0
 -- =====================================================================
 -- PeopleOS - Migration 7: Tính lương và chi trả hằng tháng (quy trình 4.2) + khiếu nại phiếu lương
 --   Nhân viên chấm công/OT -> Quản lý xác nhận -> HR chốt công (tạo kỳ lương)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;

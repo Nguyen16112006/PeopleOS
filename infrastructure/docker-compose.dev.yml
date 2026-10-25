@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # Override cho phát triển: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 # - Mở cổng trực tiếp của backend Java (8000) và RAG (8001) để debug
 # - Hot reload cho RAG (mount mã nguồn)

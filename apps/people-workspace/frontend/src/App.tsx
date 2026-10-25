@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/auth/AuthProvider'
 import Layout from '@/components/Layout'

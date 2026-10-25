@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.integration.nats;
 
 import com.fasterxml.jackson.databind.JsonNode;

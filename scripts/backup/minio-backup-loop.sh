@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Sao lưu các bucket MinIO định kỳ (chạy trong container backup-minio): mirror gia tăng sang /backups/minio/<bucket>.
 set -u
 INTERVAL=$(( ${BACKUP_INTERVAL_HOURS:-24} * 3600 ))

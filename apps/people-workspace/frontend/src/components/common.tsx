@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { AlertTriangle, Inbox, Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge } from './ui/badge'

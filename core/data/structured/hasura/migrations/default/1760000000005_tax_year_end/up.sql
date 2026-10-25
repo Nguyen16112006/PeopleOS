@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: Apache-2.0
 -- =====================================================================
 -- PeopleOS - Migration 6: Thuế TNCN, BHXH cuối năm và báo cáo tài chính năm
 --   Cuối năm: HR xác nhận người phụ thuộc + mã số thuế -> Kế toán quyết toán thuế TNCN

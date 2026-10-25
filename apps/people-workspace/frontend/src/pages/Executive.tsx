@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { AlertTriangle, Banknote, CalendarClock, ClipboardCheck, UserPlus, Users, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { BarList, GroupedColumns } from '@/components/charts'

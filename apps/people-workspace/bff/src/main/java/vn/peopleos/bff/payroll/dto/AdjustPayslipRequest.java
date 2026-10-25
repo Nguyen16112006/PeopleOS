@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.payroll.dto;
 
 import jakarta.validation.constraints.PositiveOrZero;

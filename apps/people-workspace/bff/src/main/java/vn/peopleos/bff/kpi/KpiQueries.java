@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.kpi;
 
 /** Truy vấn/đột biến GraphQL cho đánh giá hiệu suất (KPI) theo quý. */

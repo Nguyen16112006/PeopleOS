@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # =====================================================================
 # PeopleOS - toàn bộ hệ thống chạy bằng:  docker compose up -d
 # (chạy trong thư mục infrastructure/, hoặc dùng: docker compose -f infrastructure/docker-compose.yml up -d)
