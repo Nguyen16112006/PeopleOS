@@ -20,7 +20,8 @@ import vn.peopleos.bff.proposal.dto.ProposalResult;
 import vn.peopleos.bff.security.CurrentUser;
 
 /**
- * Đề xuất tăng lương/phụ cấp - duyệt nhiều cấp: Quản lý đề xuất → HR (bước 1) → Giám đốc/Admin (bước 2).
+ * Đề xuất tăng lương/thưởng/phụ cấp - duyệt nhiều cấp:
+ * Quản lý đề xuất → HR thẩm định (bước 1) → Kế toán kiểm tra ngân sách (bước 2) → Giám đốc duyệt cuối (bước 3).
  *
  * <p>Từ chối ở bất kỳ cấp nào thì kết thúc. Duyệt xong cấp cuối thì tự cập nhật mức lương/phụ cấp
  * vào hợp đồng đang hiệu lực. Lịch sử từng cấp lưu ở bảng approval_steps.
@@ -46,7 +47,7 @@ public class ProposalService {
 
     // ------------------------------------------------------------------ 1. Tạo đề xuất
     public ProposalResult create(CurrentUser user, CreateProposalRequest req) {
-        if (!user.hasAny("manager", "hr", "admin")) throw ApiException.forbidden("Cần một trong các vai trò: manager, hr, admin");
+        if (!user.hasAny("manager")) throw ApiException.forbidden("Chỉ Quản lý được đề xuất tăng lương cho nhân viên trong nhóm");
 
         JsonNode target = hasura.query(ProposalQueries.TARGET, Params.of("id", req.employeeId())).get("employees_by_pk");
         if (Json.isMissing(target)) throw ApiException.notFound("Không tìm thấy nhân viên");
@@ -54,7 +55,7 @@ public class ProposalService {
             throw ApiException.forbidden("Không thể tự đề xuất tăng lương cho chính mình");
         }
         boolean isTeamManager = user.sub().equals(Json.text(target.path("manager"), "user_id"));
-        if (!user.hasAny("hr", "admin") && !isTeamManager) {
+        if (!isTeamManager) {
             throw ApiException.forbidden("Quản lý chỉ được đề xuất cho nhân viên thuộc nhóm của mình");
         }
         JsonNode contract = Json.first(target.get("contracts"));
@@ -74,7 +75,8 @@ public class ProposalService {
                 "status", "pending_hr",
                 "approval_steps", Params.of("data", List.of(
                         Params.of("step_order", 1, "approver_role", "hr", "status", "pending"),
-                        Params.of("step_order", 2, "approver_role", "admin", "status", "waiting"))));
+                        Params.of("step_order", 2, "approver_role", "accountant", "status", "waiting"),
+                        Params.of("step_order", 3, "approver_role", "director", "status", "waiting"))));
         String id = hasura.query(ProposalQueries.CREATE, Params.of("obj", obj)).get("insert_salary_proposals_one").get("id").asText();
 
         workflows.trigger(WORKFLOW, Params.of(
@@ -104,8 +106,8 @@ public class ProposalService {
         if (current == null) throw ApiException.conflict("Đề xuất không có bước duyệt nào đang chờ");
 
         String stepRole = current.get("approver_role").asText();
-        // HR chỉ duyệt bước HR; Admin (Giám đốc) duyệt được mọi bước
-        if (!(user.hasAny("admin") || user.hasAny(stepRole))) {
+        // Mỗi bước chỉ đúng vai trò đó được duyệt (admin kỹ thuật không có quyền duyệt nghiệp vụ)
+        if (!user.hasAny(stepRole)) {
             throw ApiException.forbidden("Bước hiện tại cần vai trò '" + stepRole + "' duyệt");
         }
         String proposerUser = Json.text(p.get("proposer"), "user_id");
@@ -189,7 +191,7 @@ public class ProposalService {
         String id = String.valueOf(p.get("proposal_id"));
         Object proposerUser = p.get("proposer_user_id");
         switch (event) {
-            case "created" -> notifications.notify(Target.role("hr"), "Đề xuất tăng lương chờ HR duyệt", delta,
+            case "created" -> notifications.notify(Target.role("hr"), "Đề xuất tăng lương chờ HR thẩm định", delta,
                     "salary_proposal", id, "proposal.pending_hr");
             case "step_approved" -> notifications.notify(Target.role((String) p.get("next_role")),
                     "Đề xuất tăng lương chờ bạn duyệt", delta, "salary_proposal", id, null);

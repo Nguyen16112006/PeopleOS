@@ -15,6 +15,8 @@ import vn.peopleos.bff.notification.NotificationService;
 import vn.peopleos.bff.notification.NotificationService.Target;
 import vn.peopleos.bff.onboarding.OnboardingService;
 import vn.peopleos.bff.onboarding.dto.TaskInput;
+import vn.peopleos.bff.offboarding.OffboardingService;
+import vn.peopleos.bff.tempaccess.TempAccessService;
 
 /**
  * API NỘI BỘ cho n8n (không dành cho trình duyệt): APISIX trả 404 cho /api/internal/* từ bên ngoài,
@@ -26,9 +28,14 @@ public class InternalController {
     private final InternalKeyGuard guard;
     private final NotificationService notifications;
     private final OnboardingService onboarding;
+    private final TempAccessService tempAccess;
+    private final OffboardingService offboarding;
 
-    public InternalController(InternalKeyGuard guard, NotificationService notifications, OnboardingService onboarding) {
+    public InternalController(InternalKeyGuard guard, NotificationService notifications, OnboardingService onboarding,
+                              TempAccessService tempAccess, OffboardingService offboarding) {
+        this.offboarding = offboarding;
         this.guard = guard;
+        this.tempAccess = tempAccess;
         this.notifications = notifications;
         this.onboarding = onboarding;
     }
@@ -57,5 +64,19 @@ public class InternalController {
                                                @Valid @RequestBody OnboardingTasksRequest body) {
         guard.check(key);
         return Map.of("created", onboarding.insertTasks(body.employeeId(), body.tasks()));
+    }
+
+    /** n8n gọi mỗi phút: chuyển các quyền tạm thời quá hạn sang trạng thái expired. */
+    @PostMapping("/temp-access/expire")
+    public Map<String, Object> expireTempAccess(@RequestHeader(value = "x-internal-key", required = false) String key) {
+        guard.check(key);
+        return Map.of("expired", tempAccess.expireOverdue());
+    }
+
+    /** n8n gọi định kỳ: khóa tài khoản của nhân viên đã hoàn tất nghỉ việc và đến ngày làm việc cuối. */
+    @PostMapping("/offboarding/lock-due")
+    public Map<String, Object> lockDueAccounts(@RequestHeader(value = "x-internal-key", required = false) String key) {
+        guard.check(key);
+        return Map.of("locked", offboarding.lockDueAccounts());
     }
 }
