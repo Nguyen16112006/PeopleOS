@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Sinh seed.sql (dữ liệu mẫu để demo) - chạy: python3 generate_seed.py > seed.sql
 
 Dùng chung module tính lương `peopleos_shared.payroll` để số liệu phiếu lương/BHXH

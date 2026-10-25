@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.offboarding;
 
 /** Truy vấn/đột biến GraphQL cho quy trình nghỉ việc. */

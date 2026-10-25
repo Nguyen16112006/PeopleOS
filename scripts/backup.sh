@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # Sao lưu NGAY: PostgreSQL (peopleos, keycloak, n8n) -> backups/postgres/*.dump
 # (Định kỳ đã có container backup-postgres và backup-minio tự chạy; script này để sao lưu thủ công trước khi nâng cấp.)
 set -euo pipefail

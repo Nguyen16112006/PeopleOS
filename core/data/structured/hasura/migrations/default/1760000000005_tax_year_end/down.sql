@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: Apache-2.0
 DROP TABLE IF EXISTS hr_budgets CASCADE;
 DROP TABLE IF EXISTS annual_reports CASCADE;
 DROP TABLE IF EXISTS tax_certificates CASCADE;

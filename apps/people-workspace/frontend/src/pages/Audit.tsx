@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { CheckCircle2, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'

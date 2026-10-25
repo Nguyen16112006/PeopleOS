@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # CI của PeopleOS - mọi thay đổi vào Git (nguồn sự thật của GitOps) đều phải qua các kiểm tra này trước khi hợp nhất.
 name: CI
 

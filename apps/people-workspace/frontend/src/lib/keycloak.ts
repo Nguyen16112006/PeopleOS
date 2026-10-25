@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import Keycloak from 'keycloak-js'
 
 export const keycloak = new Keycloak({

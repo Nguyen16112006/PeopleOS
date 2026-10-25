@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.leave;
 
 /** Các truy vấn GraphQL của mục Nghỉ phép (gom một chỗ để dễ đọc và rà soát). */

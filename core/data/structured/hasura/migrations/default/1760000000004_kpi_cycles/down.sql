@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: Apache-2.0
 DROP TABLE IF EXISTS kpi_evaluations CASCADE;
 DROP TABLE IF EXISTS kpi_goals CASCADE;
 DROP TABLE IF EXISTS kpi_cycles CASCADE;

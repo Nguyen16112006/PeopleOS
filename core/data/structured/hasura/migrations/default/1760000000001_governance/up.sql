@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: Apache-2.0
 -- =====================================================================
 -- PeopleOS - Quản trị dữ liệu & kiểm toán
 --   1. audit_logs: nhật ký BẤT BIẾN, liên kết chuỗi băm SHA-256 (tamper-evident)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Công cụ trả lời câu hỏi bằng dữ liệu nội bộ: tính lương Net và tra cứu qua Hasura.
 
 Các truy vấn Hasura dùng CHÍNH token của người hỏi (kèm x-hasura-role) nên chịu cùng

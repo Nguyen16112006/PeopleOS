@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.advance.dto;
 
 /** Kết quả: stage ∈ manager | director | director_l2 | accountant | paid | settled | closed; status ∈ pending | approved | rejected. */

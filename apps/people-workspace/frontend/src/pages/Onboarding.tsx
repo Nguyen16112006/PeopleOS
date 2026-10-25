@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { Copy } from 'lucide-react'
 import { useState } from 'react'
 import { Empty, ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 - "!include public_users.yaml"
 - "!include public_employees.yaml"
 - "!include public_contracts.yaml"

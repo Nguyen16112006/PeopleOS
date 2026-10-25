@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { CalendarDays, CheckSquare, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'

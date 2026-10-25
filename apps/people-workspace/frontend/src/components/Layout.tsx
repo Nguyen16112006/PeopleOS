@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 import { BarChart3, Bell, Bot, Briefcase, CalendarDays, CheckSquare, FileText, HeartPulse, Key, Landmark, LayoutDashboard, LogOut, Network, Receipt, ShieldCheck, Target, TrendingUp, UserCircle, UserMinus, UserPlus, Wallet, Wifi, WifiOff } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'

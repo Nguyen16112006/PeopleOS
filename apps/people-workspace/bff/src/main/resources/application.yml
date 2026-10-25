@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # Cấu hình backend - mọi giá trị đọc từ biến môi trường (xem infrastructure/docker-compose.yml)
 server:
   port: 8000

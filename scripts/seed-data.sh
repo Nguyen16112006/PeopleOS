@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # Nạp dữ liệu mẫu (5 tài khoản demo, 6 nhân sự, hợp đồng, lương, BHXH, nghỉ phép, đề xuất...).
 # Chạy lại được nhiều lần: seed.sql TRUNCATE dữ liệu cũ trước khi nạp.
 # Tùy chọn: ./scripts/seed-data.sh --regenerate  để sinh lại seed.sql từ generate_seed.py

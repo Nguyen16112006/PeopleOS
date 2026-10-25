@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tính lương Gross -> Net theo quy định Việt Nam.
 
 Module thuần Python, không phụ thuộc thư viện ngoài, được dùng chung bởi:

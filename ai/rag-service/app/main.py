@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """AI Assistant - dịch vụ RAG của PeopleOS (FastAPI, cổng 8001, truy cập qua APISIX: /ai/*)."""
 import asyncio
 import logging

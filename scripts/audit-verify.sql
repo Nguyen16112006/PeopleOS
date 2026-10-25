@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: Apache-2.0
 -- Xác minh chuỗi băm kiểm toán ngay trong PostgreSQL (dùng cho verify-backup.sh và kiểm tra thủ công).
 -- Kết quả: số bản ghi HỎNG (0 = toàn vẹn). Công thức giống hệt trigger audit_chain_before_insert() và AuditService.verify().
 WITH chk AS (

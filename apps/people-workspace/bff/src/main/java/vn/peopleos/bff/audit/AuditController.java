@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.audit;
 
 import org.springframework.web.bind.annotation.GetMapping;

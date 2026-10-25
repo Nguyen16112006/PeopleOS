@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: Apache-2.0
 DROP VIEW IF EXISTS v_kpi_summary, v_contracts_expiring, v_leave_summary, v_payroll_monthly, v_headcount_by_department;
 DROP TABLE IF EXISTS data_lineage, data_assets;
 DROP TRIGGER IF EXISTS trg_audit_users ON users;

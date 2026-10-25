@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # =====================================================================
 # PeopleOS - cài đặt một lệnh: tạo .env, build, khởi chạy, nạp dữ liệu mẫu
 # Dùng: ./scripts/setup.sh            (khởi chạy toàn bộ)

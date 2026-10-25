@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # =====================================================================
 # GitOps agent: Git là nguồn sự thật duy nhất của cấu hình hệ thống.
 # Mỗi GITOPS_INTERVAL giây:

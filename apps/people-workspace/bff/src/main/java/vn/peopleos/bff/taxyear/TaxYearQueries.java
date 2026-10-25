@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.taxyear;
 
 /** Truy vấn/đột biến GraphQL cho quy trình thuế TNCN, BHXH cuối năm và báo cáo tài chính năm. */

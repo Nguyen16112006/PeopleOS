@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # Build context = thư mục gốc của repo (xem infrastructure/docker-compose.yml)
 # ---------- Giai đoạn 1: biên dịch bằng Maven ----------
 FROM maven:3.9-eclipse-temurin-21 AS build

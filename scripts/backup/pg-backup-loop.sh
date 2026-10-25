@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Sao lưu PostgreSQL định kỳ (chạy trong container backup-postgres).
 # Mỗi lần: pg_dump -Fc cho từng CSDL -> /backups/postgres/<db>-<thời-gian>.dump; xóa bản cũ hơn BACKUP_RETENTION_DAYS ngày.
 set -u

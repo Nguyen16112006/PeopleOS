@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
 # Khôi phục một CSDL từ bản sao lưu.  Dùng: ./scripts/restore.sh <tên-csdl> <đường-dẫn-file.dump> --yes
 # CẢNH BÁO: xóa CSDL hiện tại rồi nạp lại từ file. Các dịch vụ dùng CSDL đó được dừng tạm rồi khởi động lại.
 set -euo pipefail

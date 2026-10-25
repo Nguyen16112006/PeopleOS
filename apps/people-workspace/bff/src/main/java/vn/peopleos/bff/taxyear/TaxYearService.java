@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.taxyear;
 
 import com.fasterxml.jackson.databind.JsonNode;

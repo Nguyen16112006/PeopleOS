@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 package vn.peopleos.bff.leave.dto;
 
 /** Kết quả trả về cho các thao tác nghỉ phép; "days" chỉ có khi tạo đơn. */
