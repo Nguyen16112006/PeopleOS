@@ -78,7 +78,7 @@ PeopleOS/
 │   ├── gateway/               # APISIX: route, xác thực JWT
 │   ├── data/structured/       # PostgreSQL + Hasura: migration, metadata (quyền), seed
 │   ├── data/unstructured/     # MinIO: bucket
-│   ├── workflow/workflows/    # n8n: 4 workflow JSON
+│   ├── workflow/workflows/    # n8n: 6 workflow JSON
 │   ├── event-bus/             # NATS
 │   └── shared/python/         # peopleos_shared.payroll (tính Gross→Net)
 ├── apps/people-workspace/
@@ -100,17 +100,17 @@ PeopleOS/
 ## 5. Tính năng
 
 ### Open-Core
-- SSO + RBAC 4 vai trò: **Admin, HR, Manager, Employee**
+- SSO + RBAC 6 vai trò: **Admin kỹ thuật (sysadmin), Giám đốc, Kế toán, HR, Quản lý, Nhân viên**
 - APISIX bảo vệ toàn bộ API (JWT bắt buộc), chặn API nội bộ
 - PostgreSQL + Hasura tự sinh GraphQL, phân quyền hàng/cột theo vai trò
 - MinIO lưu hợp đồng và phiếu lương (PDF)
-- 4 quy trình n8n; NATS đẩy sự kiện realtime
+- 6 quy trình n8n (có lịch hết hạn quyền tạm thời và khóa tài khoản nghỉ việc); NATS đẩy sự kiện realtime
 - Toàn bộ hệ thống chạy bằng `docker compose up -d`
 
 ### People Workspace
 - Đăng nhập SSO Keycloak; menu và dữ liệu theo vai trò
 - **Cổng tự phục vụ:** hồ sơ cá nhân, hợp đồng lao động (tải PDF), bảng lương theo tháng (tải PDF), quá trình đóng BHXH/BHYT
-- **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý → HR → Giám đốc)
+- **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý → HR → Kế toán → Giám đốc) · Tạm ứng và chi phí · Quyền tạm thời · Nghỉ việc · Đánh giá KPI theo quý · Kỳ lương · Thuế và báo cáo năm
 - Thông báo realtime (toast + chuông) khi có người duyệt hoặc từ chối
 
 ### An ninh, vận hành & quản trị dữ liệu (xem [docs/governance.md](docs/governance.md))
@@ -149,7 +149,7 @@ docker compose up -d --build
 | MinIO Console | http://localhost:9001 |
 | n8n | http://localhost:5678 |
 
-**Tài khoản demo** (mật khẩu chung `Peopleos@123`): `admin`, `hr`, `manager`, `employee` (Phạm Thu Dung), `employee2`.
+**Tài khoản demo** (mật khẩu chung `Peopleos@123`): `employee` (Phạm Thu Dung), `employee2`, `manager`, `hr`, `accountant` (Kế toán), `director` (Giám đốc), `admin` (Admin kỹ thuật). Chi tiết từng vai trò và cách thử quy trình: [HUONG_DAN_CHAY_6_VAI_TRO.md](HUONG_DAN_CHAY_6_VAI_TRO.md).
 
 Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc phục sự cố và hướng dẫn production: [docs/deployment.md](docs/deployment.md).
 
@@ -160,7 +160,7 @@ Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc ph�
 | Thành phần | Test | Cách chạy |
 |---|---|---|
 | Tính lương (Gross→Net, trần BH, thuế 2026) | 7 (Python) | `cd core/shared/python && PYTHONPATH=. python -m pytest tests` |
-| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito (đã viết, **chưa chạy được** trong môi trường phát triển - xem lưu ý) | `cd apps/people-workspace/bff && mvn test` |
+| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito (tính lương, KPI, tạm ứng, nghỉ việc, quyết toán thuế, duyệt nhiều cấp); chạy tự động trong CI (`mvn verify`) | `cd apps/people-workspace/bff && mvn test` |
 | RAG (phân loại, tính lương, truy xuất, fallback) | 21 (Python) | `cd ai/rag-service && python -m pytest tests` |
 | Kiểm toán, sao lưu, view dashboard (migration, seed, chuỗi băm DB↔Java, ghi đồng thời, giả mạo, khôi phục) | kịch bản chạy thật trên PostgreSQL 16 | `scripts/audit-verify.sql` + CI job `database` |
 | ClamAV (giao thức INSTREAM) | chạy thật với clamd giả lập; JUnit đã viết | `mvn test` |
@@ -168,9 +168,9 @@ Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc ph�
 
 Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 thật. Các lớp thuần Java (đếm ngày làm việc, tách tên, tham số) đã chạy thử trên JDK 21.
 
-> **Lưu ý trung thực:** môi trường phát triển dự án này không có Docker và không tải được thư viện Maven, nên backend Java mới chỉ được kiểm tra cú pháp bằng `javac` (chưa biên dịch đầy đủ, chưa chạy test), ClamAV thật, autoheal, sao lưu/GitOps dạng container và CI trên GitHub chưa được chạy, và `docker-compose.yml`, cấu hình Keycloak/APISIX/Hasura và 4 workflow n8n
-> được viết theo tài liệu chính thức của từng sản phẩm nhưng **chưa được chạy tích hợp đầu-cuối**. Lần chạy đầu hãy dùng `healthcheck.sh` và
-> mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md); các điểm dễ cần chỉnh nhất là URL Keycloak (issuer), tên image/phiên bản và lệnh nhập workflow của n8n.
+> **Phạm vi đã kiểm thử:** ngăn xếp Docker đã được build và khởi chạy trên Docker Desktop (Windows). CI trên GitHub chạy test Python, build + test backend Java và build frontend.
+> Chưa có kiểm thử tự động đầu-cuối (đăng nhập Keycloak → GraphQL → quy trình n8n) và chưa kiểm thử tải/HA. Nếu lần chạy đầu gặp lỗi, dùng `healthcheck.sh` và mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md);
+> các điểm dễ cần chỉnh nhất là URL Keycloak (issuer), tên image/phiên bản và lệnh nhập workflow của n8n.
 
 ---
 
@@ -191,5 +191,6 @@ Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 
 
 ## 10. Đóng góp & Giấy phép
 
-Xem [CONTRIBUTING.md](CONTRIBUTING.md). Phát hành theo **Apache-2.0** ([LICENSE](LICENSE)).
+Xem [CONTRIBUTING.md](CONTRIBUTING.md). Báo lỗi hoặc đề xuất tính năng tại [GitHub Issues](../../issues); lỗi bảo mật xem [SECURITY.md](SECURITY.md). Bản phát hành: [Releases](../../releases). Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
+Phát hành theo **Apache-2.0** ([LICENSE](LICENSE)); thành phần bên thứ ba và giấy phép của chúng xem [NOTICE](NOTICE).
 Nội dung pháp luật trong `ai/knowledge` chỉ mang tính tham khảo, không thay thế tư vấn pháp lý/kế toán.
