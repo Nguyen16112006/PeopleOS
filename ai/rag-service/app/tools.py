@@ -14,7 +14,7 @@ from peopleos_shared.payroll import compute_net, format_vnd
 from .config import settings
 from .intents import amount_context, parse_amount, parse_dependents, parse_region
 
-ROLE_ORDER = ["admin", "hr", "manager", "employee"]
+ROLE_ORDER = ["sysadmin", "director", "accountant", "hr", "manager", "employee"]
 STATUS_VN = {"pending": "Chờ duyệt", "approved": "Đã duyệt", "rejected": "Từ chối", "cancelled": "Đã huỷ"}
 TYPE_VN = {"annual": "Nghỉ phép năm", "sick": "Nghỉ ốm", "unpaid": "Nghỉ không lương", "personal": "Nghỉ việc riêng"}
 
