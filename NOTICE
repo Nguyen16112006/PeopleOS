@@ -1,0 +1,91 @@
+PeopleOS
+Copyright 2026 The PeopleOS Authors
+
+Mã nguồn của PeopleOS được phát hành theo giấy phép Apache License 2.0
+(xem tệp LICENSE). Mỗi tệp mã nguồn có dòng "SPDX-License-Identifier: Apache-2.0".
+
+Kho mã này KHÔNG chứa bản sao mã nguồn của các dự án bên thứ ba liệt kê dưới
+đây (trừ phần ghi chú về shadcn/ui). Các thành phần được tải về khi build hoặc
+khi chạy (Docker image, Maven, npm, pip) và dùng ở dạng KHÔNG chỉnh sửa. Các
+dịch vụ lõi chạy trong container riêng, giao tiếp với PeopleOS qua mạng
+(HTTP, GraphQL, NATS), không liên kết (link) vào mã của PeopleOS.
+
+------------------------------------------------------------------------
+1. Dịch vụ nền tảng (Docker image, chạy độc lập)
+------------------------------------------------------------------------
+Thành phần                     Phiên bản        Giấy phép
+Keycloak                       26.0.7           Apache-2.0
+Hasura GraphQL Engine (CE)     v2.40.0          Apache-2.0
+PostgreSQL                     16               PostgreSQL License
+Apache APISIX                  3.9.1            Apache-2.0
+NATS Server                    2.10             Apache-2.0
+MinIO (image scnd/minio-mirror) RELEASE.2025-09-07  AGPL-3.0
+n8n                            1.70.3           Sustainable Use License (*)
+Qdrant                         v1.12.4          Apache-2.0
+Ollama                         latest           MIT
+ClamAV                         1.4              GPL-2.0
+docker-autoheal (willfarrell)  1.2.0            MIT
+Docker CLI                     27               Apache-2.0
+
+(*) n8n dùng giấy phép "fair-code" (Sustainable Use License), không thuộc danh
+    sách giấy phép OSI. n8n được dùng như một dịch vụ chạy riêng để làm Động cơ
+    luồng công việc (Workflow), có tên trong bảng công nghệ tham chiếu của đề
+    thi. Các workflow của PeopleOS (core/workflow/workflows/*.json) là tệp cấu
+    hình do nhóm tự viết. Có thể thay n8n bằng Flowable hoặc Kestra (Apache-2.0).
+
+MinIO theo AGPL-3.0: PeopleOS chỉ gọi MinIO qua giao thức S3, không sửa mã
+nguồn MinIO và không cung cấp bản MinIO đã sửa đổi.
+
+------------------------------------------------------------------------
+2. Mô hình AI (tải bằng Ollama khi khởi động)
+------------------------------------------------------------------------
+Mô hình                        Giấy phép
+bge-m3 (embedding)             MIT
+qwen2.5:3b (chat, mặc định)    Qwen Research License (**)
+
+(**) Cần xác minh lại giấy phép trên trang mô hình trước khi nộp bài. Nếu
+     không phải giấy phép mở, đổi biến OLLAMA_CHAT_MODEL sang một mô hình
+     giấy phép Apache-2.0 hoặc MIT (ví dụ qwen2.5:7b hoặc qwen2.5:1.5b,
+     cũng cần kiểm tra).
+
+------------------------------------------------------------------------
+3. Thư viện Java (apps/people-workspace/bff)
+------------------------------------------------------------------------
+Spring Boot 3.3.5 (web, security, oauth2-resource-server, validation,
+  websocket, test)                         Apache-2.0
+MinIO Java SDK 8.5.12                      Apache-2.0
+JNATS 2.20.4                               Apache-2.0
+OpenPDF 2.0.3                              LGPL-2.1 hoặc MPL-2.0
+springdoc-openapi 2.6.0                    Apache-2.0
+
+------------------------------------------------------------------------
+4. Thư viện giao diện (apps/people-workspace/frontend)
+------------------------------------------------------------------------
+React, React DOM 19                        MIT
+react-router-dom 6                         MIT
+keycloak-js 26                             Apache-2.0
+lucide-react                               ISC
+class-variance-authority                   Apache-2.0
+clsx, tailwind-merge                       MIT
+Tailwind CSS 3, PostCSS, Autoprefixer      MIT
+Vite 6, @vitejs/plugin-react               MIT
+TypeScript 5.6                             Apache-2.0
+
+Ghi chú về shadcn/ui (MIT): các thành phần trong src/components/ui theo
+phong cách của shadcn/ui (https://ui.shadcn.com). Giấy phép MIT, Copyright (c)
+2023 shadcn.
+
+------------------------------------------------------------------------
+5. Thư viện Python (ai/rag-service, core/shared/python)
+------------------------------------------------------------------------
+FastAPI 0.115.6                            MIT
+Uvicorn 0.32.1                             BSD-3-Clause
+httpx 0.28.1                               BSD-3-Clause
+qdrant-client 1.12.1                       Apache-2.0
+langchain-text-splitters 0.3.4             MIT
+
+------------------------------------------------------------------------
+6. Nội dung tham khảo
+------------------------------------------------------------------------
+Các tệp trong ai/knowledge tóm tắt quy định pháp luật Việt Nam, chỉ mang tính
+tham khảo, không thay thế tư vấn pháp lý hoặc kế toán.
