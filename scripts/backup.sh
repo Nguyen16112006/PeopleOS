@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Sao lưu NGAY: PostgreSQL (peopleos, keycloak, n8n) -> backups/postgres/*.dump
 # (Định kỳ đã có container backup-postgres và backup-minio tự chạy; script này để sao lưu thủ công trước khi nâng cấp.)
 set -euo pipefail

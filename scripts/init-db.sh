@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Đảm bảo CSDL đã có schema (Hasura CLI migrations tự áp dụng khi container khởi động).
 # Nếu sau ~2 phút chưa có bảng, thử khởi động lại Hasura rồi báo lỗi kèm log.
 set -euo pipefail

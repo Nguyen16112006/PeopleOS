@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# APISIX chế độ etcd (config.paas.yaml đưa vào ConfigMap bằng kustomize configMapGenerator).
+# etcd cài riêng (vd. helm bitnami/etcd) tại etcd.gateway.svc:2379 - ghi chú: sửa `deployment.etcd.host` cho khớp.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apisix
+  namespace: gateway
+  labels: { app: apisix }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: apisix }
+  template:
+    metadata:
+      labels: { app: apisix }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: apisix
+          image: apache/apisix:3.9.1-debian
+          ports:
+            - { name: proxy, containerPort: 9080 }
+            - { name: admin, containerPort: 9180 }
+            - { name: metrics, containerPort: 9091 }
+          env:
+            - name: APISIX_ADMIN_KEY
+              valueFrom: { secretKeyRef: { name: gateway-secrets, key: admin-key } }
+            - name: APISIX_KEYRING
+              valueFrom: { secretKeyRef: { name: gateway-secrets, key: keyring } }
+            - name: HASURA_ADMIN_SECRET
+              valueFrom: { secretKeyRef: { name: gateway-secrets, key: hasura-admin-secret } }
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/apisix/conf/config.yaml
+              subPath: config.yaml
+          readinessProbe:
+            tcpSocket: { port: 9080 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 300m, memory: 256Mi }
+            limits: { memory: 512Mi }
+      volumes:
+        - name: config
+          configMap:
+            name: apisix-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix
+  namespace: gateway
+spec:
+  selector: { app: apisix }
+  ports:
+    - { name: proxy, port: 80, targetPort: 9080 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apisix-admin
+  namespace: gateway
+spec:
+  selector: { app: apisix }
+  ports:
+    - { name: admin, port: 9180, targetPort: 9180 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: apisix
+  namespace: gateway
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: apisix }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 60 }
+---
+# Cổng Admin (9180) chỉ platform-api và pod bootstrap được truy cập
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-admin-restrict
+  namespace: gateway
+spec:
+  podSelector:
+    matchLabels: { app: apisix }
+  policyTypes: [Ingress]
+  ingress:
+    - ports:
+        - port: 9080
+        - port: 9091
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: platform-system }
+      ports:
+        - port: 9180

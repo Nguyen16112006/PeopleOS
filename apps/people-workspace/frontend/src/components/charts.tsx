@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import { cn } from '@/lib/utils'
 
 export interface BarItem { label: string; value: number; hint?: string }

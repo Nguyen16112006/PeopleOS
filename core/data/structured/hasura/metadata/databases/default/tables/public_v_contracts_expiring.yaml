@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 table:
   name: v_contracts_expiring
   schema: public
@@ -13,7 +12,9 @@ select_permissions:
     - contract_type
     - end_date
     - days_left
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
 - role: director
   permission:
@@ -25,5 +26,54 @@ select_permissions:
     - contract_type
     - end_date
     - days_left
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - id
+    - contract_no
+    - full_name
+    - department
+    - contract_type
+    - end_date
+    - days_left
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - id
+    - contract_no
+    - full_name
+    - department
+    - contract_type
+    - end_date
+    - days_left
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - id
+    - contract_no
+    - full_name
+    - department
+    - contract_type
+    - end_date
+    - days_left
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000

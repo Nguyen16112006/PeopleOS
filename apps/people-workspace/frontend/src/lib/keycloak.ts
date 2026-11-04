@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import Keycloak from 'keycloak-js'
 
 export const keycloak = new Keycloak({

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/auth/AuthProvider'

@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# Yêu cầu CloudNativePG operator. Một cell = một cụm Postgres + một Hasura.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cell-1-pg
+  namespace: cell-1
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  storage:
+    size: 50Gi
+  postgresql:
+    parameters:
+      max_connections: "300"
+      shared_buffers: "512MB"
+      log_min_duration_statement: "500"
+  bootstrap:
+    initdb:
+      database: peopleos
+      owner: peopleos
+      secret:
+        name: cell-1-pg-owner       # kubernetes.io/basic-auth (username=peopleos)
+---
+# PgBouncer: pool_mode=transaction tương thích với set_config(..., true) / SET LOCAL của Hasura và platform-api
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: cell-1-pg-pooler
+  namespace: cell-1
+spec:
+  cluster:
+    name: cell-1-pg
+  instances: 2
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "25"

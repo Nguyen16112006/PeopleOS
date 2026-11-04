@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 # --- build ---
 FROM node:22-alpine AS build
 WORKDIR /app

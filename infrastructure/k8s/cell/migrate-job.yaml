@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# Áp migration SQL bằng role OWNER (kết nối thẳng cụm Postgres, KHÔNG qua PgBouncer) và đặt mật khẩu cho hasura_app.
+# Chạy TRƯỚC khi Hasura/platform-api khởi động. Image: core/data/structured/Dockerfile.migrate
+# Mỗi lần triển khai phiên bản mới: đổi tên Job (vd. hậu tố tag) hoặc dùng hook của Argo CD/Helm (PreSync).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: cell-1
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: migrate
+          image: peopleos/db-migrate:latest
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: owner-db-url } }
+            - name: HASURA_APP_PASSWORD
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: hasura-app-password } }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }

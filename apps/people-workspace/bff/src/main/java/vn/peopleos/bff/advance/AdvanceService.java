@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.advance;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -180,7 +182,7 @@ public class AdvanceService {
     }
 
     private long threshold() {
-        JsonNode s = hasura.query(AdvanceQueries.THRESHOLD, Params.of()).path("app_settings_by_pk");
+        JsonNode s = hasura.query(AdvanceQueries.THRESHOLD, Params.of()).path("app_settings").path(0);
         try {
             return Json.isMissing(s) ? DEFAULT_THRESHOLD_VND : Long.parseLong(s.get("value").asText());
         } catch (NumberFormatException e) {

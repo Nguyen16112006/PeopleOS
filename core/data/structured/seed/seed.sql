@@ -1,4 +1,13 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
 -- Sinh bởi generate_seed.py - KHÔNG sửa tay. Chạy lại sẽ XÓA dữ liệu demo cũ.
+DO $$ BEGIN
+  IF to_regclass('platform.tenants') IS NOT NULL
+     AND EXISTS (SELECT 1 FROM platform.tenants WHERE id <> '00000000-0000-0000-0000-000000000001') THEN
+    RAISE EXCEPTION 'seed.sql chỉ dùng cho môi trường demo: phát hiện tenant khác, từ chối TRUNCATE dữ liệu của họ';
+  END IF;
+END $$;
+DO $$ BEGIN PERFORM set_config('hasura.user', '{"x-hasura-tenant-id":"00000000-0000-0000-0000-000000000001"}', false); END $$;
 TRUNCATE users, employees, contracts, payrolls, insurance_records, leave_balances, leave_requests, salary_proposals, approval_steps, onboarding_tasks, notifications, data_lineage, data_assets, advance_requests, temp_access_requests, approval_events CASCADE;
 INSERT INTO users (id, username, email, full_name, role) VALUES ('00000000-0000-4000-8000-000000000001', 'admin', 'admin@peopleos.local', 'Nguyễn Văn An', 'sysadmin');
 INSERT INTO users (id, username, email, full_name, role) VALUES ('00000000-0000-4000-8000-000000000002', 'hr', 'hr@peopleos.local', 'Trần Thị Bình', 'hr');

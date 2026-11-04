@@ -1,4 +1,6 @@
 -- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
+
 -- =====================================================================
 -- PeopleOS - Migration 4: Quy trình nghỉ việc (offboarding)
 -- Nghỉ việc: Nhân viên gửi đơn -> Quản lý xác nhận (hoặc Giám đốc với Quản lý/HR/Kế toán/Admin)

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# Image Job áp metadata Hasura (hasura-cli metadata apply). Build từ GỐC repo:
+#   docker build -f core/data/structured/Dockerfile.metadata -t peopleos/hasura-metadata:latest .
+# Metadata chỉ gọi Metadata API (không chạy DDL), nên không cần role owner.
+FROM hasura/graphql-engine:v2.40.0.cli-migrations-v3
+WORKDIR /hasura
+COPY core/data/structured/hasura/config.yaml ./config.yaml
+COPY core/data/structured/hasura/metadata ./metadata
+ENTRYPOINT ["hasura-cli", "metadata", "apply", "--skip-update-check"]

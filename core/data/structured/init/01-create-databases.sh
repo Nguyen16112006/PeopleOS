@@ -1,5 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Tạo thêm các CSDL cho Keycloak và n8n (CSDL ứng dụng đã được tạo bởi POSTGRES_DB).
 # Script này chỉ chạy ở lần khởi tạo đầu tiên của volume PostgreSQL.
 set -euo pipefail

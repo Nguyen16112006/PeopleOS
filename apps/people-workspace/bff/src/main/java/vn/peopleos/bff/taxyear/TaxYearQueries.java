@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.taxyear;
 
 /** Truy vấn/đột biến GraphQL cho quy trình thuế TNCN, BHXH cuối năm và báo cáo tài chính năm. */
@@ -6,7 +8,7 @@ final class TaxYearQueries {
     private TaxYearQueries() {}
 
     static final String CLOSING = """
-            query TyClosing($y: smallint!) { tax_year_closings_by_pk(year: $y) { year status } }""";
+            query TyClosing($y: smallint!) { tax_year_closings(where: {year: {_eq: $y}}, limit: 1) { year status } }""";
 
     static final String CLOSING_UPSERT = """
             mutation TyClosingUpsert($obj: tax_year_closings_insert_input!, $cols: [tax_year_closings_update_column!]!) {
@@ -37,7 +39,7 @@ final class TaxYearQueries {
             }""";
 
     static final String REPORT = """
-            query TyReport($y: smallint!) { annual_reports_by_pk(year: $y) { year status } }""";
+            query TyReport($y: smallint!) { annual_reports(where: {year: {_eq: $y}}, limit: 1) { year status } }""";
 
     static final String REPORT_UPSERT = """
             mutation TyReportUpsert($obj: annual_reports_insert_input!) {
@@ -47,16 +49,16 @@ final class TaxYearQueries {
 
     static final String REPORT_APPROVE = """
             mutation TyReportApprove($y: smallint!, $by: uuid!) {
-              update_annual_reports_by_pk(pk_columns: {year: $y}, _set: {status: "approved", approved_by: $by, approved_at: "now()"}) { year status }
+              update_annual_reports(where: {year: {_eq: $y}}, _set: {status: "approved", approved_by: $by, approved_at: "now()"}) { affected_rows }
             }""";
 
     static final String REPORT_RETURN = """
             mutation TyReportReturn($y: smallint!, $comment: String) {
-              update_annual_reports_by_pk(pk_columns: {year: $y}, _set: {status: "returned", director_comment: $comment}) { year status }
+              update_annual_reports(where: {year: {_eq: $y}}, _set: {status: "returned", director_comment: $comment}) { affected_rows }
             }""";
 
     static final String BUDGET = """
-            query TyBudget($y: smallint!) { hr_budgets_by_pk(year: $y) { year status } }""";
+            query TyBudget($y: smallint!) { hr_budgets(where: {year: {_eq: $y}}, limit: 1) { year status } }""";
 
     static final String BUDGET_UPSERT = """
             mutation TyBudgetUpsert($obj: hr_budgets_insert_input!) {
@@ -66,6 +68,6 @@ final class TaxYearQueries {
 
     static final String BUDGET_APPROVE = """
             mutation TyBudgetApprove($y: smallint!, $by: uuid!) {
-              update_hr_budgets_by_pk(pk_columns: {year: $y}, _set: {status: "approved", approved_by: $by, approved_at: "now()"}) { year status }
+              update_hr_budgets(where: {year: {_eq: $y}}, _set: {status: "approved", approved_by: $by, approved_at: "now()"}) { affected_rows }
             }""";
 }

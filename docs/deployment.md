@@ -31,11 +31,11 @@ docker compose up -d --build
 ```
 
 Lần đầu `docker compose up -d` cần vài phút để build `bff` (Maven tải thư viện Java, cần Internet; khoảng 3-6 phút), `frontend`, `rag-service` và tải image. Backend Java khởi động mất khoảng 10-20 giây sau khi container chạy. Container `ollama-init` tải mô hình
-(`bge-m3` ≈ 1,2 GB, `qwen2.5:3b` ≈ 1,9 GB) ở nền; trong lúc chờ, trợ lý AI vẫn trả lời bằng đoạn trích từ kho tri thức.
+(`bge-m3` ≈ 1,2 GB, `qwen2.5:1.5b` ≈ 1,0 GB) ở nền; trong lúc chờ, trợ lý AI vẫn trả lời bằng đoạn trích từ kho tri thức.
 Theo dõi: `docker compose logs -f ollama-init rag-service`.
 
 ### Thứ tự khởi động
-`postgres` → `keycloak` (import realm) · `hasura` (migration + metadata) · `minio` → `minio-init` · `nats` → `n8n` (nhập 4 workflow) → `bff` → `apisix` → `frontend`.
+`postgres` → `keycloak` (import realm) · `hasura` (migration + metadata) · `minio` → `minio-init` · `nats` → `n8n` (nhập 6 workflow) → `bff` → `apisix` → `frontend`.
 
 ## 4. Cổng và tài khoản
 

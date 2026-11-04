@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# Image Job áp migration SQL bằng role owner.  Build từ GỐC repo:
+#   docker build -f core/data/structured/Dockerfile.migrate -t peopleos/db-migrate:latest .
+FROM postgres:16-alpine
+RUN apk add --no-cache bash
+WORKDIR /repo
+COPY core/data/structured/hasura/migrations ./core/data/structured/hasura/migrations
+COPY scripts/apply-sql-migrations.sh ./scripts/apply-sql-migrations.sh
+RUN chmod +x scripts/apply-sql-migrations.sh && adduser -D -u 10001 app
+USER 10001
+ENTRYPOINT ["bash", "scripts/apply-sql-migrations.sh"]

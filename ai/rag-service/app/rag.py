@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 """RAG trên kho tri thức Luật Lao động / BHXH / Thuế TNCN / chính sách nội bộ.
 
 Quy trình: tách văn bản (LangChain text splitter) -> embedding (Ollama bge-m3) -> lưu Qdrant

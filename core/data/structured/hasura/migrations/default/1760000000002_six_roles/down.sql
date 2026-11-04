@@ -1,4 +1,6 @@
 -- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
+
 -- Hoàn tác migration 6 vai trò (chuyển director/accountant về chuỗi cũ).
 DROP TABLE IF EXISTS temp_access_requests CASCADE;
 DROP FUNCTION IF EXISTS temp_access_no_self_approval();

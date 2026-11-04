@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.kpi.dto;
 
 /** Kết quả thao tác KPI: status của chu kỳ, mục tiêu hoặc đánh giá; score và rating chỉ có khi chấm đánh giá. */

@@ -2,6 +2,57 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/).
 
+## [2.0.1] - 2026-11-03 (rà soát giấy phép, tài liệu, hạ tầng cộng đồng và giảm rủi ro demo)
+### Fixed
+- **Giấy phép:** `redis:7-alpine` (Redis 7.4+ không thuộc OSI) → **Valkey** (BSD-3-Clause); mặc định mô hình `qwen2.5:3b` (Qwen Research License,
+  phi thương mại) → `qwen2.5:1.5b` (Apache-2.0); `ollama/ollama:latest` → `0.32.6` (ghi đè bằng `OLLAMA_IMAGE`); MinIO cho phép thay image bằng `MINIO_IMAGE`.
+- **Tài liệu:** README ghi đúng 6 vai trò và 6 workflow n8n, bỏ tuyên bố "100% nguồn mở", chuyển "Đa tenant" khỏi hướng phát triển, cập nhật bảng kiểm thử;
+  sửa số liệu cũ trong `docs/architecture.md`, `docs/deployment.md`, `docs/demo-script.md`.
+### Added
+- Header **SPDX** (Apache-2.0) cho toàn bộ tệp mã; `scripts/spdx-headers.py --check/--apply`; `NOTICE`, `THIRD_PARTY_LICENSES.md`, `docs/LICENSING.md`
+  (nêu trung thực n8n không thuộc OSI và MinIO bị ngừng phát hành image, kèm phương án thay thế).
+- Cộng đồng: `SECURITY.md`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md` đầy đủ, mẫu issue (báo lỗi, đề xuất), mẫu Pull Request, `docs/screenshots/README.md`.
+- Phát hành: `scripts/make-release.py` tạo **`.tar.gz`** tái lập được (build 2 lần giống hệt), tự loại `.env`, `backups/`, dump và từ chối nếu có khóa riêng.
+- Giảm rủi ro demo: `scripts/preflight.py` (Docker/RAM/đĩa/cổng/`.env`, `--check-images` kiểm tra tag image có tồn tại), `scripts/smoke-paas.py`
+  (kiểm thử đầu-cuối cả stack, gồm cô lập tenant và webhook ký HMAC), `docs/DEMO_CHECKLIST.md`.
+- CI: job `license-compliance`; job `gateway-and-scripts` chạy thêm test của preflight/release/smoke.
+### Chưa làm (cần quyết định)
+- Thay n8n bằng engine OSI (Kestra/Temporal/Flowable) và MinIO bằng SeaweedFS: xem `docs/LICENSING.md`.
+
+## [2.0.0] - 2026-10-30 (HR-PaaS: đa tenant + control plane cho developer)
+### Added
+- **Đa tenant**: cột `tenant_id` + Row-Level Security (fail-closed) cho mọi bảng nghiệp vụ; permission Hasura nào cũng lọc theo
+  `X-Hasura-Tenant-Id`; chuỗi băm kiểm toán riêng từng tenant; khóa ngoại tổng hợp `(tenant_id, id)` chống tham chiếu chéo tenant.
+  Migration `1760000000007` … `1760000000011` (có `down.sql`).
+- **Control plane** `apps/platform/platform-api` (FastAPI): project (saga cấp phát có bù trừ), API key (chỉ lưu hash),
+  Schema Service (spec → DDL → Hasura metadata API), custom field (jsonb + trigger kiểm kiểu), webhook (HMAC, retry, dead-letter, chống SSRF),
+  đo đếm sử dụng theo ngày.
+- **Developer Portal** `apps/developer-portal` (React): project, API key, schema, trường tùy chỉnh, webhook, người dùng, sử dụng.
+- **Gateway**: APISIX chạy bằng etcd (`core/gateway/config.paas.yaml`), consumer-group theo gói, Lua `api-key-to-hasura.lua`,
+  `scripts/apisix-paas-bootstrap.py`.
+- Keycloak: realm `peopleos-platform` (developer); `scripts/keycloak-paas-bootstrap.py` (thuộc tính `tenant_id` chỉ admin sửa được + mapper).
+- Role Hasura `bff_service`, `tenant_api_read`, `tenant_api_write` (sinh bằng `scripts/tenant-roles.py`); Event Trigger cho 4 bảng.
+- Hạ tầng: `docker-compose.paas.yml`; `infrastructure/k8s/` (Hasura, platform-api, worker + KEDA, CloudNativePG + PgBouncer, APISIX, Job migration/metadata);
+  `scripts/apply-sql-migrations.sh` (áp migration bằng role owner, có sổ cái).
+- CI: job `platform-api`, `gateway-and-scripts`, `developer-portal`, `k8s-validate`; bước cô lập đa tenant, kiểm tra permission/role và trình áp migration.
+- Tài liệu: `docs/paas/README.md`, `infrastructure/k8s/README.md`.
+
+### Changed (có thể làm vỡ tích hợp cũ)
+- **BFF không còn dùng vai trò admin của Hasura**: dùng role `bff_service` + `x-hasura-tenant-id` (lấy từ claim `tenant_id` của JWT; thiếu thì 403).
+- Token phải có claim `tenant_id` (chạy `scripts/keycloak-paas-bootstrap.py`); Hasura từ chối token thiếu claim.
+- Khóa chính `app_settings`, `hr_budgets`, `annual_reports`, `tax_year_closings` và `audit_logs` nay có `tenant_id`;
+  các truy vấn `*_by_pk(year|key)` của 4 bảng đầu đổi sang `where` + `limit: 1` (BFF và `TaxYear.tsx`).
+- UNIQUE của `users`, `employees`, `contracts`, `kpi_cycles`, `payroll_runs` nay theo tenant. View `v_*` có thêm cột `tenant_id`; `v_kpi_summary` một dòng cho mỗi tenant.
+- n8n gọi `/api/internal/*` có thể gửi header `x-tenant-id` (mặc định: tenant first-party).
+- `seed.sql` đặt tenant first-party và **từ chối chạy** nếu DB đã có tenant khác (trước đây `TRUNCATE ... CASCADE` sẽ xóa dữ liệu của mọi tenant).
+- `scripts/audit-verify.sql` kiểm chuỗi theo từng tenant.
+
+### Đã kiểm tra trong môi trường phát triển
+- Migration 007–011 (up/down/up, backfill dữ liệu cũ), seed, chuỗi kiểm toán, sao lưu/khôi phục: PostgreSQL 16 thật. Mô phỏng nguyên job `database` của CI: đạt.
+- Cô lập đa tenant ở tầng SQL (15 ca); `platform-api` 45 test với PostgreSQL thật (Keycloak/APISIX/Hasura là mock HTTP); Lua 6 ca; script bootstrap 4 test (server giả).
+- `tsc` + `vite build` cho frontend và Developer Portal; `kubeconform --strict` + `kustomize build` cho 30 resource Kubernetes.
+- **Chưa kiểm tra**: Hasura/Keycloak/APISIX/cluster thật; BFF chưa build Maven (chỉ `javac` kiểm cú pháp, chạy thật `TenantContext`).
+
 ## [1.1.0] - 2026-10-20 (mô hình 6 vai trò)
 ### Changed
 - **6 vai trò** thay cho 4: `employee`, `manager`, `hr`, `director` (Giám đốc), `accountant` (Kế toán), `sysadmin` (Admin kỹ thuật). Mỗi người một vai trò chính, quản lý một tầng.

@@ -1,2 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-blank_issues_enabled: true
+# Copyright (c) 2026 PeopleOS contributors
+
+blank_issues_enabled: false
+contact_links:
+  - name: Lỗ hổng bảo mật
+    url: https://github.com/Nguyen16112006/PeopleOS/security/advisories/new
+    about: Báo cáo riêng tư - KHÔNG mở issue công khai (xem SECURITY.md).
