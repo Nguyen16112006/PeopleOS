@@ -86,6 +86,12 @@ jobs:
           grep -q "0 migration mới" /tmp/second.log
       - name: Sao lưu và khôi phục thử
         run: |
+          # Runner có pg_dump mới hơn server (PostgreSQL 16) nên file dump chứa
+          # "SET transaction_timeout" mà server 16 không hiểu. Cài client 16 cho khớp.
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-client-16
+          export PATH=/usr/lib/postgresql/16/bin:$PATH
+          pg_dump --version
           pg_dump -Fc peopleos -f /tmp/p.dump
           createdb restore_check && pg_restore -d restore_check --no-owner /tmp/p.dump
           test "$(psql -At -d restore_check -f scripts/audit-verify.sql | tail -1)" = "0"
