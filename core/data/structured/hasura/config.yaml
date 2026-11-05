@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# Cấu hình dự án Hasura CLI (dùng để áp metadata trong Kubernetes/CI: hasura-cli metadata apply)
+version: 3
+endpoint: http://localhost:8080
+metadata_directory: metadata
+migrations_directory: migrations

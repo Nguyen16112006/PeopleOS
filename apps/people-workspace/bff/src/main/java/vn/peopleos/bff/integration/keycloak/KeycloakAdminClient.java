@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.integration.keycloak;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,6 +14,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import vn.peopleos.bff.config.AppProperties;
+import vn.peopleos.bff.tenant.TenantContext;
 
 /** Quản lý tài khoản SSO trong Keycloak (Admin REST API): tạo khi onboarding, khóa khi offboarding. */
 @Component
@@ -29,9 +32,11 @@ public class KeycloakAdminClient {
         String adminToken = adminToken();
         String realmUrl = cfg.url() + "/admin/realms/" + cfg.realm();
 
+        // tenant_id là thuộc tính được quản lý (admin-only) - xem scripts/keycloak-paas-bootstrap.py
         Map<String, Object> body = Map.of(
                 "username", username, "email", email, "firstName", firstName, "lastName", lastName,
                 "enabled", true, "emailVerified", true,
+                "attributes", Map.of("tenant_id", List.of(TenantContext.require())),
                 "credentials", List.of(Map.of("type", "password", "value", tempPassword, "temporary", true)));
         ResponseEntity<Void> created = http.post().uri(realmUrl + "/users")
                 .headers(h -> h.setBearerAuth(adminToken)).contentType(MediaType.APPLICATION_JSON)

@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 export const vnd = (n: number | string | null | undefined) =>
   n == null ? '—' : new Intl.NumberFormat('vi-VN').format(Number(n)) + ' đ'
 

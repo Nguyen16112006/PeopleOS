@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Kiểm tra nhanh tình trạng các dịch vụ PeopleOS (chạy trên máy host).
 # Dùng: ./infrastructure/monitoring/healthcheck.sh
 set -u

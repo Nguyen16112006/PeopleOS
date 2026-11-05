@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 table:
   name: notifications
   schema: public
@@ -19,8 +18,11 @@ select_permissions:
     - is_read
     - created_at
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
 - role: manager
   permission:
@@ -34,8 +36,11 @@ select_permissions:
     - is_read
     - created_at
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
 - role: hr
   permission:
@@ -49,8 +54,11 @@ select_permissions:
     - is_read
     - created_at
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
 - role: director
   permission:
@@ -64,8 +72,11 @@ select_permissions:
     - is_read
     - created_at
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
 - role: accountant
   permission:
@@ -79,8 +90,11 @@ select_permissions:
     - is_read
     - created_at
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
 - role: sysadmin
   permission:
@@ -94,49 +108,198 @@ select_permissions:
     - is_read
     - created_at
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
 update_permissions:
 - role: employee
   permission:
     columns:
     - is_read
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
 - role: manager
   permission:
     columns:
     - is_read
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
 - role: hr
   permission:
     columns:
     - is_read
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
 - role: director
   permission:
     columns:
     - is_read
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
 - role: accountant
   permission:
     columns:
     - is_read
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
 - role: sysadmin
   permission:
     columns:
     - is_read
     filter:
-      user_id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - user_id:
+          _eq: X-Hasura-User-Id
+- role: bff_service
+  permission:
+    columns:
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    columns:
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+insert_permissions:
+- role: bff_service
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    backend_only: false
+- role: tenant_api_write
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - user_id
+    - title
+    - message
+    - ref_type
+    - ref_id
+    - is_read
+    - created_at
+    backend_only: false
+delete_permissions:
+- role: bff_service
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id

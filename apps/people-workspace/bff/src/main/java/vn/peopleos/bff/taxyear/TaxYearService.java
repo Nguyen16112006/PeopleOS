@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.taxyear;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -114,7 +116,7 @@ public class TaxYearService {
     public TaxYearResult hrConfirm(CurrentUser user, int year) {
         if (!user.isHr()) throw ApiException.forbidden("Chỉ HR được xác nhận người phụ thuộc và mã số thuế");
         checkYear(year);
-        if (status(TaxYearQueries.CLOSING, "tax_year_closings_by_pk", year) != null && "settled".equals(status(TaxYearQueries.CLOSING, "tax_year_closings_by_pk", year))) {
+        if (status(TaxYearQueries.CLOSING, "tax_year_closings", year) != null && "settled".equals(status(TaxYearQueries.CLOSING, "tax_year_closings", year))) {
             throw ApiException.conflict("Năm " + year + " đã quyết toán thuế");
         }
         JsonNode payrolls = payrolls(year);
@@ -139,7 +141,7 @@ public class TaxYearService {
     public TaxYearResult settle(CurrentUser user, int year) {
         if (!user.isAccountant()) throw ApiException.forbidden("Chỉ Kế toán được quyết toán thuế TNCN");
         checkYear(year);
-        String st = status(TaxYearQueries.CLOSING, "tax_year_closings_by_pk", year);
+        String st = status(TaxYearQueries.CLOSING, "tax_year_closings", year);
         if (!"hr_confirmed".equals(st)) throw ApiException.conflict(st == null ? "HR chưa xác nhận người phụ thuộc và mã số thuế" : "Năm " + year + " đã ở trạng thái '" + st + "'");
 
         JsonNode payrolls = payrolls(year);
@@ -176,10 +178,10 @@ public class TaxYearService {
     public TaxYearResult submitReport(CurrentUser user, int year) {
         if (!user.isAccountant()) throw ApiException.forbidden("Chỉ Kế toán được lập báo cáo tài chính năm");
         checkYear(year);
-        if (!"settled".equals(status(TaxYearQueries.CLOSING, "tax_year_closings_by_pk", year))) {
+        if (!"settled".equals(status(TaxYearQueries.CLOSING, "tax_year_closings", year))) {
             throw ApiException.conflict("Cần quyết toán thuế TNCN năm " + year + " trước khi lập báo cáo tài chính năm");
         }
-        String current = status(TaxYearQueries.REPORT, "annual_reports_by_pk", year);
+        String current = status(TaxYearQueries.REPORT, "annual_reports", year);
         if ("approved".equals(current)) throw ApiException.conflict("Báo cáo năm " + year + " đã được Giám đốc duyệt");
 
         JsonNode payrolls = payrolls(year);
@@ -201,7 +203,7 @@ public class TaxYearService {
     public TaxYearResult approveReport(CurrentUser user, int year) {
         if (!user.isDirector()) throw ApiException.forbidden("Chỉ Giám đốc được duyệt báo cáo tài chính năm");
         checkYear(year);
-        if (!"submitted".equals(status(TaxYearQueries.REPORT, "annual_reports_by_pk", year))) throw ApiException.conflict("Báo cáo năm " + year + " chưa ở bước chờ Giám đốc duyệt");
+        if (!"submitted".equals(status(TaxYearQueries.REPORT, "annual_reports", year))) throw ApiException.conflict("Báo cáo năm " + year + " chưa ở bước chờ Giám đốc duyệt");
         JsonNode dir = employees.requireByUser(user.sub());
         hasura.query(TaxYearQueries.REPORT_APPROVE, Params.of("y", year, "by", dir.get("id").asText()));
         notifications.notify(Target.role("accountant"), "Báo cáo tài chính năm " + year + " đã được duyệt",
@@ -213,7 +215,7 @@ public class TaxYearService {
     public TaxYearResult returnReport(CurrentUser user, int year, ReportDecisionRequest body) {
         if (!user.isDirector()) throw ApiException.forbidden("Chỉ Giám đốc được trả lại báo cáo tài chính năm");
         checkYear(year);
-        if (!"submitted".equals(status(TaxYearQueries.REPORT, "annual_reports_by_pk", year))) throw ApiException.conflict("Báo cáo năm " + year + " chưa ở bước chờ Giám đốc duyệt");
+        if (!"submitted".equals(status(TaxYearQueries.REPORT, "annual_reports", year))) throw ApiException.conflict("Báo cáo năm " + year + " chưa ở bước chờ Giám đốc duyệt");
         String comment = body == null ? null : body.comment();
         hasura.query(TaxYearQueries.REPORT_RETURN, Params.of("y", year, "comment", comment));
         notifications.notify(Target.role("accountant"), "Giám đốc trả lại báo cáo năm " + year, comment == null ? "Vui lòng rà soát và gửi lại." : comment,
@@ -226,7 +228,7 @@ public class TaxYearService {
     public TaxYearResult proposeBudget(CurrentUser user, int year, BudgetRequest body) {
         if (!user.isAccountant()) throw ApiException.forbidden("Chỉ Kế toán được đề xuất ngân sách nhân sự và quỹ lương");
         checkYear(year);
-        if ("approved".equals(status(TaxYearQueries.BUDGET, "hr_budgets_by_pk", year))) throw ApiException.conflict("Ngân sách năm " + year + " đã được duyệt");
+        if ("approved".equals(status(TaxYearQueries.BUDGET, "hr_budgets", year))) throw ApiException.conflict("Ngân sách năm " + year + " đã được duyệt");
         JsonNode acc = employees.requireByUser(user.sub());
         hasura.query(TaxYearQueries.BUDGET_UPSERT, Params.of("obj", Params.of("year", year, "payroll_fund", body.payrollFund(),
                 "headcount_plan", body.headcountPlan() == null ? 0 : body.headcountPlan(), "note", body.note(),
@@ -240,8 +242,8 @@ public class TaxYearService {
     public TaxYearResult approveBudget(CurrentUser user, int year) {
         if (!user.isDirector()) throw ApiException.forbidden("Chỉ Giám đốc được duyệt ngân sách nhân sự và quỹ lương");
         checkYear(year);
-        if (!"proposed".equals(status(TaxYearQueries.BUDGET, "hr_budgets_by_pk", year))) throw ApiException.conflict("Chưa có đề xuất ngân sách năm " + year + " chờ duyệt");
-        if (!"approved".equals(status(TaxYearQueries.REPORT, "annual_reports_by_pk", year - 1))) {
+        if (!"proposed".equals(status(TaxYearQueries.BUDGET, "hr_budgets", year))) throw ApiException.conflict("Chưa có đề xuất ngân sách năm " + year + " chờ duyệt");
+        if (!"approved".equals(status(TaxYearQueries.REPORT, "annual_reports", year - 1))) {
             throw ApiException.conflict("Báo cáo tài chính năm " + (year - 1) + " cần được duyệt trước khi duyệt ngân sách năm " + year);
         }
         JsonNode dir = employees.requireByUser(user.sub());
@@ -270,6 +272,7 @@ public class TaxYearService {
     /** Trạng thái hiện tại của bản ghi theo năm, hoặc null nếu chưa có. */
     private String status(String query, String field, int year) {
         JsonNode n = hasura.query(query, Params.of("y", year)).path(field);
+        if (n.isArray()) n = n.isEmpty() ? n.path(0) : n.get(0);   // truy vấn theo where + limit 1 (khóa chính nay có tenant_id)
         return n.isMissingNode() || n.isNull() ? null : n.path("status").asText(null);
     }
 }

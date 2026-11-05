@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.leave;
 
 /** Các truy vấn GraphQL của mục Nghỉ phép (gom một chỗ để dễ đọc và rà soát). */

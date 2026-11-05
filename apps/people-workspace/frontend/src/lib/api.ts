@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import { getToken, primaryRole } from './keycloak'
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:9080'

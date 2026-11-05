@@ -55,11 +55,11 @@ flowchart TB
 
 | Dịch vụ | Vai trò | Giao diện cung cấp |
 |---|---|---|
-| **Keycloak** | Định danh/SSO, 4 vai trò `admin`, `hr`, `manager`, `employee` | OIDC, JWKS |
+| **Keycloak** | Định danh/SSO, 6 vai trò `sysadmin`, `hr`, `manager`, `director`, `accountant`, `employee` | OIDC, JWKS |
 | **Apache APISIX** | Cổng duy nhất vào hệ thống; kiểm JWT, CORS, chặn `/api/internal/*` | HTTP :9080 |
 | **PostgreSQL + Hasura** | Dữ liệu cấu trúc; Hasura tự sinh GraphQL, thực thi quyền hàng/cột theo vai trò | GraphQL `/graphql` |
 | **MinIO** | Dữ liệu phi cấu trúc: hợp đồng, payslip, chứng từ (bucket riêng, không công khai) | S3 API |
-| **n8n** | Động cơ quy trình: 4 workflow (nghỉ phép ×2, đề xuất lương, onboarding) | Webhook |
+| **n8n** | Động cơ quy trình: 6 workflow (nghỉ phép ×2, đề xuất lương, onboarding, hết hạn quyền tạm, khóa tài khoản nghỉ việc) | Webhook |
 | **NATS** | Event bus: `peopleos.notify.<user_id>`, `peopleos.events.<kind>` | NATS :4222 |
 | **core/shared** | Thư viện dùng chung (`peopleos_shared.payroll` - tính Gross→Net) | Python package |
 

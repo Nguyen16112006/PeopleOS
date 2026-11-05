@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { CheckCircle2, Info, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'

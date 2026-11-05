@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.advance;
 
 /** Truy vấn/đột biến GraphQL cho quy trình tạm ứng / hoàn ứng / thanh toán chi phí. */
@@ -45,6 +47,6 @@ final class AdvanceQueries {
 
     static final String THRESHOLD = """
             query AdvThreshold {
-              app_settings_by_pk(key: "advance_level2_threshold_vnd") { value }
+              app_settings(where: {key: {_eq: "advance_level2_threshold_vnd"}}, limit: 1) { value }
             }""";
 }

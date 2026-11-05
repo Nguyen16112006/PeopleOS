@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 table:
   name: v_payroll_monthly
   schema: public
@@ -15,7 +14,9 @@ select_permissions:
     - employee_insurance_total
     - employer_insurance_total
     - employer_cost
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
 - role: director
   permission:
@@ -29,7 +30,9 @@ select_permissions:
     - employee_insurance_total
     - employer_insurance_total
     - employer_cost
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
 - role: accountant
   permission:
@@ -43,5 +46,60 @@ select_permissions:
     - employee_insurance_total
     - employer_insurance_total
     - employer_cost
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - period_year
+    - period_month
+    - employees
+    - gross_total
+    - net_total
+    - pit_total
+    - employee_insurance_total
+    - employer_insurance_total
+    - employer_cost
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - period_year
+    - period_month
+    - employees
+    - gross_total
+    - net_total
+    - pit_total
+    - employee_insurance_total
+    - employer_insurance_total
+    - employer_cost
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - period_year
+    - period_month
+    - employees
+    - gross_total
+    - net_total
+    - pit_total
+    - employee_insurance_total
+    - employer_insurance_total
+    - employer_cost
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000

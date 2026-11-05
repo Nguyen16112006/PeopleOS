@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 # =====================================================================
 # PeopleOS - toàn bộ hệ thống chạy bằng:  docker compose up -d
 # (chạy trong thư mục infrastructure/, hoặc dùng: docker compose -f infrastructure/docker-compose.yml up -d)
@@ -46,6 +48,7 @@ services:
       KC_HTTP_ENABLED: "true"
     volumes:
       - ../core/identity/realm-peopleos.json:/opt/keycloak/data/import/realm-peopleos.json:ro
+      - ../core/identity/realm-peopleos-platform.json:/opt/keycloak/data/import/realm-peopleos-platform.json:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -74,7 +77,7 @@ services:
       HASURA_GRAPHQL_DEV_MODE: "true"
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       # Xác thực bằng JWT của Keycloak: vai trò lấy từ realm_access.roles; client chọn role bằng header x-hasura-role
-      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url":"http://keycloak:8080/realms/peopleos/protocol/openid-connect/certs","claims_map":{"x-hasura-allowed-roles":{"path":"$$.realm_access.roles"},"x-hasura-default-role":{"path":"$$.default_role","default":"employee"},"x-hasura-user-id":{"path":"$$.sub"}}}'
+      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url":"http://keycloak:8080/realms/peopleos/protocol/openid-connect/certs","claims_map":{"x-hasura-allowed-roles":{"path":"$$.realm_access.roles"},"x-hasura-default-role":{"path":"$$.default_role","default":"employee"},"x-hasura-user-id":{"path":"$$.sub"},"x-hasura-tenant-id":{"path":"$$.tenant_id"}}}'
     volumes:
       - ../core/data/structured/hasura/migrations:/hasura-migrations:ro
       - ../core/data/structured/hasura/metadata:/hasura-metadata:ro
@@ -85,7 +88,7 @@ services:
         condition: service_healthy
 
   minio:
-    image: scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z
+    image: ${MINIO_IMAGE:-scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z}
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -100,7 +103,7 @@ services:
       disable: true
 
   minio-init:
-    image: scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z
+    image: ${MINIO_IMAGE:-scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z}
     depends_on:
       - minio
     environment:
@@ -267,7 +270,7 @@ services:
       - "6333:6333"
 
   ollama:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.32.6}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "ollama", "list"]
@@ -282,14 +285,14 @@ services:
 
   # Tải sẵn mô hình (lần đầu mất vài phút). RAG vẫn chạy ở chế độ trích dẫn khi mô hình chưa sẵn sàng.
   ollama-init:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.32.6}
     depends_on:
       - ollama
     environment:
       OLLAMA_HOST: http://ollama:11434
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - "until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull ${OLLAMA_EMBED_MODEL:-bge-m3} && ollama pull ${OLLAMA_CHAT_MODEL:-qwen2.5:3b}"
+      - "until ollama list >/dev/null 2>&1; do sleep 2; done; ollama pull ${OLLAMA_EMBED_MODEL:-bge-m3} && ollama pull ${OLLAMA_CHAT_MODEL:-qwen2.5:1.5b}"
     restart: "no"
 
   rag-service:
@@ -305,7 +308,7 @@ services:
       start_period: 60s
     environment:
       OLLAMA_URL: http://ollama:11434
-      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:3b}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:1.5b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
       QDRANT_URL: http://qdrant:6333
       HASURA_URL: http://hasura:8080/v1/graphql
@@ -363,7 +366,7 @@ services:
 
   # Sao lưu các bucket MinIO (contracts, payslips, documents) sang BACKUP_DIR/minio.
   backup-minio:
-    image: scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z
+    image: ${MINIO_IMAGE:-scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z}
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/minio-backup-loop.sh"]
     environment:

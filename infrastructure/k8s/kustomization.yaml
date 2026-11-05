@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - 00-namespaces.yaml
+  - platform-system/platform-api.yaml
+  - platform-system/platform-worker.yaml
+  - cell/postgres-cnpg.yaml
+  - cell/migrate-job.yaml
+  - cell/hasura.yaml
+  - cell/metadata-job.yaml
+  - gateway/apisix.yaml
+configMapGenerator:
+  - name: apisix-config
+    namespace: gateway
+    files:
+      - config.yaml=../../core/gateway/config.paas.yaml
+generatorOptions:
+  disableNameSuffixHash: false
+# images:
+#   - name: peopleos/platform-api
+#     newName: registry.example.com/peopleos/platform-api
+#     newTag: "1.0.0"

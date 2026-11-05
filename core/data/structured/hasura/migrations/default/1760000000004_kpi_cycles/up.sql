@@ -1,4 +1,6 @@
 -- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
+
 -- =====================================================================
 -- PeopleOS - Migration 5: Đánh giá hiệu suất (KPI) theo quý
 -- HR mở chu kỳ quý -> Giám đốc giao KPI cho Quản lý, Quản lý giao KPI cho nhóm (người giao = quản lý trực tiếp)

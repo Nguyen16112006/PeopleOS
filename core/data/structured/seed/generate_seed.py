@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 """Sinh seed.sql (dữ liệu mẫu để demo) - chạy: python3 generate_seed.py > seed.sql
 
 Dùng chung module tính lương `peopleos_shared.payroll` để số liệu phiếu lương/BHXH
@@ -53,7 +54,19 @@ emps = [
 ]
 E_BY = {e[0]: e for e in emps}
 
+out.append("-- SPDX-License-Identifier: Apache-2.0")
+out.append("-- Copyright (c) 2026 PeopleOS contributors")
 out.append("-- Sinh bởi generate_seed.py - KHÔNG sửa tay. Chạy lại sẽ XÓA dữ liệu demo cũ.")
+# Đa tenant: seed là dữ liệu DEMO của tenant first-party. TRUNCATE ... CASCADE bên dưới sẽ xóa dữ liệu của MỌI tenant,
+# nên từ chối chạy nếu DB đã có tenant khác (an toàn khi dùng chung DB với các project của developer).
+out.append("DO $$ BEGIN\n"
+           "  IF to_regclass('platform.tenants') IS NOT NULL\n"
+           "     AND EXISTS (SELECT 1 FROM platform.tenants WHERE id <> '00000000-0000-0000-0000-000000000001') THEN\n"
+           "    RAISE EXCEPTION 'seed.sql chỉ dùng cho môi trường demo: phát hiện tenant khác, từ chối TRUNCATE dữ liệu của họ';\n"
+           "  END IF;\n"
+           "END $$;")
+# Mọi dòng seed thuộc tenant first-party: cột tenant_id lấy mặc định từ phiên (platform.current_tenant()).
+out.append("DO $$ BEGIN PERFORM set_config('hasura.user', '{\"x-hasura-tenant-id\":\"00000000-0000-0000-0000-000000000001\"}', false); END $$;")
 out.append("TRUNCATE users, employees, contracts, payrolls, insurance_records, leave_balances, leave_requests,"
            " salary_proposals, approval_steps, onboarding_tasks, notifications, data_lineage, data_assets,"
            " advance_requests, temp_access_requests, approval_events CASCADE;")

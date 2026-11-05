@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.payroll.dto;
 
 /** status ∈ timesheet_closed | calculated | hr_reviewed | approved | paid; count: số phiếu lương đã tính/phát hành. */

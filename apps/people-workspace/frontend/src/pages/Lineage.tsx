@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import { useMemo, useState } from 'react'
 import { ErrorBox, Loading, PageHeader } from '@/components/common'
 import { Badge } from '@/components/ui/badge'

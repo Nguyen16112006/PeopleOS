@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 # =====================================================================
 # Định tuyến API Gateway của PeopleOS (APISIX standalone)
 # - Mọi route nghiệp vụ đều bắt buộc Bearer JWT do Keycloak phát hành

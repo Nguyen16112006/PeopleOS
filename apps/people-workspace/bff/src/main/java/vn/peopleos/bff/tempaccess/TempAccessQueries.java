@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.tempaccess;
 
 /** Truy vấn/đột biến GraphQL cho quy trình cấp quyền tạm thời. */

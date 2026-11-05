@@ -7,7 +7,7 @@ Mật khẩu chung `Peopleos@123`. Nếu cần làm lại từ đầu: `./script
 | Phút | Nội dung | Thao tác | Thông điệp chính |
 |---|---|---|---|
 | 0:00 - 1:00 | **Mở đầu: bài toán 2 thái cực** | Sơ đồ trong `docs/architecture.md` | Ốc đảo dữ liệu và khóa nhà cung cấp; giải bằng một lõi mở dùng chung |
-| 1:00 - 2:30 | **Tầng 1 - Open-Core** | `docker compose ps` (container healthy). Mở Keycloak (realm `peopleos`), Hasura Console (bảng + quyền theo role), MinIO (3 bucket), n8n (4 workflow Active) | Headless: không UI cuối, mọi thứ là dịch vụ thay thế được |
+| 1:00 - 2:30 | **Tầng 1 - Open-Core** | `docker compose ps` (container healthy). Mở Keycloak (realm `peopleos`), Hasura Console (bảng + quyền theo role), MinIO (3 bucket), n8n (6 workflow Active) | Headless: không UI cuối, mọi thứ là dịch vụ thay thế được |
 | 2:30 - 3:30 | **SSO + RBAC** | Cửa sổ A `employee`, B `manager`, C `hr`, D `admin`: menu và dữ liệu khác nhau theo vai trò | Một lần đăng nhập, quyền đổi theo vai trò |
 | 3:30 - 4:45 | **Cổng tự phục vụ** (A) | Hồ sơ → Hợp đồng (Tải PDF) → Bảng lương (tải PDF) → BHXH/BHYT | PDF sinh và lưu trên MinIO; số liệu khớp luật 2026 |
 | 4:45 - 6:45 | **Quy trình 1: Nghỉ phép + realtime** | A tạo đơn nghỉ phép năm 2 ngày → B nhận toast realtime → Duyệt → A nhận toast | Webhook n8n → backend → NATS → WebSocket |

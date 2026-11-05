@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-worker
+  namespace: platform-system
+  labels: { app: platform-worker }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: platform-worker }
+  template:
+    metadata:
+      labels: { app: platform-worker }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker
+          image: peopleos/platform-api:latest
+          command: ["python", "-m", "platform_api.worker"]
+          envFrom:
+            - secretRef: { name: platform-secrets }
+          env:
+            - { name: KEYCLOAK_URL, value: "http://keycloak.identity.svc:8080" }
+            - { name: APISIX_ADMIN_URL, value: "http://apisix-admin.gateway.svc:9180" }
+            - { name: HASURA_URL, value: "http://hasura.cell-1.svc:8080" }
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { memory: 384Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+---
+# KEDA: scale theo số lượt webhook đang chờ giao (FOR UPDATE SKIP LOCKED nên nhiều worker không giao trùng)
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: platform-db
+  namespace: platform-system
+spec:
+  secretTargetRef:
+    - parameter: connection
+      name: platform-secrets
+      key: DATABASE_URL
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: platform-worker
+  namespace: platform-system
+spec:
+  scaleTargetRef:
+    name: platform-worker
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  cooldownPeriod: 120
+  triggers:
+    - type: postgresql
+      metadata:
+        query: "SELECT count(*) FROM platform.webhook_deliveries WHERE status IN ('pending','failed') AND next_attempt_at <= now()"
+        targetQueryValue: "50"
+      authenticationRef:
+        name: platform-db

@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 import os
 
 
@@ -6,7 +8,7 @@ class Settings:
     def __init__(self) -> None:
         e = os.environ.get
         self.ollama_url = e("OLLAMA_URL", "http://ollama:11434")
-        self.chat_model = e("OLLAMA_CHAT_MODEL", "qwen2.5:3b")
+        self.chat_model = e("OLLAMA_CHAT_MODEL", "qwen2.5:1.5b")
         self.embed_model = e("OLLAMA_EMBED_MODEL", "bge-m3")
         self.qdrant_url = e("QDRANT_URL", "http://qdrant:6333")
         self.collection = e("QDRANT_COLLECTION", "peopleos_knowledge")

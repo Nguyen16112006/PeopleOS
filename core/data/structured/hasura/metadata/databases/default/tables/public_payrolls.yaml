@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
 table:
   name: payrolls
   schema: public
@@ -31,11 +30,14 @@ select_permissions:
     - file_key
     filter:
       _and:
-      - employee:
-          user_id:
-            _eq: X-Hasura-User-Id
-      - status:
-          _eq: paid
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - _and:
+        - employee:
+            user_id:
+              _eq: X-Hasura-User-Id
+        - status:
+            _eq: paid
     allow_aggregations: true
 - role: manager
   permission:
@@ -61,11 +63,14 @@ select_permissions:
     - file_key
     filter:
       _and:
-      - employee:
-          user_id:
-            _eq: X-Hasura-User-Id
-      - status:
-          _eq: paid
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - _and:
+        - employee:
+            user_id:
+              _eq: X-Hasura-User-Id
+        - status:
+            _eq: paid
     allow_aggregations: true
 - role: hr
   permission:
@@ -89,7 +94,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
 - role: director
   permission:
@@ -115,11 +122,14 @@ select_permissions:
     - file_key
     filter:
       _and:
-      - employee:
-          user_id:
-            _eq: X-Hasura-User-Id
-      - status:
-          _eq: paid
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - _and:
+        - employee:
+            user_id:
+              _eq: X-Hasura-User-Id
+        - status:
+            _eq: paid
     allow_aggregations: true
 - role: accountant
   permission:
@@ -143,7 +153,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
 - role: sysadmin
   permission:
@@ -169,9 +181,236 @@ select_permissions:
     - file_key
     filter:
       _and:
-      - employee:
-          user_id:
-            _eq: X-Hasura-User-Id
-      - status:
-          _eq: paid
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - _and:
+        - employee:
+            user_id:
+              _eq: X-Hasura-User-Id
+        - status:
+            _eq: paid
     allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period_year
+    - period_month
+    - base_salary
+    - allowance
+    - overtime_pay
+    - bonus
+    - gross
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - taxable_income
+    - personal_income_tax
+    - net_salary
+    - status
+    - paid_at
+    - file_key
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period_year
+    - period_month
+    - base_salary
+    - allowance
+    - overtime_pay
+    - bonus
+    - gross
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - taxable_income
+    - personal_income_tax
+    - net_salary
+    - status
+    - paid_at
+    - file_key
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - id
+    - employee_id
+    - period_year
+    - period_month
+    - base_salary
+    - allowance
+    - overtime_pay
+    - bonus
+    - gross
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - taxable_income
+    - personal_income_tax
+    - net_salary
+    - status
+    - paid_at
+    - file_key
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+insert_permissions:
+- role: bff_service
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - employee_id
+    - period_year
+    - period_month
+    - base_salary
+    - allowance
+    - overtime_pay
+    - bonus
+    - gross
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - taxable_income
+    - personal_income_tax
+    - net_salary
+    - status
+    - paid_at
+    - file_key
+    backend_only: false
+- role: tenant_api_write
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - employee_id
+    - period_year
+    - period_month
+    - base_salary
+    - allowance
+    - overtime_pay
+    - bonus
+    - gross
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - taxable_income
+    - personal_income_tax
+    - net_salary
+    - status
+    - paid_at
+    - file_key
+    backend_only: false
+update_permissions:
+- role: bff_service
+  permission:
+    columns:
+    - employee_id
+    - period_year
+    - period_month
+    - base_salary
+    - allowance
+    - overtime_pay
+    - bonus
+    - gross
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - taxable_income
+    - personal_income_tax
+    - net_salary
+    - status
+    - paid_at
+    - file_key
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    columns:
+    - employee_id
+    - period_year
+    - period_month
+    - base_salary
+    - allowance
+    - overtime_pay
+    - bonus
+    - gross
+    - insured_salary
+    - bhxh_employee
+    - bhyt_employee
+    - bhtn_employee
+    - taxable_income
+    - personal_income_tax
+    - net_salary
+    - status
+    - paid_at
+    - file_key
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+delete_permissions:
+- role: bff_service
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+event_triggers:
+- name: platform_events
+  definition:
+    enable_manual: false
+    insert:
+      columns: '*'
+    update:
+      columns: '*'
+    delete:
+      columns: '*'
+  retry_conf:
+    num_retries: 5
+    interval_sec: 10
+    timeout_sec: 60
+  webhook_from_env: EVENT_DISPATCHER_URL
+  headers:
+  - name: x-platform-secret
+    value_from_env: EVENT_DISPATCHER_SECRET

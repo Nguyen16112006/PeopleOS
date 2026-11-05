@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# APISIX chế độ PaaS: cấu hình lưu trong etcd, quản trị động qua Admin API (platform-api cấp/thu hồi API key).
+# Thay cho config.yaml (standalone) khi chạy docker-compose.paas.yml. Nạp route bằng scripts/apisix-paas-bootstrap.py.
+apisix:
+  node_listen: 9080
+  enable_ipv6: false
+  data_encryption:                 # mã hóa trường nhạy cảm (khóa API) khi lưu trong etcd
+    enable_encrypt_fields: true
+    keyring:
+      - "${{APISIX_KEYRING:=edd1c9f0985e76a2}}"     # ĐỔI ở môi trường thật (16 ký tự)
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  etcd:
+    host:
+      - "http://etcd:2379"
+  admin:
+    admin_listen:
+      ip: 0.0.0.0
+      port: 9180
+    allow_admin:                   # chỉ mạng nội bộ (platform-api, bootstrap)
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+    admin_key:
+      - name: platform
+        key: ${{APISIX_ADMIN_KEY:=change_me_admin_key}}
+        role: admin
+nginx_config:
+  error_log_level: warn
+  envs:
+    - HASURA_ADMIN_SECRET          # để Lua (api-key-to-hasura.lua) đọc bằng os.getenv
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: 0.0.0.0
+      port: 9091

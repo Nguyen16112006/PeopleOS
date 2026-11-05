@@ -1,4 +1,6 @@
 -- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
+
 -- =====================================================================
 -- PeopleOS - Migration 3: mô hình 6 vai trò
 --   employee, manager, hr, director (Giám đốc), accountant (Kế toán), sysadmin (Admin kỹ thuật)

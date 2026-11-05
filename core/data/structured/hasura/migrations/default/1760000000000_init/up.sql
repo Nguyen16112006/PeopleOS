@@ -1,4 +1,6 @@
 -- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
+
 -- =====================================================================
 -- PeopleOS - Schema cơ sở dữ liệu chính (Tầng 1: dữ liệu cấu trúc)
 -- Hasura CLI migrations tự áp dụng file này khi container khởi động.

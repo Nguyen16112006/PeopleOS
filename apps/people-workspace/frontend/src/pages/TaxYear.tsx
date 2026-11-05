@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import { useState } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
 import { Empty, ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'
@@ -22,11 +24,11 @@ const QCert = `query MyTaxCertificates($uid: uuid!) {
   }
 }`
 const QMgmt = `query TaxMgmt($y: smallint!, $by: smallint!) {
-  closing: tax_year_closings_by_pk(year: $y) { year status hr_confirmed_at settled_at certificates_issued }
-  budget: hr_budgets_by_pk(year: $by) { year payroll_fund headcount_plan note status approved_at }
+  closing: tax_year_closings(where: {year: {_eq: $y}}, limit: 1) { year status hr_confirmed_at settled_at certificates_issued }
+  budget: hr_budgets(where: {year: {_eq: $by}}, limit: 1) { year payroll_fund headcount_plan note status approved_at }
 }`
 const QReport = `query TaxReport($y: smallint!) {
-  report: annual_reports_by_pk(year: $y) { year status figures prepared_at approved_at director_comment }
+  report: annual_reports(where: {year: {_eq: $y}}, limit: 1) { year status figures prepared_at approved_at director_comment }
 }`
 
 const Stat = ({ label, value }: { label: string; value: string }) => (
@@ -62,9 +64,9 @@ export default function TaxYear() {
   if (certs.loading) return <Loading />
   if (certs.error) return <ErrorBox message={certs.error} />
 
-  const closing = m.data?.closing
-  const bud = m.data?.budget
-  const report = r.data?.report
+  const closing = m.data?.closing?.[0]
+  const bud = m.data?.budget?.[0]
+  const report = r.data?.report?.[0]
   const f = report?.figures
   const settled = closing?.status === 'settled'
 

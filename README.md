@@ -3,9 +3,13 @@
 **Hệ điều hành Chuyển đổi số Quản trị Con người & Đãi ngộ toàn diện - DX-OS Open-Core**
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Stack](https://img.shields.io/badge/stack-100%25%20open--source-green)
+![SPDX](https://img.shields.io/badge/SPDX-Apache--2.0-informational)
 
 > **Bản 6 vai trò:** xem [HUONG_DAN_CHAY_6_VAI_TRO.md](HUONG_DAN_CHAY_6_VAI_TRO.md) và [docs/ROLES_AND_WORKFLOWS.md](docs/ROLES_AND_WORKFLOWS.md).
+
+> **Bản 2.0 - HR-PaaS (đa tenant):** developer bên thứ 3 đăng ký, lấy API key, tự định nghĩa schema và nhận webhook trên hạ tầng PeopleOS.
+> Kiến trúc, cách chạy (`docker-compose.paas.yml`), mức độ kiểm chứng và các giới hạn đã biết: [docs/paas/README.md](docs/paas/README.md).
+> **Đọc mục "Thứ tự bắt buộc" trước khi nâng cấp** môi trường đang chạy: migration đa tenant phải đi cùng bootstrap Keycloak và BFF/frontend mới.
 
 ---
 
@@ -21,7 +25,7 @@ PeopleOS là nền tảng **mã nguồn mở** gồm hai tầng:
 | Thái cực | Vấn đề | Cách PeopleOS giải quyết |
 |---|---|---|
 | **Ốc đảo dữ liệu** | Mỗi phân hệ một CSDL, một hệ thống đăng nhập | Mọi phân hệ dùng **chung một lõi**: 1 SSO, 1 Gateway, 1 kho dữ liệu, 1 động cơ quy trình, 1 event bus. AI cũng đọc dữ liệu qua cùng lớp phân quyền |
-| **Phụ thuộc nhà cung cấp** | Bị khóa vào một hãng | **100% nguồn mở**, giao tiếp bằng chuẩn mở (OIDC, GraphQL, S3, webhook, NATS); thay từng thành phần mà không viết lại hệ thống |
+| **Phụ thuộc nhà cung cấp** | Bị khóa vào một hãng | Ưu tiên thành phần **nguồn mở OSI**, giao tiếp bằng chuẩn mở (OIDC, GraphQL, S3, webhook, NATS); thay từng thành phần mà không viết lại hệ thống |
 
 ---
 
@@ -39,7 +43,7 @@ PeopleOS là nền tảng **mã nguồn mở** gồm hai tầng:
 │  Apache APISIX ─ xác thực JWKS ─► Keycloak (SSO · RBAC)            │
 │     ├─► Hasura ─► PostgreSQL        dữ liệu cấu trúc               │
 │     ├─► MinIO                       hợp đồng · payslip · chứng từ   │
-│     ├─► n8n                         4 quy trình                     │
+│     ├─► n8n                         6 quy trình                     │
 │     └─► NATS                        sự kiện realtime                │
 └────────────────────────────────────────────────────────────────────┘
 ```
@@ -53,17 +57,17 @@ Sơ đồ chi tiết, luồng xác thực, realtime và ma trận phân quyền:
 | Lớp | Công nghệ |
 |---|---|
 | Định danh / SSO | Keycloak 26 (OIDC, PKCE) |
-| API Gateway | Apache APISIX 3.9 (standalone, plugin `openid-connect`) |
+| API Gateway | Apache APISIX 3.9 (standalone; chế độ etcd cho PaaS; plugin `openid-connect`, `key-auth`) |
 | Dữ liệu cấu trúc | PostgreSQL 16 + Hasura 2.40 (GraphQL, phân quyền hàng/cột) |
-| Dữ liệu phi cấu trúc | MinIO |
-| Workflow | n8n 1.70 |
+| Dữ liệu phi cấu trúc | MinIO (AGPL-3.0; upstream ngừng phát hành image - xem [docs/LICENSING.md](docs/LICENSING.md)) |
+| Workflow | n8n 1.70 (**Sustainable Use License - không thuộc OSI**; phương án thay thế: [docs/LICENSING.md](docs/LICENSING.md)) |
 | Event Bus | NATS 2.10 |
 | Điều phối | Docker Compose (healthcheck, autoheal) |
 | An ninh & vận hành | ClamAV (quét mã độc), GitHub Actions (CI), GitOps agent, sao lưu pg_dump/mc mirror |
 | Frontend | React 19, TypeScript, Tailwind CSS, shadcn/ui, Vite |
 | Backend nghiệp vụ | **Java 21 + Spring Boot 3** (Spring Security OAuth2, WebSocket, Maven) |
 | Realtime | WebSocket + NATS |
-| AI | Ollama (`qwen2.5:3b`, `bge-m3`), LangChain (text splitter), Qdrant, RAG |
+| AI | Ollama (`qwen2.5:1.5b` Apache-2.0, `bge-m3` MIT), LangChain (text splitter), Qdrant, RAG |
 
 > **Về ngôn ngữ:** backend nghiệp vụ (BFF) viết bằng **Java 21 / Spring Boot**, chia package theo từng mục (xem `apps/people-workspace/bff/README.md`). Dịch vụ AI (RAG) giữ Python vì hệ sinh thái Ollama/Qdrant/LangChain; module tính lương dùng chung nằm ở `core/shared`.
 
@@ -81,18 +85,22 @@ PeopleOS/
 │   ├── workflow/workflows/    # n8n: 6 workflow JSON
 │   ├── event-bus/             # NATS
 │   └── shared/python/         # peopleos_shared.payroll (tính Gross→Net)
-├── apps/people-workspace/
-│   ├── frontend/              # React + TS + Tailwind + shadcn/ui
-│   └── bff/                   # Backend Java (Spring Boot), chia theo mục: config, security, integration, leave, proposal, onboarding, document...
+├── apps/
+│   ├── platform/platform-api/ # HR-PaaS: control plane (FastAPI) - project, API key, schema, webhook
+│   ├── developer-portal/      # HR-PaaS: cổng developer (React)
+│   └── people-workspace/      # ứng dụng minh họa
+│       ├── frontend/          # React + TS + Tailwind + shadcn/ui
+│       └── bff/                   # Backend Java (Spring Boot), chia theo mục: config, security, integration, leave, proposal, onboarding, document...
 ├── ai/
 │   ├── rag-service/           # RAG: Ollama + Qdrant
 │   └── knowledge/             # Luật Lao động, BHXH, thuế TNCN, chính sách nội bộ
 ├── infrastructure/            # docker-compose(.dev).yml, .env.example, monitoring/healthcheck.sh
-├── docs/                      # architecture, api-reference, deployment, demo-script, governance
+├── docs/                      # architecture, api-reference, deployment, demo-script, governance, LICENSING, paas/
 ├── scripts/                   # setup, init-db, seed-data, backup, restore, verify-backup, audit-verify.sql
 │   ├── backup/                #   vòng lặp sao lưu PostgreSQL và MinIO
 │   └── gitops/                #   agent GitOps
-└── .github/workflows/ci.yml   # CI: test, build, migration, kiểm tra cấu hình
+├── NOTICE · THIRD_PARTY_LICENSES.md · SECURITY.md · CODE_OF_CONDUCT.md
+└── .github/                   # workflows/ci.yml (CI), ISSUE_TEMPLATE/, PULL_REQUEST_TEMPLATE.md
 ```
 
 ---
@@ -100,17 +108,22 @@ PeopleOS/
 ## 5. Tính năng
 
 ### Open-Core
-- SSO + RBAC 6 vai trò: **Admin kỹ thuật (sysadmin), Giám đốc, Kế toán, HR, Quản lý, Nhân viên**
+- SSO + RBAC 6 vai trò: **Quản trị hệ thống, HR, Quản lý, Giám đốc, Kế toán, Nhân viên**
 - APISIX bảo vệ toàn bộ API (JWT bắt buộc), chặn API nội bộ
 - PostgreSQL + Hasura tự sinh GraphQL, phân quyền hàng/cột theo vai trò
 - MinIO lưu hợp đồng và phiếu lương (PDF)
-- 6 quy trình n8n (có lịch hết hạn quyền tạm thời và khóa tài khoản nghỉ việc); NATS đẩy sự kiện realtime
+- 6 quy trình n8n (nghỉ phép, duyệt nghỉ phép, đề xuất lương, onboarding, hết hạn quyền tạm, khóa tài khoản nghỉ việc); NATS đẩy sự kiện realtime
 - Toàn bộ hệ thống chạy bằng `docker compose up -d`
+
+### HR-PaaS (bản 2.0) - xem [docs/paas/README.md](docs/paas/README.md)
+- **Đa tenant** với ba lớp cô lập dữ liệu (permission Hasura, Row-Level Security, khóa ngoại tổng hợp)
+- **Developer Portal:** đăng ký, tạo project, API key (chỉ lưu hash), thiết kế bảng bằng spec (không gửi SQL), trường tùy chỉnh, webhook có ký HMAC, thống kê sử dụng
+- Gateway cấp phát/thu hồi API key động, giới hạn tốc độ và hạn mức theo gói
 
 ### People Workspace
 - Đăng nhập SSO Keycloak; menu và dữ liệu theo vai trò
 - **Cổng tự phục vụ:** hồ sơ cá nhân, hợp đồng lao động (tải PDF), bảng lương theo tháng (tải PDF), quá trình đóng BHXH/BHYT
-- **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý → HR → Kế toán → Giám đốc) · Tạm ứng và chi phí · Quyền tạm thời · Nghỉ việc · Đánh giá KPI theo quý · Kỳ lương · Thuế và báo cáo năm
+- **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý → HR → Giám đốc)
 - Thông báo realtime (toast + chuông) khi có người duyệt hoặc từ chối
 
 ### An ninh, vận hành & quản trị dữ liệu (xem [docs/governance.md](docs/governance.md))
@@ -149,7 +162,7 @@ docker compose up -d --build
 | MinIO Console | http://localhost:9001 |
 | n8n | http://localhost:5678 |
 
-**Tài khoản demo** (mật khẩu chung `Peopleos@123`): `employee` (Phạm Thu Dung), `employee2`, `manager`, `hr`, `accountant` (Kế toán), `director` (Giám đốc), `admin` (Admin kỹ thuật). Chi tiết từng vai trò và cách thử quy trình: [HUONG_DAN_CHAY_6_VAI_TRO.md](HUONG_DAN_CHAY_6_VAI_TRO.md).
+**Tài khoản demo** (mật khẩu chung `Peopleos@123` - *chỉ để demo*, hãy đổi trước khi triển khai thật): `admin` (sysadmin), `hr`, `manager`, `director`, `accountant`, `employee` (Phạm Thu Dung), `employee2`.
 
 Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc phục sự cố và hướng dẫn production: [docs/deployment.md](docs/deployment.md).
 
@@ -160,17 +173,22 @@ Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc ph�
 | Thành phần | Test | Cách chạy |
 |---|---|---|
 | Tính lương (Gross→Net, trần BH, thuế 2026) | 7 (Python) | `cd core/shared/python && PYTHONPATH=. python -m pytest tests` |
-| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito (tính lương, KPI, tạm ứng, nghỉ việc, quyết toán thuế, duyệt nhiều cấp); chạy tự động trong CI (`mvn verify`) | `cd apps/people-workspace/bff && mvn test` |
+| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito (đã viết, **chưa chạy được** trong môi trường phát triển - xem lưu ý) | `cd apps/people-workspace/bff && mvn test` |
 | RAG (phân loại, tính lương, truy xuất, fallback) | 21 (Python) | `cd ai/rag-service && python -m pytest tests` |
 | Kiểm toán, sao lưu, view dashboard (migration, seed, chuỗi băm DB↔Java, ghi đồng thời, giả mạo, khôi phục) | kịch bản chạy thật trên PostgreSQL 16 | `scripts/audit-verify.sql` + CI job `database` |
 | ClamAV (giao thức INSTREAM) | chạy thật với clamd giả lập; JUnit đã viết | `mvn test` |
 | Frontend | kiểm tra kiểu + build | `cd apps/people-workspace/frontend && npm run build` |
+| Control plane HR-PaaS (`platform-api`: auth, saga cấp phát, API key, schema, custom field, webhook, usage) | 45 (Python, PostgreSQL thật; Keycloak/APISIX/Hasura là mock) | `cd apps/platform/platform-api && python -m pytest tests` |
+| Cô lập đa tenant ở tầng SQL (RLS, audit theo tenant, view, FK chéo tenant) | 15 ca trên PostgreSQL 16 thật | `scripts/test-tenant-isolation.sh` |
+| Gateway Lua + script bootstrap Keycloak/APISIX | 6 ca Lua + 4 test (server giả) | `lua5.4 core/gateway/paas/test_api_key_to_hasura.lua` · `python -m pytest scripts/tests` |
+| Developer Portal | kiểm tra kiểu + build | `cd apps/developer-portal && npm ci && npm run build` |
+| Manifest Kubernetes | `kustomize build` + `kubeconform --strict` | xem `infrastructure/k8s/README.md` |
 
 Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 thật. Các lớp thuần Java (đếm ngày làm việc, tách tên, tham số) đã chạy thử trên JDK 21.
 
-> **Phạm vi đã kiểm thử:** ngăn xếp Docker đã được build và khởi chạy trên Docker Desktop (Windows). CI trên GitHub chạy test Python, build + test backend Java và build frontend.
-> Chưa có kiểm thử tự động đầu-cuối (đăng nhập Keycloak → GraphQL → quy trình n8n) và chưa kiểm thử tải/HA. Nếu lần chạy đầu gặp lỗi, dùng `healthcheck.sh` và mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md);
-> các điểm dễ cần chỉnh nhất là URL Keycloak (issuer), tên image/phiên bản và lệnh nhập workflow của n8n.
+> **Lưu ý trung thực:** môi trường phát triển dự án này không có Docker và không tải được thư viện Maven, nên backend Java mới chỉ được kiểm tra cú pháp bằng `javac` (chưa biên dịch đầy đủ, chưa chạy test), ClamAV thật, autoheal, sao lưu/GitOps dạng container và CI trên GitHub chưa được chạy, và `docker-compose.yml`, cấu hình Keycloak/APISIX/Hasura và 6 workflow n8n
+> được viết theo tài liệu chính thức của từng sản phẩm nhưng **chưa được chạy tích hợp đầu-cuối**. Lần chạy đầu hãy dùng `healthcheck.sh` và
+> mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md); các điểm dễ cần chỉnh nhất là URL Keycloak (issuer), tên image/phiên bản và lệnh nhập workflow của n8n.
 
 ---
 
@@ -186,11 +204,14 @@ Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 
 - Ký số hợp đồng điện tử; đồng bộ cổng BHXH/thuế
 - Kubernetes + Helm + Argo CD/Flux; Prometheus/Grafana/Loki; HA cho Keycloak và PostgreSQL
 - Neo chuỗi kiểm toán ra kho WORM bên ngoài; role CSDL tách quyền; sao lưu off-site có mã hóa
-- Đa tenant, đa ngôn ngữ, ứng dụng di động
+- Đa ngôn ngữ, ứng dụng di động; thanh toán/billing cho HR-PaaS (đo đếm sử dụng đã có)
+- Thay n8n và MinIO bằng thành phần OSI còn hoạt động (xem [docs/LICENSING.md](docs/LICENSING.md))
 - Đánh giá chất lượng RAG (bộ câu hỏi chuẩn) và hỗ trợ mô hình lớn hơn
 
 ## 10. Đóng góp & Giấy phép
 
-Xem [CONTRIBUTING.md](CONTRIBUTING.md). Báo lỗi hoặc đề xuất tính năng tại [GitHub Issues](../../issues); lỗi bảo mật xem [SECURITY.md](SECURITY.md). Bản phát hành: [Releases](../../releases). Lịch sử thay đổi: [CHANGELOG.md](CHANGELOG.md).
-Phát hành theo **Apache-2.0** ([LICENSE](LICENSE)); thành phần bên thứ ba và giấy phép của chúng xem [NOTICE](NOTICE).
+Xem [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md).
+Mã nguồn PeopleOS phát hành theo **Apache-2.0** ([LICENSE](LICENSE), [NOTICE](NOTICE)); mỗi tệp mã có header SPDX.
+Giấy phép phần mềm bên thứ ba: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). **Hai thành phần cần lưu ý** (n8n không thuộc OSI;
+MinIO bị ngừng phát hành image upstream) và phương án thay thế: [docs/LICENSING.md](docs/LICENSING.md).
 Nội dung pháp luật trong `ai/knowledge` chỉ mang tính tham khảo, không thay thế tư vấn pháp lý/kế toán.
