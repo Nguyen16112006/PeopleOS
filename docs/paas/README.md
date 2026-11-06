@@ -61,7 +61,8 @@ flowchart TB
 |---|---|
 | Migration | `core/data/structured/hasura/migrations/default/` `…07_multi_tenant`, `…08_tenant_keys_views`, `…09_platform_control_plane`, `…10_tenant_composite_fks`, `…11_usage_metering` |
 | Seed (đã đa tenant) | `core/data/structured/seed/generate_seed.py`, `seed.sql` |
-| Sinh permission/role Hasura | `scripts/tenant-permissions.py`, `scripts/tenant-roles.py` (+ 33 file `…/metadata/…/tables/public_*.yaml`, gồm Event Trigger) |
+| Sinh permission/role Hasura | `scripts/tenant-permissions.py`, `scripts/tenant-roles.py` (+ 34 file `…/metadata/…/tables/public_*.yaml`; Event Trigger PaaS được cài riêng bởi `scripts/hasura-paas-event-triggers.py`) |
+| Khởi tạo Event Trigger PaaS | Service `hasura-event-triggers-init` trong `infrastructure/docker-compose.paas.yml`; dùng tên riêng cho từng bảng |
 | Áp migration bằng role owner | `scripts/apply-sql-migrations.sh`, `core/data/structured/Dockerfile.migrate`, `Dockerfile.metadata`, `hasura/config.yaml` |
 | Control plane | `apps/platform/platform-api/` (code + `tests/`) |
 | Developer Portal | `apps/developer-portal/` |
@@ -98,8 +99,10 @@ cd .. && python scripts/keycloak-paas-bootstrap.py
 | Lua gắn tenant; script bootstrap Keycloak/APISIX | Lua 5.4 với stub; script chạy với server giả; **chưa** thử với Keycloak/APISIX thật |
 | Manifest Kubernetes (30 resource) | `kubeconform --strict` (gồm CRD KEDA, CloudNativePG) + `kustomize build`; **chưa** áp lên cluster |
 | Frontend (`TaxYear.tsx`, Developer Portal) | `tsc` + `vite build` |
-| BFF Java | `javac` kiểm cú pháp + chạy thật `TenantContext` + rà soát diff; **chưa** build Maven/Spring, **chưa** chạy `TenantContextTest` |
-| Hasura runtime (set `hasura.user`, nạp metadata, quan hệ khi có FK tổng hợp, event trigger, bulk metadata API) | **Chưa kiểm chứng** |
+| BFF Java | `mvn -B package`: 71 test đạt |
+| Flowable engine | `mvn -B package`: 3 test đạt, gồm deploy 6 BPMN và 2 timer jobs |
+| Hasura runtime (nạp metadata, migration FK tenant, JWT có claim tenant) | Đã kiểm tra cục bộ: metadata nhất quán, `/healthz` trả 200 và Hasura chấp nhận GraphQL bằng JWT Keycloak có `tenant_id` |
+| PaaS Event Trigger init và giao webhook đầu-cuối | Cấu hình bootstrap đã kiểm tra; **chưa xác nhận** chạy service init và giao webhook thành công trên toàn bộ PaaS stack |
 | `scripts/smoke-paas.py` (đầu-cuối: Keycloak → gateway → Hasura → webhook) | Cú pháp + hàm thuần có test (chữ ký HMAC khớp bên ký); **chưa chạy với stack thật** - đây là bài cần chạy đầu tiên |
 | `preflight.py`, `make-release.py` (tar.gz tái lập được, loại bí mật) | Có test; `make-release.py` đã build 2 lần giống hệt trên repo thật |
 | CI (`.github/workflows/ci.yml`) | Đã chạy tay từng lệnh; **chưa** chạy trên GitHub Actions |

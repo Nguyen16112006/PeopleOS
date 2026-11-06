@@ -7,6 +7,10 @@
 - Thay workflow engine n8n (Sustainable Use License, không thuộc OSI) bằng dịch vụ Flowable 7.1.0 (Apache-2.0).
 - Chuyển sáu quy trình hiện có sang BPMN; hai lịch định kỳ nay là timer start events được lưu bền vững trong PostgreSQL.
 - Thêm kiểm thử bảo vệ API nội bộ và kiểm thử deploy BPMN/timer jobs.
+- Khởi tạo Hasura Event Trigger riêng trong PaaS bằng tên duy nhất cho từng bảng; metadata dùng chung không phụ thuộc biến môi trường chỉ có ở PaaS.
+### Fixed
+- Migration khóa ngoại tenant chỉ xử lý bảng tham chiếu có đủ `id` và `tenant_id`, tránh Hasura lỗi khi gặp bảng không thuộc mô hình tenant.
+- Cập nhật test webhook để dùng tên Event Trigger riêng theo bảng.
 
 ## [2.0.1] - 2026-11-03 (rà soát giấy phép, tài liệu, hạ tầng cộng đồng và giảm rủi ro demo)
 ### Fixed
