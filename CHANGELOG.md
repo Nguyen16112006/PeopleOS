@@ -2,6 +2,14 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/).
 
+## [Unreleased]
+### Added
+- Chuyển sáu quy trình hiện có từ n8n sang Flowable 7.1.0 (Apache-2.0) dưới dạng BPMN; hai lịch định kỳ được lưu bền vững trong PostgreSQL.
+- Khởi tạo Hasura Event Trigger riêng trong PaaS với tên duy nhất cho từng bảng; metadata dùng chung không phụ thuộc biến môi trường chỉ có ở PaaS.
+### Fixed
+- Migration khóa ngoại tenant chỉ xử lý bảng tham chiếu có đủ `id` và `tenant_id`, tránh Hasura lỗi khi gặp bảng không thuộc mô hình tenant.
+- Cập nhật test webhook để dùng tên Event Trigger riêng theo bảng.
+
 ## [1.0.0] - 2026-10-06
 ### Added (bổ sung tiêu chí)
 - **Quét mã độc ClamAV** cho mọi tệp tải lên (fail-closed mặc định), ghi nhật ký `FILE.QUARANTINED`.
