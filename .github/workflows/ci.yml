@@ -84,22 +84,17 @@ jobs:
           bash scripts/apply-sql-migrations.sh
           bash scripts/apply-sql-migrations.sh | tee /tmp/second.log
           grep -q "0 migration mới" /tmp/second.log
-            - name: Sao lưu và khôi phục thử
+      - name: Sao lưu và khôi phục thử
         run: |
           set -euo pipefail
-          # Runner có pg_dump mới hơn server (PostgreSQL 16) nên file dump chứa
-          # "SET transaction_timeout" mà server 16 không hiểu. Cài client 16 từ kho PGDG cho khớp
-          # (kho Ubuntu mặc định của runner không còn gói postgresql-client-16).
-          sudo apt-get update -q
-          sudo apt-get install -y -q postgresql-common
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install -y -q postgresql-client-16
-          export PATH=/usr/lib/postgresql/16/bin:$PATH
-          pg_dump --version
-          pg_dump --version | grep -q "pg_dump (PostgreSQL) 16\." || { echo "LỖI: pg_dump không phải bản 16"; exit 1; }
-          pg_dump -Fc peopleos -f /tmp/p.dump
+          # pg_dump trên runner mới hơn server (PostgreSQL 16) nên file dump chứa
+          # "SET transaction_timeout" mà server 16 không hiểu. Chạy client bằng đúng
+          # image postgres:16-alpine để khớp phiên bản, không phụ thuộc kho APT của runner.
+          PG16="docker run --rm -i --network host -e PGPASSWORD postgres:16-alpine"
+          $PG16 pg_dump --version
+          $PG16 pg_dump -h "$PGHOST" -U "$PGUSER" -Fc peopleos > /tmp/p.dump
           createdb restore_check
-          pg_restore -d restore_check --no-owner /tmp/p.dump
+          $PG16 pg_restore -h "$PGHOST" -U "$PGUSER" -d restore_check --no-owner < /tmp/p.dump
           test "$(psql -At -d restore_check -f scripts/audit-verify.sql | tail -1)" = "0"
 
   config-validation:
