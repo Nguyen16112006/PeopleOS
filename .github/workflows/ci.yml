@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 # CI của PeopleOS - mọi thay đổi vào Git (nguồn sự thật của GitOps) đều phải qua các kiểm tra này trước khi hợp nhất.
 name: CI
 
@@ -67,8 +70,28 @@ jobs:
         run: |
           if psql -q -c "UPDATE audit_logs SET action = 'X' WHERE seq = 1" 2>/dev/null; then echo "LỖI: sửa được nhật ký"; exit 1; fi
           if psql -q -c "TRUNCATE audit_logs" 2>/dev/null; then echo "LỖI: truncate được nhật ký"; exit 1; fi
+      - name: Cô lập đa tenant (RLS, audit theo tenant, FK chéo tenant)
+        run: bash scripts/test-tenant-isolation.sh
+      - name: Permission/role Hasura phải có điều kiện tenant
+        run: |
+          pip install pyyaml
+          python scripts/tenant-permissions.py --check
+          python scripts/tenant-roles.py --check
+      - name: Trình áp migration (role owner) phải idempotent và rollback gọn khi lỗi
+        run: |
+          createdb mig_check
+          export DATABASE_URL="postgresql://postgres:ci@localhost:5432/mig_check"
+          bash scripts/apply-sql-migrations.sh
+          bash scripts/apply-sql-migrations.sh | tee /tmp/second.log
+          grep -q "0 migration mới" /tmp/second.log
       - name: Sao lưu và khôi phục thử
         run: |
+          # Runner có pg_dump mới hơn server (PostgreSQL 16) nên file dump chứa
+          # "SET transaction_timeout" mà server 16 không hiểu. Cài client 16 cho khớp.
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-client-16
+          export PATH=/usr/lib/postgresql/16/bin:$PATH
+          pg_dump --version
           pg_dump -Fc peopleos -f /tmp/p.dump
           createdb restore_check && pg_restore -d restore_check --no-owner /tmp/p.dump
           test "$(psql -At -d restore_check -f scripts/audit-verify.sql | tail -1)" = "0"
@@ -79,6 +102,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cp infrastructure/.env.example infrastructure/.env && docker compose -f infrastructure/docker-compose.yml config -q
+      - name: Compose overlay PaaS phải hợp lệ
+        run: PLATFORM_SECRET_KEY=ci-key docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.paas.yml config -q
       - name: YAML và JSON phải hợp lệ
         run: |
           pip install pyyaml
@@ -90,16 +115,93 @@ jobs:
           PY
       - run: shellcheck -S warning scripts/*.sh scripts/backup/*.sh scripts/gitops/*.sh infrastructure/monitoring/*.sh
 
+  platform-api:
+    name: Test control plane (platform-api) với PostgreSQL thật
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: peopleos, POSTGRES_PASSWORD: x }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U peopleos" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_PG_ADMIN_DSN: postgresql://peopleos:x@localhost:5432/postgres
+      PGPASSWORD: x
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r apps/platform/platform-api/requirements.txt
+      - run: cd apps/platform/platform-api && python -m pytest -q tests
+
+  gateway-and-scripts:
+    name: Gateway (Lua) + script bootstrap Keycloak/APISIX
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - run: lua5.4 core/gateway/paas/test_api_key_to_hasura.lua
+      - run: pip install pytest pyyaml -r apps/platform/platform-api/requirements.txt && python -m pytest -q scripts/tests
+
+  developer-portal:
+    name: Build Developer Portal
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/developer-portal } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: apps/developer-portal/package-lock.json }
+      - run: npm ci
+      - run: npm run build
+
+  k8s-validate:
+    name: Kiểm tra manifest Kubernetes (kustomize + kubeconform, gồm CRD KEDA/CNPG)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cài công cụ
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          curl -sSL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz | tar xz kustomize
+      - name: Build + validate
+        run: |
+          ./kustomize build --load-restrictor LoadRestrictionsNone infrastructure/k8s > /tmp/all.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.30.0 -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' /tmp/all.yaml
+
+  license-compliance:
+    name: Giấy phép - header SPDX và gói phát hành sạch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Mọi tệp mã có header SPDX
+        run: python scripts/spdx-headers.py --check
+      - name: Không có bí mật/dump lọt vào gói phát hành
+        run: python scripts/make-release.py --check
+      - name: Gói .tar.gz tái lập được (build 2 lần phải giống hệt)
+        run: |
+          python scripts/make-release.py --version ci --out /tmp/r1 >/dev/null
+          python scripts/make-release.py --version ci --out /tmp/r2 >/dev/null
+          cmp /tmp/r1/PeopleOS-ci.tar.gz /tmp/r2/PeopleOS-ci.tar.gz
+
   docker-build:
     name: Build image
     runs-on: ubuntu-latest
-    needs: [python-tests, backend-java, frontend]
+    needs: [python-tests, backend-java, frontend, platform-api, developer-portal, license-compliance]
     strategy:
       matrix:
         include:
           - { name: bff, file: apps/people-workspace/bff/Dockerfile, context: . }
           - { name: rag-service, file: ai/rag-service/Dockerfile, context: . }
           - { name: frontend, file: apps/people-workspace/frontend/Dockerfile, context: apps/people-workspace/frontend }
+          - { name: platform-api, file: apps/platform/platform-api/Dockerfile, context: apps/platform/platform-api }
+          - { name: developer-portal, file: apps/developer-portal/Dockerfile, context: apps/developer-portal }
+          - { name: db-migrate, file: core/data/structured/Dockerfile.migrate, context: . }
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f ${{ matrix.file }} -t peopleos/${{ matrix.name }}:ci ${{ matrix.context }}

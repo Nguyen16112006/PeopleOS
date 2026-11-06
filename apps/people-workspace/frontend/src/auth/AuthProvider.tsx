@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { currentRoles, initKeycloak, keycloak, primaryRole } from '@/lib/keycloak'
 

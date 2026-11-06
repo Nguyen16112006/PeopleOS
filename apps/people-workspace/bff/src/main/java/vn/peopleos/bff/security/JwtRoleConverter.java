@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.security;
 
 import java.util.List;
@@ -8,7 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
-/** Chuyển realm_access.roles của Keycloak thành quyền ROLE_admin, ROLE_hr, ROLE_manager, ROLE_employee. */
+/** Chuyển realm_access.roles của Keycloak thành quyền ROLE_sysadmin, ROLE_director, ROLE_accountant, ROLE_hr, ROLE_manager, ROLE_employee. */
 public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationToken> {
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {

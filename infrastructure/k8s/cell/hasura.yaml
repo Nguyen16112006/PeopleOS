@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hasura
+  namespace: cell-1
+  labels: { app: hasura }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: hasura }
+  template:
+    metadata:
+      labels: { app: hasura }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: hasura
+          image: hasura/graphql-engine:v2.40.0       # image thường (không cli-migrations): migration/metadata áp bằng bước riêng
+          ports:
+            - containerPort: 8080
+          env:
+            # Nguồn dữ liệu dùng role hasura_app (NOSUPERUSER) qua PgBouncer => RLS có hiệu lực
+            - name: HASURA_GRAPHQL_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: data-db-url } }
+            # Metadata nằm trong Postgres để mọi replica đồng bộ khi Schema Service sửa metadata động
+            - name: HASURA_GRAPHQL_METADATA_DATABASE_URL
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: metadata-db-url } }
+            - name: HASURA_GRAPHQL_ADMIN_SECRET
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: admin-secret } }
+            - name: HASURA_GRAPHQL_JWT_SECRET
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: jwt-secret } }
+            - name: EVENT_DISPATCHER_SECRET
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: event-dispatcher-secret } }
+            - { name: EVENT_DISPATCHER_URL, value: "http://platform-api.platform-system.svc:8090/internal/hasura-events" }
+            - { name: HASURA_GRAPHQL_ENABLE_CONSOLE, value: "false" }
+            - { name: HASURA_GRAPHQL_DEV_MODE, value: "false" }
+            - { name: HASURA_GRAPHQL_ENABLED_LOG_TYPES, value: "startup, http-log, webhook-log, websocket-log" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { memory: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hasura
+  namespace: cell-1
+spec:
+  selector: { app: hasura }
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hasura
+  namespace: cell-1
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: hasura }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hasura
+  namespace: cell-1
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: hasura }
+---
+# Chỉ gateway, platform-system (Schema Service) và BFF cùng cell được gọi Hasura
+# (gateway giữ admin secret để đóng vai role tenant_api_*; BẮT BUỘC chặn mọi đường vào khác)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hasura-ingress
+  namespace: cell-1
+spec:
+  podSelector:
+    matchLabels: { app: hasura }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: gateway }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: platform-system }
+        - podSelector:
+            matchLabels: { app: bff }
+      ports:
+        - port: 8080

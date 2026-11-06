@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+# Áp metadata Hasura (bảng, quan hệ, permission, event trigger) bằng hasura-cli qua Metadata API.
+# Chạy SAU khi db-migrate xong và Hasura đã sẵn sàng; Job tự thử lại (backoffLimit) tới khi Hasura lên.
+# Image: core/data/structured/Dockerfile.metadata
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hasura-metadata-apply
+  namespace: cell-1
+spec:
+  backoffLimit: 12
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      containers:
+        - name: metadata
+          image: peopleos/hasura-metadata:latest
+          env:
+            - { name: HASURA_GRAPHQL_ENDPOINT, value: "http://hasura.cell-1.svc:8080" }
+            - name: HASURA_GRAPHQL_ADMIN_SECRET
+              valueFrom: { secretKeyRef: { name: cell-1-secrets, key: admin-secret } }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 256Mi }

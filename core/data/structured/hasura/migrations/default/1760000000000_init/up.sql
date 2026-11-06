@@ -1,3 +1,6 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
+
 -- =====================================================================
 -- PeopleOS - Schema cơ sở dữ liệu chính (Tầng 1: dữ liệu cấu trúc)
 -- Hasura CLI migrations tự áp dụng file này khi container khởi động.
@@ -184,7 +187,7 @@ CREATE TABLE approval_steps (
 );
 
 -- ---------------------------------------------------------------------
--- onboarding_tasks: checklist hội nhập nhân viên mới (do n8n sinh ra)
+-- onboarding_tasks: checklist hội nhập nhân viên mới (do BPMN workflow tạo)
 -- ---------------------------------------------------------------------
 CREATE TABLE onboarding_tasks (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),

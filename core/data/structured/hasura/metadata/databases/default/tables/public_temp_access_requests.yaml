@@ -1,0 +1,235 @@
+table:
+  name: temp_access_requests
+  schema: public
+object_relationships:
+- name: requester
+  using:
+    foreign_key_constraint_on: requester_id
+select_permissions:
+- role: sysadmin
+  permission:
+    columns: &id001
+    - id
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - requester:
+          user_id:
+            _eq: X-Hasura-User-Id
+- role: hr
+  permission:
+    columns: *id001
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - data_owner_role:
+          _eq: hr
+- role: accountant
+  permission:
+    columns: *id001
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - data_owner_role:
+          _eq: accountant
+- role: director
+  permission:
+    columns: *id001
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: bff_service
+  permission:
+    columns:
+    - id
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - id
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - id
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+insert_permissions:
+- role: bff_service
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    backend_only: false
+- role: tenant_api_write
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    backend_only: false
+update_permissions:
+- role: bff_service
+  permission:
+    columns:
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    columns:
+    - requester_id
+    - scope
+    - data_owner_role
+    - reason
+    - duration_minutes
+    - status
+    - owner_approver_id
+    - owner_approved_at
+    - director_approver_id
+    - director_approved_at
+    - granted_at
+    - expires_at
+    - revoked_at
+    - created_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+delete_permissions:
+- role: bff_service
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id

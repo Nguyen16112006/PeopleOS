@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Kiểm chứng bản sao lưu CÓ KHÔI PHỤC ĐƯỢC: nạp bản mới nhất của CSDL chính vào CSDL tạm, đếm dữ liệu,
 # và xác minh lại chuỗi băm kiểm toán, rồi xóa CSDL tạm. Không ảnh hưởng hệ thống đang chạy.
 set -euo pipefail

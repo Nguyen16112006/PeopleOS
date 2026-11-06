@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 """Công cụ trả lời câu hỏi bằng dữ liệu nội bộ: tính lương Net và tra cứu qua Hasura.
 
 Các truy vấn Hasura dùng CHÍNH token của người hỏi (kèm x-hasura-role) nên chịu cùng
@@ -14,7 +17,7 @@ from peopleos_shared.payroll import compute_net, format_vnd
 from .config import settings
 from .intents import amount_context, parse_amount, parse_dependents, parse_region
 
-ROLE_ORDER = ["admin", "hr", "manager", "employee"]
+ROLE_ORDER = ["sysadmin", "director", "accountant", "hr", "manager", "employee"]
 STATUS_VN = {"pending": "Chờ duyệt", "approved": "Đã duyệt", "rejected": "Từ chối", "cancelled": "Đã huỷ"}
 TYPE_VN = {"annual": "Nghỉ phép năm", "sick": "Nghỉ ốm", "unpaid": "Nghỉ không lương", "personal": "Nghỉ việc riêng"}
 

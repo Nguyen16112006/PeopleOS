@@ -1,3 +1,6 @@
+-- SPDX-License-Identifier: Apache-2.0
+-- Copyright (c) 2026 PeopleOS contributors
+
 -- =====================================================================
 -- PeopleOS - Quản trị dữ liệu & kiểm toán
 --   1. audit_logs: nhật ký BẤT BIẾN, liên kết chuỗi băm SHA-256 (tamper-evident)
@@ -123,7 +126,7 @@ CREATE TABLE data_assets (
   id              text PRIMARY KEY,
   name            text NOT NULL,
   asset_type      text NOT NULL CHECK (asset_type IN ('source','table','view','object_store','vector_store','process','output')),
-  system          text NOT NULL,                     -- hệ thống chứa/xử lý: Keycloak, PostgreSQL, MinIO, n8n, Backend...
+  system          text NOT NULL,                     -- hệ thống chứa/xử lý: Keycloak, PostgreSQL, MinIO, Flowable, Backend...
   layer           smallint NOT NULL CHECK (layer BETWEEN 1 AND 4),   -- 1 Nguồn, 2 Lưu trữ, 3 Xử lý, 4 Tiêu thụ
   classification  text NOT NULL CHECK (classification IN ('public','internal','confidential','pii')),
   owner           text NOT NULL,

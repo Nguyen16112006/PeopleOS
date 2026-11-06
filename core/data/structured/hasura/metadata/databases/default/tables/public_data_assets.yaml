@@ -13,5 +13,166 @@ select_permissions:
     - classification
     - owner
     - description
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+insert_permissions:
+- role: bff_service
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    backend_only: false
+- role: tenant_api_write
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    backend_only: false
+update_permissions:
+- role: bff_service
+  permission:
+    columns:
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    columns:
+    - name
+    - asset_type
+    - system
+    - layer
+    - classification
+    - owner
+    - description
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+delete_permissions:
+- role: bff_service
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+- role: tenant_api_write
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id

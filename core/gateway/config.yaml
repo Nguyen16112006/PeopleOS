@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
 # Apache APISIX chạy chế độ standalone (không cần etcd): cấu hình route đọc từ apisix.yaml
 apisix:
   node_listen: 9080

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.onboarding;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,46 +21,43 @@ import vn.peopleos.bff.common.Params;
 import vn.peopleos.bff.common.VnName;
 import vn.peopleos.bff.integration.hasura.HasuraClient;
 import vn.peopleos.bff.integration.keycloak.KeycloakAdminClient;
-import vn.peopleos.bff.integration.n8n.WorkflowClient;
+import vn.peopleos.bff.integration.flowable.WorkflowClient;
 import vn.peopleos.bff.onboarding.dto.NewEmployeeRequest;
 import vn.peopleos.bff.onboarding.dto.NewEmployeeResponse;
 import vn.peopleos.bff.onboarding.dto.TaskInput;
 import vn.peopleos.bff.onboarding.dto.TaskResult;
+import vn.peopleos.bff.notification.NotificationService;
+import vn.peopleos.bff.notification.NotificationService.Target;
 import vn.peopleos.bff.security.CurrentUser;
 
 /**
  * Onboarding nhân viên mới: tạo hồ sơ + hợp đồng + quỹ phép (+ tài khoản SSO Keycloak),
- * rồi giao cho workflow n8n sinh checklist hội nhập và gửi thông báo.
+ * rồi giao cho workflow BPMN sinh checklist hội nhập và gửi thông báo.
  */
 @Service
 public class OnboardingService {
     private static final Logger log = LoggerFactory.getLogger(OnboardingService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    /** Checklist mặc định (dự phòng khi n8n không chạy): tiêu đề, người phụ trách, số ngày kể từ ngày bắt đầu. */
-    private static final List<Object[]> DEFAULT_TASKS = List.of(
-            new Object[] {"Ký hợp đồng và nộp hồ sơ cá nhân", "hr", 0},
-            new Object[] {"Tạo tài khoản email và SSO", "hr", 1},
-            new Object[] {"Cấp laptop và thiết bị làm việc", "hr", 3},
-            new Object[] {"Đăng ký BHXH, BHYT và mã số thuế", "hr", 14},
-            new Object[] {"Phân công mentor và giới thiệu nhóm", "manager", 3},
-            new Object[] {"Hoàn thành khóa nội quy và an toàn thông tin", "employee", 14});
-
     private final HasuraClient hasura;
     private final KeycloakAdminClient keycloak;
     private final WorkflowClient workflows;
     private final AuditService audit;
+    private final NotificationService notifications;
 
-    public OnboardingService(HasuraClient hasura, KeycloakAdminClient keycloak, WorkflowClient workflows, AuditService audit) {
+    public OnboardingService(HasuraClient hasura, KeycloakAdminClient keycloak, WorkflowClient workflows,
+                             AuditService audit, NotificationService notifications) {
         this.audit = audit;
         this.hasura = hasura;
         this.keycloak = keycloak;
         this.workflows = workflows;
+        this.notifications = notifications;
     }
 
     // ------------------------------------------------------------------ 1. Tạo nhân viên mới
     public NewEmployeeResponse createEmployee(CurrentUser user, NewEmployeeRequest req) {
-        if (!user.hasAny("hr", "admin")) throw ApiException.forbidden("Cần một trong các vai trò: hr, admin");
+        // HR tạo hồ sơ + hợp đồng; tài khoản Keycloak được hệ thống tạo kèm (mọi tài khoản mới chỉ có vai trò employee)
+        if (!user.hasAny("hr")) throw ApiException.forbidden("Chỉ HR được tạo hồ sơ nhân viên mới");
 
         int count = hasura.query(OnboardingQueries.COUNT, null).get("employees_aggregate").get("aggregate").get("count").asInt();
         String code = String.format("NV%04d", count + 1);
@@ -109,7 +109,7 @@ public class OnboardingService {
         Map<String, Object> payload = Params.of(
                 "employee_id", employeeId, "employee_name", req.fullName(), "employee_user_id", userId,
                 "manager_user_id", managerUserId, "hire_date", req.hireDate().toString(), "job_title", req.jobTitle());
-        workflows.trigger("onboarding", payload, p -> insertDefaultTasks(p.get("employee_id").toString(), req.hireDate()));
+        workflows.trigger("onboarding", payload, this::initializeWorkflow);
 
         audit.record(user, "EMPLOYEE.CREATED", "employee", employeeId, Params.of(
                 "employee_code", created.get("employee_code").asText(), "sso_account_created", userId != null,
@@ -118,7 +118,44 @@ public class OnboardingService {
     }
 
     // ------------------------------------------------------------------ 2. Checklist
-    /** Dùng bởi workflow n8n (qua /api/internal/onboarding-tasks) và bởi fallback. */
+    /** Dùng bởi quy trình BPMN và fallback để tạo checklist, thông báo cho các bên liên quan. */
+    public void initializeWorkflow(Map<String, Object> payload) {
+        String employeeId = payload.get("employee_id").toString();
+        String employeeName = payload.get("employee_name").toString();
+        String jobTitle = payload.get("job_title").toString();
+        String hireDate = payload.get("hire_date").toString();
+        LocalDate start = LocalDate.parse(hireDate);
+        List<TaskInput> tasks = List.of(
+                new TaskInput("Ký hợp đồng và nộp hồ sơ cá nhân", "hr", start.toString()),
+                new TaskInput("Tạo tài khoản email và SSO", "sysadmin", start.plusDays(1).toString()),
+                new TaskInput("Cấp laptop và thiết bị làm việc", "hr", start.plusDays(3).toString()),
+                new TaskInput("Đăng ký BHXH, BHYT và mã số thuế", "hr", start.plusDays(14).toString()),
+                new TaskInput("Nhận thông tin lương, BHXH, thuế để đưa vào kỳ lương", "accountant", start.plusDays(7).toString()),
+                new TaskInput("Phân công mentor và giới thiệu nhóm", "manager", start.plusDays(3).toString()),
+                new TaskInput("Hoàn thành khóa nội quy và an toàn thông tin", "employee", start.plusDays(14).toString()));
+        insertTasks(employeeId, tasks);
+
+        notifications.notify(Target.role("hr"), "Nhân viên mới cần onboarding",
+                employeeName + " (" + jobTitle + ") bắt đầu ngày " + hireDate + ". Checklist đã được tạo.",
+                "employee", employeeId, "onboarding.started");
+        notifications.notify(Target.role("accountant"), "Nhân viên mới cần đưa vào kỳ lương",
+                employeeName + " (" + jobTitle + ") bắt đầu ngày " + hireDate
+                        + ". Vui lòng nhận thông tin lương, BHXH, thuế từ HR.",
+                "employee", employeeId, "onboarding.accountant");
+        if (payload.get("manager_user_id") != null) {
+            notifications.notify(Target.user(payload.get("manager_user_id").toString()),
+                    "Nhân viên mới trong nhóm của bạn",
+                    employeeName + " sẽ bắt đầu ngày " + hireDate + ". Vui lòng phân công mentor.",
+                    "employee", employeeId, "onboarding.manager");
+        }
+        if (payload.get("employee_user_id") != null) {
+            notifications.notify(Target.user(payload.get("employee_user_id").toString()),
+                    "Chào mừng bạn đến với PeopleOS!",
+                    "Hãy hoàn thành checklist hội nhập trong 2 tuần đầu.",
+                    "employee", employeeId, "onboarding.welcome");
+        }
+    }
+
     public int insertTasks(String employeeId, List<TaskInput> tasks) {
         List<Map<String, Object>> objs = new ArrayList<>();
         for (TaskInput t : tasks) {
@@ -127,21 +164,14 @@ public class OnboardingService {
         return hasura.query(OnboardingQueries.NEW_TASKS, Params.of("objs", objs)).get("insert_onboarding_tasks").get("affected_rows").asInt();
     }
 
-    private void insertDefaultTasks(String employeeId, LocalDate hireDate) {
-        List<TaskInput> tasks = new ArrayList<>();
-        for (Object[] t : DEFAULT_TASKS) {
-            tasks.add(new TaskInput((String) t[0], (String) t[1], hireDate.plusDays((Integer) t[2]).toString()));
-        }
-        insertTasks(employeeId, tasks);
-    }
-
     public TaskResult completeTask(CurrentUser user, String taskId) {
         JsonNode t = hasura.query(OnboardingQueries.TASK, Params.of("id", taskId)).get("onboarding_tasks_by_pk");
         if (Json.isMissing(t)) throw ApiException.notFound("Không tìm thấy công việc");
 
         JsonNode emp = t.get("employee");
         String role = t.get("assignee_role").asText();
-        boolean allowed = user.hasAny("hr", "admin")
+        boolean allowed = user.hasAny("hr")
+                || (("sysadmin".equals(role) || "accountant".equals(role) || "director".equals(role)) && user.hasAny(role))
                 || ("manager".equals(role) && user.sub().equals(Json.text(emp.path("manager"), "user_id")))
                 || ("employee".equals(role) && user.sub().equals(Json.text(emp, "user_id")));
         if (!allowed) throw ApiException.forbidden("Bạn không phải người phụ trách công việc này");

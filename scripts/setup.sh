@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # =====================================================================
 # PeopleOS - cài đặt một lệnh: tạo .env, build, khởi chạy, nạp dữ liệu mẫu
 # Dùng: ./scripts/setup.sh            (khởi chạy toàn bộ)
@@ -17,7 +19,7 @@ fi
 
 SERVICES=()
 if [[ "${1:-}" == "--no-ai" ]]; then
-  SERVICES=(postgres keycloak hasura minio minio-init nats n8n apisix bff frontend clamav autoheal backup-postgres backup-minio)
+  SERVICES=(postgres keycloak hasura minio minio-init nats flowable apisix bff frontend clamav autoheal backup-postgres backup-minio)
   echo ">> Chế độ --no-ai: không chạy ollama, qdrant, rag-service (trang Trợ lý AI sẽ báo lỗi kết nối)"
 fi
 
@@ -37,8 +39,8 @@ cat <<'MSG'
  Keycloak         : http://localhost:8080   (admin / admin_change_me)
  Hasura Console   : http://localhost:8081   (admin secret trong .env)
  MinIO Console    : http://localhost:9001
- n8n              : http://localhost:5678   (lần đầu: tạo tài khoản owner)
  API Gateway      : http://localhost:9080
+ Flowable         : dịch vụ BPMN nội bộ (không publish cổng host)
 
  Tài khoản demo (mật khẩu chung: Peopleos@123)
    admin / hr / manager / employee / employee2

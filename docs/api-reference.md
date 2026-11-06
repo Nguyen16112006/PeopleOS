@@ -45,13 +45,18 @@ Frontend chỉ **đọc** bằng GraphQL (và đánh dấu đã đọc thông b�
 
 Lỗi trả dạng `{"detail": "..."}`. Tài liệu OpenAPI tương tác của backend Java: `http://localhost:8000/swagger-ui.html` khi chạy cùng `docker-compose.dev.yml`.
 
-### API nội bộ (chỉ n8n, không đi qua gateway)
-Header `x-internal-key: $INTERNAL_API_KEY`.
+### API nội bộ (chỉ Flowable, không đi qua gateway)
 
-| Endpoint | Body |
+Các endpoint dưới đây yêu cầu header `x-internal-key`; tác vụ theo tenant gửi thêm `x-tenant-id`.
+
+| Endpoint | Mục đích / body |
 |---|---|
-| `POST /api/internal/notify` | `{user_id? \| role?, title, message, ref_type?, ref_id?, kind?}` |
-| `POST /api/internal/onboarding-tasks` | `{employee_id, tasks: [{title, assignee_role, due_date?}]}` |
+| `POST /api/internal/notify` | Tạo thông báo: `{user_id? \| role?, title, message, ref_type?, ref_id?, kind?}` |
+| `POST /api/internal/onboarding/initialize` | Tạo checklist + thông báo onboarding; body là payload onboarding |
+| `POST /api/internal/temp-access/expire` | Đánh dấu quyền tạm quá hạn |
+| `POST /api/internal/offboarding/lock-due` | Khóa tài khoản đến ngày nghỉ việc |
+
+Khóa nội bộ: `x-internal-key: $INTERNAL_API_KEY`.
 
 ## 3. WebSocket - `ws://localhost:9080/ws?token=<access_token>`
 

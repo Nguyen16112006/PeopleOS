@@ -1,10 +1,12 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Sao lưu PostgreSQL định kỳ (chạy trong container backup-postgres).
 # Mỗi lần: pg_dump -Fc cho từng CSDL -> /backups/postgres/<db>-<thời-gian>.dump; xóa bản cũ hơn BACKUP_RETENTION_DAYS ngày.
 set -u
 INTERVAL=$(( ${BACKUP_INTERVAL_HOURS:-24} * 3600 ))
 RETENTION=${BACKUP_RETENTION_DAYS:-7}
-DBS=${BACKUP_DATABASES:-"peopleos keycloak n8n"}
+DBS=${BACKUP_DATABASES:-"peopleos keycloak"}
 DIR=/backups/postgres
 mkdir -p "$DIR"
 echo "[backup-postgres] bắt đầu: mỗi ${BACKUP_INTERVAL_HOURS:-24} giờ, giữ ${RETENTION} ngày, CSDL: $DBS"

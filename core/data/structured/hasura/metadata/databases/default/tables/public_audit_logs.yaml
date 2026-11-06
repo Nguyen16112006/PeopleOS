@@ -1,3 +1,74 @@
 table:
   name: audit_logs
   schema: public
+select_permissions:
+- role: sysadmin
+  permission:
+    columns: &id001
+    - seq
+    - occurred_at
+    - actor_id
+    - actor_name
+    - actor_role
+    - action
+    - entity_type
+    - entity_id
+    - details
+    - prev_hash
+    - hash
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: director
+  permission:
+    columns: *id001
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: hr
+  permission:
+    columns: *id001
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - seq
+    - occurred_text
+    - occurred_at
+    - actor_id
+    - actor_name
+    - actor_role
+    - action
+    - entity_type
+    - entity_id
+    - details
+    - prev_hash
+    - hash
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+insert_permissions:
+- role: bff_service
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - occurred_text
+    - actor_id
+    - actor_name
+    - actor_role
+    - action
+    - entity_type
+    - entity_id
+    - details
+    backend_only: false

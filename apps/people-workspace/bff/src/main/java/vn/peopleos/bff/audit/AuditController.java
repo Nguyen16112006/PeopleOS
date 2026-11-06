@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.audit;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +21,7 @@ public class AuditController {
 
     @GetMapping("/verify")
     public AuditService.Verification verify(CurrentUser user) {
-        if (!user.hasAny("admin")) throw ApiException.forbidden("Chỉ Admin mới được xác minh nhật ký kiểm toán");
+        if (!user.hasAny("sysadmin", "director", "hr")) throw ApiException.forbidden("Chỉ Admin kỹ thuật, Giám đốc hoặc HR mới được xác minh nhật ký kiểm toán");
         return service.verify();
     }
 }

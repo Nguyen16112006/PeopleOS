@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import Keycloak from 'keycloak-js'
 
 export const keycloak = new Keycloak({
@@ -24,7 +27,8 @@ export async function getToken(): Promise<string> {
   return keycloak.token ?? ''
 }
 
-const ROLE_ORDER = ['admin', 'hr', 'manager', 'employee']
+// Lưu ý: vai trò quản trị kỹ thuật tên 'sysadmin' (Hasura coi 'admin' là siêu quyền nên không dùng tên đó)
+const ROLE_ORDER = ['sysadmin', 'director', 'accountant', 'hr', 'manager', 'employee']
 export function currentRoles(): string[] {
   return keycloak.tokenParsed?.realm_access?.roles ?? []
 }

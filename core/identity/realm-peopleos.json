@@ -14,20 +14,28 @@
   "roles": {
     "realm": [
       {
-        "name": "admin",
-        "description": "Quản trị hệ thống / Giám đốc - duyệt cấp cuối"
-      },
-      {
-        "name": "hr",
-        "description": "Nhân sự - quản lý hồ sơ, hợp đồng, lương, duyệt cấp 1"
+        "name": "employee",
+        "description": "Nhân viên - cổng tự phục vụ (mọi tài khoản đều có)"
       },
       {
         "name": "manager",
-        "description": "Quản lý - duyệt nghỉ phép nhóm, đề xuất tăng lương"
+        "description": "Quản lý - duyệt nghỉ phép/OT/chi phí cấp 1 của nhóm, đề xuất tăng lương, giao KPI"
       },
       {
-        "name": "employee",
-        "description": "Nhân viên - cổng tự phục vụ"
+        "name": "hr",
+        "description": "Nhân sự - hồ sơ, hợp đồng, tuyển dụng, chốt công, thẩm định đề xuất"
+      },
+      {
+        "name": "director",
+        "description": "Giám đốc - duyệt cuối, dashboard điều hành, quản lý trực tiếp các Quản lý"
+      },
+      {
+        "name": "accountant",
+        "description": "Kế toán - tính lương, chi trả, thuế TNCN, BHXH, tạm ứng/chi phí, báo cáo tài chính năm"
+      },
+      {
+        "name": "sysadmin",
+        "description": "Quản trị kỹ thuật - tài khoản, phân quyền, cấu hình, audit log; không xem dữ liệu lương/hợp đồng"
       }
     ]
   },
@@ -79,7 +87,7 @@
         }
       ],
       "realmRoles": [
-        "admin",
+        "sysadmin",
         "employee"
       ]
     },
@@ -158,6 +166,46 @@
         }
       ],
       "realmRoles": [
+        "employee"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "username": "director",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "director@peopleos.local",
+      "firstName": "Hoàng Quốc",
+      "lastName": "Hùng",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Peopleos@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "director",
+        "employee"
+      ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "username": "accountant",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "accountant@peopleos.local",
+      "firstName": "Vũ Thị",
+      "lastName": "Lan",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Peopleos@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "accountant",
         "employee"
       ]
     }

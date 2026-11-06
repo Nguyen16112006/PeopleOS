@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+name: Báo lỗi
+description: Báo cáo một lỗi trong PeopleOS
+title: "[Lỗi] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cảm ơn bạn đã báo lỗi. **Lỗ hổng bảo mật** vui lòng báo riêng tư theo SECURITY.md, đừng dùng mẫu này.
+  - type: input
+    id: version
+    attributes:
+      label: Phiên bản
+      description: Tag hoặc commit (vd. v2.0.1)
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Thành phần
+      options:
+        - Hasura / migration / RLS
+        - platform-api (control plane)
+        - Developer Portal
+        - Gateway (APISIX)
+        - Keycloak
+        - BFF (Java)
+        - Frontend People Workspace
+        - Workflow (Flowable / BPMN)
+        - RAG / AI
+        - Hạ tầng (compose / Kubernetes / CI)
+        - Tài liệu
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Các bước tái hiện
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Kết quả mong đợi và thực tế
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log / ảnh chụp màn hình
+      description: Che mọi bí mật và dữ liệu cá nhân trước khi dán.
+      render: shell
+  - type: textarea
+    id: env
+    attributes:
+      label: Môi trường
+      description: Hệ điều hành, Docker version, RAM, đã chạy `python scripts/preflight.py` chưa?

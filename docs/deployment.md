@@ -7,7 +7,7 @@
 | Docker | 24+ với Compose v2 | mới nhất |
 | RAM | 8 GB (chạy `--no-ai`, ClamAV dùng ~1-2 GB) | 16 GB (kèm Ollama + mô hình 3B) |
 | Ổ đĩa | 10 GB | 20 GB (mô hình AI ~3 GB) |
-| Cổng rảnh | 3000, 5678, 8080, 8081, 9000, 9001, 9080, 4222, 8222, 6333, 11434 | |
+| Cổng rảnh | 3000, 8080, 8081, 9000, 9001, 9080, 4222, 8222, 6333, 11434 | |
 
 ## 2. Chạy nhanh (khuyến nghị)
 
@@ -31,11 +31,11 @@ docker compose up -d --build
 ```
 
 Lần đầu `docker compose up -d` cần vài phút để build `bff` (Maven tải thư viện Java, cần Internet; khoảng 3-6 phút), `frontend`, `rag-service` và tải image. Backend Java khởi động mất khoảng 10-20 giây sau khi container chạy. Container `ollama-init` tải mô hình
-(`bge-m3` ≈ 1,2 GB, `qwen2.5:3b` ≈ 1,9 GB) ở nền; trong lúc chờ, trợ lý AI vẫn trả lời bằng đoạn trích từ kho tri thức.
+(`bge-m3` ≈ 1,2 GB, `qwen2.5:1.5b` ≈ 1,0 GB) ở nền; trong lúc chờ, trợ lý AI vẫn trả lời bằng đoạn trích từ kho tri thức.
 Theo dõi: `docker compose logs -f ollama-init rag-service`.
 
 ### Thứ tự khởi động
-`postgres` → `keycloak` (import realm) · `hasura` (migration + metadata) · `minio` → `minio-init` · `nats` → `n8n` (nhập 4 workflow) → `bff` → `apisix` → `frontend`.
+`postgres` → `keycloak` (import realm), `hasura` (migration + metadata), `minio` → `minio-init`, `nats`; Flowable chờ PostgreSQL và tự triển khai 6 BPMN. BFF chờ Hasura/NATS/MinIO/ClamAV, không chặn khởi động theo Flowable và dùng fallback nếu engine tạm ngừng. Sau đó APISIX → frontend. Flowable chỉ mở trong mạng Docker, không có cổng host hay UI quản trị.
 
 ## 4. Cổng và tài khoản
 
@@ -45,7 +45,6 @@ Theo dõi: `docker compose logs -f ollama-init rag-service`.
 | Keycloak | http://localhost:8080 | `KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD` |
 | Hasura Console | http://localhost:8081 | `HASURA_ADMIN_SECRET` |
 | MinIO Console | http://localhost:9001 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
-| n8n | http://localhost:5678 | lần đầu truy cập: tạo tài khoản owner (workflow vẫn chạy bình thường khi chưa tạo) |
 | API Gateway | http://localhost:9080 | JWT Keycloak |
 
 ## 5. Phát triển
@@ -66,6 +65,7 @@ pip install pytest fastapi httpx qdrant-client langchain-text-splitters
 (cd core/shared/python && PYTHONPATH=. python -m pytest tests)
 (cd ai/rag-service && python -m pytest tests)
 (cd apps/people-workspace/bff && mvn test)        # backend Java: cần JDK 21 + Maven
+(cd core/workflow/engine && mvn test)             # BPMN engine: cần JDK 21 + Maven
 (cd apps/people-workspace/frontend && npx tsc -b)
 ```
 
@@ -105,15 +105,15 @@ Bản sao lưu nằm ở `backups/` (đổi bằng `BACKUP_DIR`); chi tiết: [g
 | Thông báo realtime không tới | WebSocket bị chặn (proxy) hoặc NATS lỗi | Kiểm `GET /api/health` (trường `nats`), console trình duyệt tab Network → WS |
 | Trợ lý AI trả "đoạn trích" thay vì câu trả lời | Ollama đang tải mô hình | Chờ `ollama-init` kết thúc; kiểm `GET /ai/health` |
 | `ollama-init` lỗi tải mô hình | Không có Internet | Dùng `--no-ai` hoặc nạp mô hình thủ công: `docker compose exec ollama ollama pull bge-m3` |
-| Build `bff` lỗi ở bước Maven | Mất mạng hoặc lỗi biên dịch | `docker compose build bff` và gửi log lỗi; kiểm tra mạng tới repo.maven.apache.org |
+| Build `bff` lỗi ở bước Maven | Mất mạng hoặc lỗi biên dịch (backend Java chưa được biên dịch đầy đủ trong môi trường phát triển) | `docker compose build bff` và gửi log lỗi; kiểm tra mạng tới repo.maven.apache.org |
 | Tải hợp đồng lên báo 503 "quét mã độc chưa sẵn sàng" | ClamAV đang tải chữ ký lần đầu (vài phút) | Chờ `docker compose ps clamav` thành healthy; hoặc tạm đặt `CLAMAV_FAIL_OPEN=true` khi demo |
-| Workflow n8n không chạy | Chưa kích hoạt | Mở n8n, bật công tắc Active; hoặc `docker compose restart n8n` |
+| Quy trình BPMN hoặc timer không chạy | Engine chưa healthy hoặc delegate gọi BFF lỗi | `docker compose ps flowable`; xem `docker compose logs flowable bff`; sau khi sửa cấu hình có thể `docker compose restart flowable` |
 
 ## 8. Chuyển sang production (bắt buộc rà soát)
 
 1. Đổi **mọi** mật khẩu/secret trong `.env`; không dùng giá trị mẫu. Xóa hoặc đổi mật khẩu 5 tài khoản demo và gán lại bằng quy trình thật.
 2. Keycloak: dùng `start` (không phải `start-dev`), bật HTTPS và hostname chuẩn, cấu hình SMTP; đặt `KEYCLOAK_PUBLIC_URL` là URL HTTPS.
 3. Đặt reverse proxy TLS trước APISIX, frontend và Keycloak; cập nhật `allow_origins` và biến `VITE_*`/`WS_URL` sang `https`/`wss`.
-4. Đóng các cổng quản trị (Hasura Console, MinIO Console, n8n, PostgreSQL, NATS monitor, Qdrant, Ollama); tắt `HASURA_GRAPHQL_DEV_MODE` và `ENABLE_CONSOLE`.
+4. Đóng các cổng quản trị (Hasura Console, MinIO Console, PostgreSQL, NATS monitor, Qdrant, Ollama); Flowable không publish cổng host. Tắt `HASURA_GRAPHQL_DEV_MODE` và `ENABLE_CONSOLE`.
 5. Sao lưu định kỳ PostgreSQL và MinIO; cấu hình tài nguyên (resource limits) cho từng container.
 6. Cân nhắc quản lý secret bằng Docker secrets/Vault và theo dõi bằng Prometheus/Grafana (APISIX và NATS đều có exporter).

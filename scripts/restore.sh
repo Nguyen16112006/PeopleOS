@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Khôi phục một CSDL từ bản sao lưu.  Dùng: ./scripts/restore.sh <tên-csdl> <đường-dẫn-file.dump> --yes
 # CẢNH BÁO: xóa CSDL hiện tại rồi nạp lại từ file. Các dịch vụ dùng CSDL đó được dừng tạm rồi khởi động lại.
 set -euo pipefail
 DB="${1:-}"; FILE="${2:-}"; CONFIRM="${3:-}"
-[[ -n "$DB" && -f "$FILE" ]] || { echo "Dùng: $0 <csdl: peopleos|keycloak|n8n> <file.dump> --yes"; exit 1; }
+[[ -n "$DB" && -f "$FILE" ]] || { echo "Dùng: $0 <csdl: peopleos|keycloak> <file.dump> --yes"; exit 1; }
 [[ "$CONFIRM" == "--yes" ]] || { echo "Thao tác này XÓA CSDL '$DB' hiện tại. Thêm --yes để xác nhận."; exit 1; }
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT/infrastructure"
 [[ -f .env ]] && set -a && source .env && set +a
 DB_USER="${POSTGRES_USER:-peopleos}"
 case "$DB" in
   keycloak) DEPS=(keycloak) ;;
-  n8n)      DEPS=(n8n) ;;
   *)        DEPS=(hasura bff) ;;
 esac
 FILE_ABS="$(cd "$(dirname "$FILE")" && pwd)/$(basename "$FILE")"

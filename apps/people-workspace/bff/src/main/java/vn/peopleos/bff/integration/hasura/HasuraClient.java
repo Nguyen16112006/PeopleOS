@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.integration.hasura;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -9,15 +12,23 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import vn.peopleos.bff.config.AppProperties;
+import vn.peopleos.bff.tenant.TenantContext;
 
 /**
- * Client GraphQL gọi Hasura bằng admin secret.
+ * Client GraphQL gọi Hasura.
  *
  * <p>Mọi dữ liệu nghiệp vụ đi qua Hasura (lõi dùng chung): backend chỉ thêm logic nghiệp vụ và
  * kiểm tra quyền trước khi ghi, không có CSDL riêng.
+ *
+ * <p>Đa tenant: client KHÔNG còn chạy với vai trò admin. Nó dùng admin secret chỉ để "đóng vai" role
+ * {@value #SERVICE_ROLE} kèm {@code x-hasura-tenant-id} của yêu cầu hiện tại, nên mọi permission của Hasura
+ * (lọc theo tenant, gán tenant_id khi ghi) đều có hiệu lực cho cả BFF. Thiếu tenant => ném lỗi (fail-closed).
  */
 @Component
 public class HasuraClient {
+    /** Role dịch vụ của BFF trong metadata Hasura (CRUD toàn bộ bảng nghiệp vụ, luôn bị lọc theo tenant). */
+    public static final String SERVICE_ROLE = "bff_service";
+
     private final RestClient http = RestClient.create();
     private final ObjectMapper mapper;
     private final AppProperties.Hasura cfg;
@@ -29,6 +40,7 @@ public class HasuraClient {
 
     /** Chạy một truy vấn/mutation và trả về nút "data". */
     public JsonNode query(String graphql, Map<String, Object> variables) {
+        String tenant = TenantContext.require();
         ObjectNode body = mapper.createObjectNode();
         body.put("query", graphql);
         body.set("variables", mapper.valueToTree(variables == null ? Map.of() : variables));
@@ -38,6 +50,8 @@ public class HasuraClient {
             response = http.post()
                     .uri(cfg.url())
                     .header("x-hasura-admin-secret", cfg.adminSecret())
+                    .header("x-hasura-role", SERVICE_ROLE)
+                    .header("x-hasura-tenant-id", tenant)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()

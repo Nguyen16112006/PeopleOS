@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,11 +21,13 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import vn.peopleos.bff.security.JwtRoleConverter;
+import vn.peopleos.bff.tenant.TenantFilter;
 
 /**
  * Bảo mật: backend là OAuth2 Resource Server - xác thực chữ ký JWT do Keycloak phát hành (JWKS) và kiểm tra issuer.
@@ -60,7 +65,9 @@ public class SecurityConfig {
             .oauth2ResourceServer(o -> o
                 .jwt(j -> j.jwtAuthenticationConverter(new JwtRoleConverter()))
                 .authenticationEntryPoint((req, res, ex) -> writeJson(mapper, res, 401, "Access token không hợp lệ hoặc đã hết hạn"))
-                .accessDeniedHandler((req, res, ex) -> writeJson(mapper, res, 403, "Bạn không có quyền thực hiện thao tác này")));
+                .accessDeniedHandler((req, res, ex) -> writeJson(mapper, res, 403, "Bạn không có quyền thực hiện thao tác này")))
+            // Đặt tenant của yêu cầu từ claim tenant_id (thiếu => 403), ngay sau khi token được xác thực.
+            .addFilterAfter(new TenantFilter(mapper), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

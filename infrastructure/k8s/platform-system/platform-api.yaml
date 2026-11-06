@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platform-api
+  namespace: platform-system
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-api
+  namespace: platform-system
+  labels: { app: platform-api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: platform-api }
+  template:
+    metadata:
+      labels: { app: platform-api }
+    spec:
+      serviceAccountName: platform-api
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: platform-api
+          image: peopleos/platform-api:latest        # thay bằng tag cố định qua kustomize `images:`
+          ports:
+            - containerPort: 8090
+          envFrom:
+            - secretRef: { name: platform-secrets }
+          env:
+            - { name: KEYCLOAK_URL, value: "http://keycloak.identity.svc:8080" }
+            - { name: END_USER_REALM, value: "peopleos" }
+            - { name: APISIX_ADMIN_URL, value: "http://apisix-admin.gateway.svc:9180" }
+            - { name: HASURA_URL, value: "http://hasura.cell-1.svc:8080" }
+            - { name: HASURA_SOURCE, value: "default" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8090 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8090 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-api
+  namespace: platform-system
+spec:
+  selector: { app: platform-api }
+  ports:
+    - port: 8090
+      targetPort: 8090
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: platform-api
+  namespace: platform-system
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: platform-api }
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: platform-api
+  namespace: platform-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: platform-api }
+---
+# Chỉ gateway (route /platform/*) và Hasura của các cell (Event Trigger) được gọi platform-api
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-api-ingress
+  namespace: platform-system
+spec:
+  podSelector:
+    matchLabels: { app: platform-api }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: gateway }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: cell-1 }
+      ports:
+        - port: 8090

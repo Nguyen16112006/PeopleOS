@@ -17,5 +17,88 @@ select_permissions:
     - latest_gross
     - latest_net
     - latest_employer_cost
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - headcount
+    - onboarding_count
+    - active_contracts
+    - avg_base_salary
+    - pending_leave
+    - pending_proposals
+    - expiring_contracts
+    - latest_year
+    - latest_month
+    - latest_gross
+    - latest_net
+    - latest_employer_cost
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - headcount
+    - onboarding_count
+    - active_contracts
+    - avg_base_salary
+    - pending_leave
+    - pending_proposals
+    - expiring_contracts
+    - latest_year
+    - latest_month
+    - latest_gross
+    - latest_net
+    - latest_employer_cost
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - headcount
+    - onboarding_count
+    - active_contracts
+    - avg_base_salary
+    - pending_leave
+    - pending_proposals
+    - expiring_contracts
+    - latest_year
+    - latest_month
+    - latest_gross
+    - latest_net
+    - latest_employer_cost
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - headcount
+    - onboarding_count
+    - active_contracts
+    - avg_base_salary
+    - pending_leave
+    - pending_proposals
+    - expiring_contracts
+    - latest_year
+    - latest_month
+    - latest_gross
+    - latest_net
+    - latest_employer_cost
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000

@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: peopleos-workflow-engine
+  datasource:
+    url: ${POSTGRES_JDBC_URL:jdbc:postgresql://postgres:5432/peopleos}
+    username: ${POSTGRES_USER:peopleos}
+    password: ${POSTGRES_PASSWORD:peopleos_pg_pass}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+flowable:
+  database-schema-update: true
+  async-executor-activate: true
+  history-level: audit
+  process-definition-location-prefix: classpath*:/processes/
+
+peopleos:
+  bff-url: ${BFF_URL:http://bff:8000}
+  internal-api-key: ${INTERNAL_API_KEY:internal_key_change_me}
+  default-tenant-id: ${DEFAULT_TENANT_ID:00000000-0000-0000-0000-000000000001}

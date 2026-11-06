@@ -13,8 +13,11 @@ select_permissions:
     - is_active
     - created_at
     filter:
-      id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
 - role: manager
   permission:
@@ -27,8 +30,11 @@ select_permissions:
     - is_active
     - created_at
     filter:
-      id:
-        _eq: X-Hasura-User-Id
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - id:
+          _eq: X-Hasura-User-Id
     allow_aggregations: true
 - role: hr
   permission:
@@ -40,5 +46,138 @@ select_permissions:
     - role
     - is_active
     - created_at
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
     allow_aggregations: true
+- role: director
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: accountant
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - id:
+          _eq: X-Hasura-User-Id
+    allow_aggregations: true
+- role: sysadmin
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: bff_service
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+- role: tenant_api_read
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+- role: tenant_api_write
+  permission:
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    allow_aggregations: true
+    limit: 1000
+insert_permissions:
+- role: bff_service
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: X-Hasura-Tenant-Id
+    columns:
+    - id
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    backend_only: false
+update_permissions:
+- role: bff_service
+  permission:
+    columns:
+    - username
+    - email
+    - full_name
+    - role
+    - is_active
+    - created_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+delete_permissions:
+- role: bff_service
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id

@@ -1,0 +1,38 @@
+{
+  "realm": "peopleos-platform",
+  "enabled": true,
+  "displayName": "PeopleOS Developer Platform",
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": false,
+  "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "passwordPolicy": "length(10) and notUsername",
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "roles": {
+    "realm": [
+      { "name": "developer", "description": "Developer bên thứ 3 sử dụng nền tảng" },
+      { "name": "platform-admin", "description": "Quản trị nền tảng PeopleOS" }
+    ]
+  },
+  "defaultRoles": ["developer"],
+  "clients": [
+    {
+      "clientId": "developer-portal",
+      "name": "PeopleOS Developer Portal",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost:3100/*"],
+      "webOrigins": ["http://localhost:3100"],
+      "attributes": { "pkce.code.challenge.method": "S256" }
+    }
+  ]
+}

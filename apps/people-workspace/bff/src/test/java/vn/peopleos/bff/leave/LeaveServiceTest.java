@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 package vn.peopleos.bff.leave;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +27,7 @@ import vn.peopleos.bff.audit.AuditService;
 import vn.peopleos.bff.common.ApiException;
 import vn.peopleos.bff.employee.EmployeeLookup;
 import vn.peopleos.bff.integration.hasura.HasuraClient;
-import vn.peopleos.bff.integration.n8n.WorkflowClient;
+import vn.peopleos.bff.integration.flowable.WorkflowClient;
 import vn.peopleos.bff.leave.dto.CreateLeaveRequest;
 import vn.peopleos.bff.leave.dto.LeaveDecisionRequest;
 import vn.peopleos.bff.leave.dto.LeaveResult;
@@ -170,5 +173,50 @@ class LeaveServiceTest {
 
         ApiException e = assertThrows(ApiException.class, () -> service.cancel(cuong, "L1"));
         assertEquals(HttpStatus.NOT_FOUND, e.status());
+    }
+
+    // ---- Chuỗi duyệt theo giai đoạn (stage) cho 6 vai trò ----
+    private final CurrentUser hr = new CurrentUser("u-hr", "hr", "Trần Thị Bình", "", List.of("hr", "employee"));
+    private final CurrentUser director = new CurrentUser("u-gd", "director", "Hoàng Quốc Hùng", "", List.of("director", "employee"));
+
+    private void stubLeaveRequestAtStage(String stage) {
+        when(hasura.query(eq(LeaveQueries.BY_ID), any())).thenReturn(json("""
+                {"leave_requests_by_pk":{"id":"L1","status":"pending","stage":"%s","leave_type":"annual","days":2,
+                 "start_date":"2026-10-19","end_date":"2026-10-20","employee_id":"e-dung",
+                 "employee":{"id":"e-dung","user_id":"u-dung","full_name":"Phạm Thu Dung","manager":{"user_id":"u-cuong"}}}}
+                """.formatted(stage)));
+        when(employees.findByUser(any())).thenReturn(json("{\"id\":\"e-x\",\"full_name\":\"Người duyệt\"}"));
+    }
+
+    @Test
+    void hrCheckMovesRequestToDirectorStage() {
+        stubLeaveRequestAtStage("hr");
+        LeaveResult r = service.decide(hr, "L1", new LeaveDecisionRequest("approve", "Còn đủ phép"));
+        assertEquals("pending", r.status());
+        verify(hasura).query(eq(LeaveQueries.STAGE), any());
+    }
+
+    @Test
+    void managerCannotDecideAtHrStage() {
+        stubLeaveRequestAtStage("hr");
+        ApiException e = assertThrows(ApiException.class,
+                () -> service.decide(cuong, "L1", new LeaveDecisionRequest("approve", null)));
+        assertEquals(HttpStatus.FORBIDDEN, e.status());
+    }
+
+    @Test
+    void hrCannotDecideAtDirectorStage() {
+        stubLeaveRequestAtStage("director");
+        ApiException e = assertThrows(ApiException.class,
+                () -> service.decide(hr, "L1", new LeaveDecisionRequest("approve", null)));
+        assertEquals(HttpStatus.FORBIDDEN, e.status());
+    }
+
+    @Test
+    void directorApprovalAtFinalStageConsumesBalance() {
+        stubLeaveRequestAtStage("director");
+        LeaveResult r = service.decide(director, "L1", new LeaveDecisionRequest("approve", "OK"));
+        assertEquals("approved", r.status());
+        verify(hasura).query(eq(LeaveQueries.USE_BALANCE.formatted("used_days")), any());
     }
 }
