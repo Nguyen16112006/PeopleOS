@@ -86,14 +86,18 @@ jobs:
           grep -q "0 migration mới" /tmp/second.log
       - name: Sao lưu và khôi phục thử
         run: |
+          set -euo pipefail
           # Runner có pg_dump mới hơn server (PostgreSQL 16) nên file dump chứa
           # "SET transaction_timeout" mà server 16 không hiểu. Cài client 16 cho khớp.
           sudo apt-get update -q
           sudo apt-get install -y -q postgresql-client-16
           export PATH=/usr/lib/postgresql/16/bin:$PATH
           pg_dump --version
+          # Bảo đảm thật sự đang dùng client 16, nếu không thì dừng ngay với thông báo rõ ràng.
+          pg_dump --version | grep -q "pg_dump (PostgreSQL) 16\." || { echo "LỖI: pg_dump không phải bản 16"; exit 1; }
           pg_dump -Fc peopleos -f /tmp/p.dump
-          createdb restore_check && pg_restore -d restore_check --no-owner /tmp/p.dump
+          createdb restore_check
+          pg_restore -d restore_check --no-owner /tmp/p.dump
           test "$(psql -At -d restore_check -f scripts/audit-verify.sql | tail -1)" = "0"
 
   config-validation:
