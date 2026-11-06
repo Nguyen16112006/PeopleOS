@@ -84,23 +84,23 @@ jobs:
           bash scripts/apply-sql-migrations.sh
           bash scripts/apply-sql-migrations.sh | tee /tmp/second.log
           grep -q "0 migration mới" /tmp/second.log
-      - name: Sao lưu và khôi phục thử
+            - name: Sao lưu và khôi phục thử
         run: |
-          # Use the official PostgreSQL 16 Docker image so pg_dump/pg_restore and the server version match.
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE:/work" -w /work \
-            --network host \
-            -e PGHOST=localhost \
-            -e PGUSER=postgres \
-            -e PGPASSWORD=ci \
-            -e PGDATABASE=peopleos \
-            postgres:16-alpine \
-            sh -lc '
-              pg_dump -Fc peopleos -f /tmp/p.dump
-              createdb -h localhost -U postgres restore_check
-              pg_restore -h localhost -U postgres -d restore_check --no-owner /tmp/p.dump
-              test "$(psql -h localhost -U postgres -d restore_check -At -f scripts/audit-verify.sql | tail -1)" = "0"
-            '
+          set -euo pipefail
+          # Runner có pg_dump mới hơn server (PostgreSQL 16) nên file dump chứa
+          # "SET transaction_timeout" mà server 16 không hiểu. Cài client 16 từ kho PGDG cho khớp
+          # (kho Ubuntu mặc định của runner không còn gói postgresql-client-16).
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -q postgresql-client-16
+          export PATH=/usr/lib/postgresql/16/bin:$PATH
+          pg_dump --version
+          pg_dump --version | grep -q "pg_dump (PostgreSQL) 16\." || { echo "LỖI: pg_dump không phải bản 16"; exit 1; }
+          pg_dump -Fc peopleos -f /tmp/p.dump
+          createdb restore_check
+          pg_restore -d restore_check --no-owner /tmp/p.dump
+          test "$(psql -At -d restore_check -f scripts/audit-verify.sql | tail -1)" = "0"
 
   config-validation:
     name: Kiểm tra cấu hình (Compose, YAML, JSON, shell)
