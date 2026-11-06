@@ -32,7 +32,7 @@ def hook(client, p, url, events=("*",), dev=DEV_A):
 def hasura_event(tenant_id, table="employees", op="INSERT", new=None, old=None, eid=None):
     row = {"id": str(uuid.uuid4()), "tenant_id": str(tenant_id), "full_name": "Nguyễn A"}
     data = {"old": old, "new": new if new is not None else (row if op != "DELETE" else None)}
-    return {"id": eid or str(uuid.uuid4()), "table": {"schema": "public", "name": table}, "trigger": {"name": "platform_events"},
+    return {"id": eid or str(uuid.uuid4()), "table": {"schema": "public", "name": table}, "trigger": {"name": f"platform_events_{table}"},
             "event": {"op": op, "data": data, "session_variables": {}}, "created_at": "2026-10-29T08:00:00Z"}
 
 

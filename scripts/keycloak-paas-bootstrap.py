@@ -21,6 +21,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(errors="replace")
+
 BASE = os.environ.get("KEYCLOAK_URL", "http://localhost:8080").rstrip("/")
 ADMIN = os.environ.get("KEYCLOAK_ADMIN", "admin")
 ADMIN_PW = os.environ.get("KEYCLOAK_ADMIN_PASSWORD", "admin_change_me")

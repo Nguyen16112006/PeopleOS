@@ -340,21 +340,3 @@ delete_permissions:
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
-event_triggers:
-- name: platform_events
-  definition:
-    enable_manual: false
-    insert:
-      columns: '*'
-    update:
-      columns: '*'
-    delete:
-      columns: '*'
-  retry_conf:
-    num_retries: 5
-    interval_sec: 10
-    timeout_sec: 60
-  webhook_from_env: EVENT_DISPATCHER_URL
-  headers:
-  - name: x-platform-secret
-    value_from_env: EVENT_DISPATCHER_SECRET

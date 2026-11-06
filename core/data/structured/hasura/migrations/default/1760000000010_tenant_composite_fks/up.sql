@@ -21,6 +21,9 @@ BEGIN
       FROM pg_constraint c
      WHERE c.contype = 'f' AND c.connamespace = 'public'::regnamespace AND array_length(c.conkey, 1) = 1
        AND (SELECT relnamespace FROM pg_class WHERE oid = c.confrelid) = 'public'::regnamespace   -- bỏ FK tenant_id -> platform.tenants
+       AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.confrelid AND a.attnum = c.confkey[1] AND a.attname = 'id')
+       AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.confrelid AND a.attname = 'tenant_id' AND NOT a.attisdropped)
+       AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.conrelid AND a.attname = 'tenant_id' AND NOT a.attisdropped)
   LOOP
     new_name := r.ref_tbl || '_tenant_id_id_key';
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = r.ref_oid AND conname = new_name) THEN
@@ -35,6 +38,9 @@ BEGIN
       JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
      WHERE c.contype = 'f' AND c.connamespace = 'public'::regnamespace AND array_length(c.conkey, 1) = 1
        AND (SELECT relnamespace FROM pg_class WHERE oid = c.confrelid) = 'public'::regnamespace   -- bỏ FK tenant_id -> platform.tenants
+       AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.confrelid AND a.attnum = c.confkey[1] AND a.attname = 'id')
+       AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.confrelid AND a.attname = 'tenant_id' AND NOT a.attisdropped)
+       AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.conrelid AND a.attname = 'tenant_id' AND NOT a.attisdropped)
   LOOP
     new_name := left(r.conname, 55) || '_tenant';
     CONTINUE WHEN EXISTS (SELECT 1 FROM pg_constraint WHERE conname = new_name AND conrelid = r.child::regclass);
