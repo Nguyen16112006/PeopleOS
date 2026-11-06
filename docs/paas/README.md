@@ -61,7 +61,8 @@ flowchart TB
 |---|---|
 | Migration | `core/data/structured/hasura/migrations/default/` `…07_multi_tenant`, `…08_tenant_keys_views`, `…09_platform_control_plane`, `…10_tenant_composite_fks`, `…11_usage_metering` |
 | Seed (đã đa tenant) | `core/data/structured/seed/generate_seed.py`, `seed.sql` |
-| Sinh permission/role Hasura | `scripts/tenant-permissions.py`, `scripts/tenant-roles.py` (+ 33 file `…/metadata/…/tables/public_*.yaml`, gồm Event Trigger) |
+| Sinh permission/role Hasura | `scripts/tenant-permissions.py`, `scripts/tenant-roles.py` (+ 34 file `…/metadata/…/tables/public_*.yaml`; Event Trigger PaaS được cài riêng bởi `scripts/hasura-paas-event-triggers.py`) |
+| Khởi tạo Event Trigger PaaS | Service `hasura-event-triggers-init` trong `infrastructure/docker-compose.paas.yml`; dùng tên riêng cho từng bảng |
 | Áp migration bằng role owner | `scripts/apply-sql-migrations.sh`, `core/data/structured/Dockerfile.migrate`, `Dockerfile.metadata`, `hasura/config.yaml` |
 | Control plane | `apps/platform/platform-api/` (code + `tests/`) |
 | Developer Portal | `apps/developer-portal/` |
@@ -98,8 +99,10 @@ cd .. && python scripts/keycloak-paas-bootstrap.py
 | Lua gắn tenant; script bootstrap Keycloak/APISIX | Lua 5.4 với stub; script chạy với server giả; **chưa** thử với Keycloak/APISIX thật |
 | Manifest Kubernetes (30 resource) | `kubeconform --strict` (gồm CRD KEDA, CloudNativePG) + `kustomize build`; **chưa** áp lên cluster |
 | Frontend (`TaxYear.tsx`, Developer Portal) | `tsc` + `vite build` |
-| BFF Java | `javac` kiểm cú pháp + chạy thật `TenantContext` + rà soát diff; **chưa** build Maven/Spring, **chưa** chạy `TenantContextTest` |
-| Hasura runtime (set `hasura.user`, nạp metadata, quan hệ khi có FK tổng hợp, event trigger, bulk metadata API) | **Chưa kiểm chứng** |
+| BFF Java | `mvn -B package`: 71 test đạt |
+| Flowable engine | `mvn -B package`: 3 test đạt, gồm deploy 6 BPMN và 2 timer jobs |
+| Hasura runtime (nạp metadata, migration FK tenant, JWT có claim tenant) | Đã kiểm tra cục bộ: metadata nhất quán, `/healthz` trả 200 và Hasura chấp nhận GraphQL bằng JWT Keycloak có `tenant_id` |
+| PaaS Event Trigger init và giao webhook đầu-cuối | Cấu hình bootstrap đã kiểm tra; **chưa xác nhận** chạy service init và giao webhook thành công trên toàn bộ PaaS stack |
 | `scripts/smoke-paas.py` (đầu-cuối: Keycloak → gateway → Hasura → webhook) | Cú pháp + hàm thuần có test (chữ ký HMAC khớp bên ký); **chưa chạy với stack thật** - đây là bài cần chạy đầu tiên |
 | `preflight.py`, `make-release.py` (tar.gz tái lập được, loại bí mật) | Có test; `make-release.py` đã build 2 lần giống hệt trên repo thật |
 | CI (`.github/workflows/ci.yml`) | Đã chạy tay từng lệnh; **chưa** chạy trên GitHub Actions |
@@ -112,8 +115,8 @@ cd .. && python scripts/keycloak-paas-bootstrap.py
 4. **FK tổng hợp là ràng buộc *thêm vào*** FK cũ (giữ nguyên để quan hệ trong metadata Hasura không đổi). Cần xác nhận Hasura không phàn nàn khi thấy thêm FK nhiều cột.
 5. **Chống SSRF** kiểm tra DNS trước khi gửi nhưng vẫn còn khoảng hở DNS-rebinding; production nên cho worker đi qua egress proxy chỉ cho phép IP công cộng.
 6. **Xóa project = xóa mềm.** Dữ liệu lõi (`public.*`) và `audit_logs` (bất biến, FK tới `tenants`) được giữ; cần chính sách lưu giữ/xóa dữ liệu cá nhân (pháp chế) trước khi đưa dữ liệu thật.
-7. **Giấy phép thành phần:** n8n (Sustainable Use License) không thuộc OSI và MinIO bị ngừng phát hành image upstream - xem [docs/LICENSING.md](../LICENSING.md).
-8. **Chưa có:** thanh toán/billing (đo đếm sử dụng đã có), job nền theo từng tenant cho n8n (hiện chạy dưới tenant mặc định qua header `x-tenant-id`), role tùy biến cho end-user của developer, Organizations của Keycloak (hiện dùng thuộc tính user + client riêng mỗi project), Ingress/TLS và etcd trong manifest K8s.
+7. **Giấy phép thành phần:** Flowable sử dụng Apache-2.0; MinIO có rủi ro phát hành image upstream - xem [docs/LICENSING.md](../LICENSING.md).
+8. **Chưa có:** thanh toán/billing (đo đếm sử dụng đã có), timer nền định kỳ tách riêng theo từng tenant (hiện chạy dưới tenant mặc định qua header `x-tenant-id`), role tùy biến cho end-user của developer, Organizations của Keycloak (hiện dùng thuộc tính user + client riêng mỗi project), Ingress/TLS và etcd trong manifest K8s.
 9. `tenant_api_write` cho phép ghi trực tiếp các bảng nghiệp vụ lõi của chính tenant (trừ `users`, `audit_logs`) mà **không** qua logic phê duyệt của BFF; developer chịu trách nhiệm toàn vẹn nghiệp vụ của họ.
 10. Control plane viết bằng Python/FastAPI (không phải Spring Boot) vì môi trường phát triển không build được Maven; schema DB và API độc lập ngôn ngữ nên chuyển sau được.
 

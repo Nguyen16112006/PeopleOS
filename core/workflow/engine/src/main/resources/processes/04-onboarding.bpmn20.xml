@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0
+     Copyright (c) 2026 PeopleOS contributors -->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="https://peopleos.dev/workflows">
+  <process id="onboarding" name="PeopleOS - Onboarding nhân viên mới" isExecutable="true">
+    <startEvent id="start" />
+    <sequenceFlow id="startToInitialize" sourceRef="start" targetRef="handleOnboarding" />
+    <serviceTask id="handleOnboarding" name="Tạo checklist và thông báo các bên"
+                 flowable:delegateExpression="${workflowDelegate}" />
+    <endEvent id="end" />
+    <sequenceFlow id="initializeToEnd" sourceRef="handleOnboarding" targetRef="end" />
+  </process>
+</definitions>

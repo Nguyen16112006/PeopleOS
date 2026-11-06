@@ -2,7 +2,34 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/).
 
-## [2.0.1] - 2026-11-03 (rà soát giấy phép, tài liệu, hạ tầng cộng đồng và giảm rủi ro demo)
+Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 theo ngày tạo tag; 1.0.0 và 2.0.0 không có tag riêng nên lấy ngày các thành phần của phiên bản đó
+lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
+
+## [Unreleased]
+### Added
+- README: mục "Biên dịch từ mã nguồn (không qua Docker)" (công cụ cần có, lệnh build từng thành phần, cấu hình bằng biến môi trường, thư viện phụ thuộc).
+### Changed
+- `scripts/setup.sh` tự sinh mật khẩu ngẫu nhiên (PostgreSQL, Keycloak admin, Hasura, MinIO, khóa API nội bộ) khi tạo `.env` và in mật khẩu Keycloak admin thực tế thay vì giá trị mặc định cố định.
+### Fixed
+- Sửa ngày phát hành các phiên bản 1.0.0, 1.1.0, 2.0.0, 2.0.1 trong CHANGELOG cho khớp với ngày thật trong lịch sử Git.
+- Thêm `.mailmap` để gộp các tên tác giả trùng email khi xem `git log`/`git shortlog`.
+### Removed
+- `add_spdx_headers.py` ở thư mục gốc (trùng với `scripts/spdx-headers.py`).
+
+## [2.1.0] - 2026-11-06 (thay engine quy trình bằng Flowable, hoàn thiện giấy phép từng tệp, chuẩn hóa phát hành)
+### Added
+- Header **SPDX** cho thêm `pom.xml`, `*.bpmn20.xml`, `index.html`, `nginx.conf`, `nats-server.conf`; `scripts/spdx-headers.py` hỗ trợ XML/HTML/`.conf` và bỏ qua thư mục `target/`.
+- Thay workflow engine n8n (Sustainable Use License, không thuộc OSI) bằng dịch vụ Flowable 7.1.0 (Apache-2.0).
+- Chuyển sáu quy trình hiện có sang BPMN; hai lịch định kỳ nay là timer start events được lưu bền vững trong PostgreSQL.
+- Thêm kiểm thử bảo vệ API nội bộ và kiểm thử deploy BPMN/timer jobs.
+- Khởi tạo Hasura Event Trigger riêng trong PaaS bằng tên duy nhất cho từng bảng; metadata dùng chung không phụ thuộc biến môi trường chỉ có ở PaaS.
+### Changed
+- Gỡ `PeopleOS-v1.1.0.tar.gz` khỏi kho mã; tệp phát hành chỉ đính kèm GitHub Release (tạo bằng `scripts/make-release.py`).
+### Fixed
+- Migration khóa ngoại tenant chỉ xử lý bảng tham chiếu có đủ `id` và `tenant_id`, tránh Hasura lỗi khi gặp bảng không thuộc mô hình tenant.
+- Cập nhật test webhook để dùng tên Event Trigger riêng theo bảng.
+
+## [2.0.1] - 2026-11-05 (rà soát giấy phép, tài liệu, hạ tầng cộng đồng và giảm rủi ro demo)
 ### Fixed
 - **Giấy phép:** `redis:7-alpine` (Redis 7.4+ không thuộc OSI) → **Valkey** (BSD-3-Clause); mặc định mô hình `qwen2.5:3b` (Qwen Research License,
   phi thương mại) → `qwen2.5:1.5b` (Apache-2.0); `ollama/ollama:latest` → `0.32.6` (ghi đè bằng `OLLAMA_IMAGE`); MinIO cho phép thay image bằng `MINIO_IMAGE`.
@@ -19,7 +46,7 @@
 ### Chưa làm (cần quyết định)
 - Thay n8n bằng engine OSI (Kestra/Temporal/Flowable) và MinIO bằng SeaweedFS: xem `docs/LICENSING.md`.
 
-## [2.0.0] - 2026-10-30 (HR-PaaS: đa tenant + control plane cho developer)
+## [2.0.0] - 2026-11-04 (HR-PaaS: đa tenant + control plane cho developer)
 ### Added
 - **Đa tenant**: cột `tenant_id` + Row-Level Security (fail-closed) cho mọi bảng nghiệp vụ; permission Hasura nào cũng lọc theo
   `X-Hasura-Tenant-Id`; chuỗi băm kiểm toán riêng từng tenant; khóa ngoại tổng hợp `(tenant_id, id)` chống tham chiếu chéo tenant.
@@ -53,7 +80,7 @@
 - `tsc` + `vite build` cho frontend và Developer Portal; `kubeconform --strict` + `kustomize build` cho 30 resource Kubernetes.
 - **Chưa kiểm tra**: Hasura/Keycloak/APISIX/cluster thật; BFF chưa build Maven (chỉ `javac` kiểm cú pháp, chạy thật `TenantContext`).
 
-## [1.1.0] - 2026-10-20 (mô hình 6 vai trò)
+## [1.1.0] - 2026-10-25 (mô hình 6 vai trò)
 ### Changed
 - **6 vai trò** thay cho 4: `employee`, `manager`, `hr`, `director` (Giám đốc), `accountant` (Kế toán), `sysadmin` (Admin kỹ thuật). Mỗi người một vai trò chính, quản lý một tầng.
   Khóa `sysadmin` (không phải `admin`) vì vai trò `admin` trong Hasura là siêu quyền, bỏ qua mọi phân quyền.
@@ -77,7 +104,7 @@
 - Đối chiếu tĩnh: 97 trường GraphQL và 16 đối tượng ghi của BFF khớp lược đồ; 38 lời gọi API của giao diện khớp route BFF.
 - **Chưa chạy:** toàn bộ ngăn xếp Docker (Keycloak, Hasura, APISIX, n8n), khởi động Spring Boot thật.
 
-## [1.0.0] - 2026-10-06
+## [1.0.0] - 2026-10-12
 ### Added (bổ sung tiêu chí)
 - **Quét mã độc ClamAV** cho mọi tệp tải lên (fail-closed mặc định), ghi nhật ký `FILE.QUARANTINED`.
 - **GitOps** (CI GitHub Actions, `gitops-agent`), **tự phục hồi** (healthcheck + autoheal), **sao lưu** PostgreSQL/MinIO định kỳ + script khôi phục và kiểm chứng.

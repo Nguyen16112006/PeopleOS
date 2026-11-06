@@ -186,7 +186,7 @@ public class OffboardingService {
     }
 
     // ------------------------------------------------------------------ 4. Khóa tài khoản vào ngày làm việc cuối
-    /** Khóa Keycloak + đặt users.is_active=false cho các hồ sơ đã hoàn tất và đến ngày làm việc cuối. Gọi định kỳ (n8n). */
+    /** Khóa Keycloak + đặt users.is_active=false cho các hồ sơ đã hoàn tất và đến ngày làm việc cuối. Flowable gọi định kỳ. */
     public int lockDueAccounts() {
         JsonNode due = hasura.query(OffboardingQueries.DUE_FOR_LOCK, Params.of("today", LocalDate.now().toString())).path("offboarding_cases");
         int locked = 0;

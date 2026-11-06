@@ -11,7 +11,7 @@ import java.util.function.Supplier;
  * Tenant của yêu cầu hiện tại (lấy từ claim {@code tenant_id} của JWT).
  *
  * <p>Fail-closed: mọi lời gọi Hasura đều gọi {@link #require()}; không có tenant thì ném lỗi thay vì
- * rơi về dữ liệu chung. Tác vụ nền/n8n phải khai báo tenant tường minh qua {@link #runAs}.
+ * rơi về dữ liệu chung. Tác vụ nền/Flowable phải khai báo tenant tường minh qua {@link #runAs}.
  */
 public final class TenantContext {
     private static final ThreadLocal<String> CURRENT = new ThreadLocal<>();
@@ -47,7 +47,7 @@ public final class TenantContext {
         CURRENT.remove();
     }
 
-    /** Chạy {@code fn} dưới một tenant cụ thể rồi khôi phục giá trị trước đó (dùng cho tác vụ nền/n8n). */
+    /** Chạy {@code fn} dưới một tenant cụ thể rồi khôi phục giá trị trước đó (dùng cho tác vụ nền/Flowable). */
     public static <T> T runAs(String tenantId, Supplier<T> fn) {
         String previous = CURRENT.get();
         set(tenantId);

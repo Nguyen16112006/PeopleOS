@@ -104,7 +104,7 @@ Toàn bộ quyền của Nhân viên, thêm:
 - Tạo yêu cầu cấp quyền tạm thời (tự thu hồi khi hết hạn)
 - Xem và tìm kiếm audit log
 - Cấu hình hệ thống, tích hợp (ngân hàng, email)
-- Quản lý workflow n8n (theo dõi lỗi, chạy lại)
+- Quản lý quy trình Flowable BPMN qua mã nguồn và log dịch vụ
 - Giám sát hệ thống, backup và khôi phục
 - Quản lý quét mã độc (ClamAV), xử lý file cách ly
 - Quản lý mô hình AI và kho tri thức ở mức kỹ thuật (Ollama, Qdrant), không xem nội dung dữ liệu cá nhân
@@ -133,7 +133,7 @@ Ký hiệu: **C** tạo · **R** xem · **U** sửa · **A** duyệt · **S** ch
 | Tài khoản & vai trò | — | — | Yêu cầu tạo (onboarding) | — | — | C,R,U |
 | Cấp quyền tạm thời | — | — | A (dữ liệu hồ sơ) | A | A (dữ liệu lương) | C (yêu cầu) |
 | Audit log | — | — | R (xem lại) | R | — | R,tìm kiếm |
-| Cấu hình, n8n, backup, ClamAV, AI kỹ thuật | — | — | Kho tri thức (nội dung) | — | — | C,R,U |
+| Cấu hình, Flowable, backup, ClamAV, AI kỹ thuật | — | — | Kho tri thức (nội dung) | — | — | C,R,U |
 
 **Quy tắc kiểm soát:**
 1. Không tự duyệt yêu cầu của chính mình.
@@ -239,7 +239,7 @@ flowchart LR
 - Công ty chấm dứt hợp đồng: Quản lý đề xuất → HR thẩm định → Giám đốc duyệt.
 - Hồ sơ được lưu trữ, không xóa.
 
-**Triển khai:** các giai đoạn `manager → hr_review → (director_decision nếu chấm dứt hợp đồng) → handover → timesheet → final_payroll → director_payroll → payment → terminate → done`. Đơn của Quản lý, HR, Kế toán, Admin bắt đầu ở `director_confirm`; đơn của Giám đốc đi thẳng `hr_review`. Giám đốc từ chối lương cuối thì hồ sơ trả về Kế toán. Hoàn tất thì hợp đồng và nhân viên chuyển `terminated`, hồ sơ được giữ lại. Tài khoản Keycloak tự khóa vào ngày làm việc cuối (n8n gọi mỗi 15 phút); nếu ngày cuối đã qua khi hoàn tất thì khóa ngay.
+**Triển khai:** các giai đoạn `manager → hr_review → (director_decision nếu chấm dứt hợp đồng) → handover → timesheet → final_payroll → director_payroll → payment → terminate → done`. Đơn của Quản lý, HR, Kế toán, Admin bắt đầu ở `director_confirm`; đơn của Giám đốc đi thẳng `hr_review`. Giám đốc từ chối lương cuối thì hồ sơ trả về Kế toán. Hoàn tất thì hợp đồng và nhân viên chuyển `terminated`, hồ sơ được giữ lại. Timer BPMN Flowable kiểm tra khóa tài khoản mỗi 15 phút; nếu ngày cuối đã qua khi hoàn tất thì khóa ngay.
 
 ### 4.6 Tạm ứng, hoàn ứng, thanh toán chi phí
 
@@ -308,7 +308,7 @@ flowchart LR
 
 Chủ sở hữu dữ liệu: Kế toán (dữ liệu lương), HR (dữ liệu hồ sơ, hợp đồng). Cần **cả hai** phê duyệt.
 
-**Triển khai:** Admin tạo yêu cầu (phạm vi, chủ dữ liệu HR hoặc Kế toán, thời hạn 5 đến 1440 phút); cần cả chủ dữ liệu và Giám đốc duyệt; quyền tự chuyển `expired` khi hết hạn (n8n gọi mỗi phút) hoặc bị thu hồi sớm. Hiện dịch vụ mới quản lý vòng đời bản ghi; các API cần quyền tạm thời phải gọi `TempAccessService.hasActiveGrant` (chưa nối, xem mục 6).
+**Triển khai:** Admin tạo yêu cầu (phạm vi, chủ dữ liệu HR hoặc Kế toán, thời hạn 5 đến 1440 phút); cần cả chủ dữ liệu và Giám đốc duyệt; timer BPMN Flowable đánh dấu quyền `expired` mỗi phút hoặc quyền có thể bị thu hồi sớm. Hiện dịch vụ mới quản lý vòng đời bản ghi; các API cần quyền tạm thời phải gọi `TempAccessService.hasActiveGrant` (chưa nối, xem mục 6).
 
 ## 5. Tham số cấu hình
 
@@ -325,7 +325,7 @@ Chủ sở hữu dữ liệu: Kế toán (dữ liệu lương), HR (dữ liệu 
 
 1. Migration Hasura theo thứ tự: `1760000000000_init`, `1760000000001_governance`, `1760000000002_six_roles`, `1760000000003_offboarding`, `1760000000004_kpi_cycles`, `1760000000005_tax_year_end`, `1760000000006_payroll_runs`; sau đó nạp lại metadata Hasura.
 2. Import realm Keycloak (`realm-peopleos.json`) và nạp lại dữ liệu mẫu (`seed.sql`; có `TRUNCATE`, sẽ xóa dữ liệu demo cũ).
-3. Nhập 6 workflow trong `core/workflow/workflows` vào n8n.
+3. Flowable tự triển khai 6 định nghĩa BPMN từ `core/workflow/engine/src/main/resources/processes/` khi khởi động.
 4. Chạy `mvn test` trong thư mục `bff` và `npm run build` trong frontend.
 
 ### 6.2 Quy trình, nơi triển khai và đường API
@@ -342,7 +342,7 @@ Chủ sở hữu dữ liệu: Kế toán (dữ liệu lương), HR (dữ liệu 
 | 4.8 Thuế, báo cáo năm | `/api/tax-year/{năm}/hr-confirm`, `/settle`, `/report/submit|approve|return`, `/budget`, `/budget/approve` | Thuế và báo cáo năm |
 | 4.9 Quyền tạm thời | `/api/temp-access-requests` (`/decision`, `/revoke`) | Quyền tạm thời |
 
-Tự động hóa (n8n): thông báo nghỉ phép, đề xuất lương, onboarding; lịch mỗi phút hết hạn quyền tạm thời; lịch mỗi 15 phút khóa tài khoản đến ngày làm việc cuối. Các luồng còn lại BFF thông báo trực tiếp.
+Tự động hóa (Flowable): BPMN xử lý thông báo nghỉ phép, đề xuất lương, onboarding; timer mỗi phút hết hạn quyền tạm thời; timer mỗi 15 phút khóa tài khoản đến ngày làm việc cuối. Flowable là headless service, không có UI quản trị.
 
 ### 6.3 Điểm còn hở và giới hạn đã biết
 

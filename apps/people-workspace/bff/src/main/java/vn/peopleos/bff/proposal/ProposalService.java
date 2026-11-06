@@ -14,7 +14,7 @@ import vn.peopleos.bff.common.Json;
 import vn.peopleos.bff.common.Params;
 import vn.peopleos.bff.employee.EmployeeLookup;
 import vn.peopleos.bff.integration.hasura.HasuraClient;
-import vn.peopleos.bff.integration.n8n.WorkflowClient;
+import vn.peopleos.bff.integration.flowable.WorkflowClient;
 import vn.peopleos.bff.notification.NotificationService;
 import vn.peopleos.bff.notification.NotificationService.Target;
 import vn.peopleos.bff.proposal.dto.CreateProposalRequest;
@@ -186,7 +186,7 @@ public class ProposalService {
         workflows.trigger(WORKFLOW, payload, this::notifyFallback);
     }
 
-    /** Dự phòng khi n8n không chạy: thông báo tối thiểu cho người liên quan. */
+    /** Dự phòng khi engine không chạy: thông báo tối thiểu cho người liên quan. */
     private void notifyFallback(Map<String, Object> p) {
         String delta = p.get("employee_name") + ": " + money(((Number) p.get("current_amount")).longValue())
                 + " → " + money(((Number) p.get("proposed_amount")).longValue());

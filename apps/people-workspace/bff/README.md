@@ -29,7 +29,7 @@ src/main/java/vn/peopleos/bff/
 ├── integration/                       ④ KẾT NỐI TẦNG 1 (mỗi hệ thống một package)
 │   ├── hasura/    HasuraClient        GraphQL bằng admin secret
 │   ├── minio/     StorageService      lưu/đọc PDF
-│   ├── n8n/       WorkflowClient      gọi webhook, có fallback
+│   ├── flowable/  WorkflowClient      khởi chạy BPMN, có fallback
 │   ├── nats/      NatsEventBus        publish/subscribe + cầu nối WebSocket
 │   └── keycloak/  KeycloakAdminClient tạo tài khoản SSO
 │
@@ -56,7 +56,7 @@ src/main/java/vn/peopleos/bff/
 ├── document/                          ⑪ TÀI LIỆU PDF (phiếu lương, hợp đồng)
 │   ├── DocumentController · DocumentService · PdfGenerator · PdfFile
 │
-├── internal/                          ⑫ API NỘI BỘ CHO n8n
+├── internal/                          ⑫ API NỘI BỘ CHO FLOWABLE
 │   ├── InternalController · InternalKeyGuard
 │
 └── system/                            ⑬ HEALTH CHECK
@@ -72,7 +72,7 @@ src/main/java/vn/peopleos/bff/
 | Đề xuất lương | `POST /api/salary-proposals`, `/{id}/decision` |
 | Onboarding | `POST /api/employees`, `POST /api/onboarding-tasks/{id}/complete` |
 | Tài liệu | `GET /api/payslips/{id}/download`, `GET /api/contracts/{id}/download`, `POST /api/contracts/{id}/upload` |
-| Nội bộ (n8n) | `POST /api/internal/notify`, `POST /api/internal/onboarding-tasks` |
+| Nội bộ (Flowable) | `POST /api/internal/notify`, `POST /api/internal/onboarding/initialize`, `POST /api/internal/temp-access/expire`, `POST /api/internal/offboarding/lock-due` |
 
 Chi tiết: `docs/api-reference.md`. Tài liệu tương tác: `/swagger-ui.html` (khi chạy cùng `docker-compose.dev.yml`, cổng 8000).
 

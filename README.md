@@ -43,7 +43,7 @@ PeopleOS là nền tảng **mã nguồn mở** gồm hai tầng:
 │  Apache APISIX ─ xác thực JWKS ─► Keycloak (SSO · RBAC)            │
 │     ├─► Hasura ─► PostgreSQL        dữ liệu cấu trúc               │
 │     ├─► MinIO                       hợp đồng · payslip · chứng từ   │
-│     ├─► n8n                         6 quy trình                     │
+│     ├─► Flowable                    6 quy trình BPMN                 │
 │     └─► NATS                        sự kiện realtime                │
 └────────────────────────────────────────────────────────────────────┘
 ```
@@ -60,7 +60,7 @@ Sơ đồ chi tiết, luồng xác thực, realtime và ma trận phân quyền:
 | API Gateway | Apache APISIX 3.9 (standalone; chế độ etcd cho PaaS; plugin `openid-connect`, `key-auth`) |
 | Dữ liệu cấu trúc | PostgreSQL 16 + Hasura 2.40 (GraphQL, phân quyền hàng/cột) |
 | Dữ liệu phi cấu trúc | MinIO (AGPL-3.0; upstream ngừng phát hành image - xem [docs/LICENSING.md](docs/LICENSING.md)) |
-| Workflow | n8n 1.70 (**Sustainable Use License - không thuộc OSI**; phương án thay thế: [docs/LICENSING.md](docs/LICENSING.md)) |
+| Workflow | Flowable 7.1.0 (BPMN, Apache-2.0, dịch vụ headless) |
 | Event Bus | NATS 2.10 |
 | Điều phối | Docker Compose (healthcheck, autoheal) |
 | An ninh & vận hành | ClamAV (quét mã độc), GitHub Actions (CI), GitOps agent, sao lưu pg_dump/mc mirror |
@@ -82,7 +82,7 @@ PeopleOS/
 │   ├── gateway/               # APISIX: route, xác thực JWT
 │   ├── data/structured/       # PostgreSQL + Hasura: migration, metadata (quyền), seed
 │   ├── data/unstructured/     # MinIO: bucket
-│   ├── workflow/workflows/    # n8n: 6 workflow JSON
+│   ├── workflow/engine/       # Flowable: 6 quy trình BPMN + engine headless
 │   ├── event-bus/             # NATS
 │   └── shared/python/         # peopleos_shared.payroll (tính Gross→Net)
 ├── apps/
@@ -112,7 +112,7 @@ PeopleOS/
 - APISIX bảo vệ toàn bộ API (JWT bắt buộc), chặn API nội bộ
 - PostgreSQL + Hasura tự sinh GraphQL, phân quyền hàng/cột theo vai trò
 - MinIO lưu hợp đồng và phiếu lương (PDF)
-- 6 quy trình n8n (nghỉ phép, duyệt nghỉ phép, đề xuất lương, onboarding, hết hạn quyền tạm, khóa tài khoản nghỉ việc); NATS đẩy sự kiện realtime
+- 6 quy trình BPMN với Flowable (nghỉ phép, duyệt nghỉ phép, đề xuất lương, onboarding, hết hạn quyền tạm, khóa tài khoản nghỉ việc); NATS đẩy sự kiện realtime
 - Toàn bộ hệ thống chạy bằng `docker compose up -d`
 
 ### HR-PaaS (bản 2.0) - xem [docs/paas/README.md](docs/paas/README.md)
@@ -160,11 +160,30 @@ docker compose up -d --build
 | Keycloak | http://localhost:8080 |
 | Hasura Console | http://localhost:8081 |
 | MinIO Console | http://localhost:9001 |
-| n8n | http://localhost:5678 |
+| Workflow Engine | Chỉ truy cập trong mạng Docker |
 
 **Tài khoản demo** (mật khẩu chung `Peopleos@123` - *chỉ để demo*, hãy đổi trước khi triển khai thật): `admin` (sysadmin), `hr`, `manager`, `director`, `accountant`, `employee` (Phạm Thu Dung), `employee2`.
 
 Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc phục sự cố và hướng dẫn production: [docs/deployment.md](docs/deployment.md).
+
+### Biên dịch từ mã nguồn (không qua Docker)
+
+Dùng khi muốn build/chạy riêng từng thành phần hoặc đóng góp mã. Công cụ cần có: **JDK 21**, **Maven 3.9+**, **Node.js 22 + npm**, **Python 3.12**; PostgreSQL 16, Keycloak, Hasura, MinIO... vẫn nên chạy bằng `docker compose up -d postgres keycloak hasura minio nats` (xem `infrastructure/docker-compose.yml`).
+
+| Thành phần | Lệnh build | Sản phẩm / chạy |
+|---|---|---|
+| BFF (Java, Spring Boot) | `cd apps/people-workspace/bff && mvn -B -DskipTests package` | `target/app.jar` → `java -jar target/app.jar` |
+| Workflow Engine (Flowable) | `cd core/workflow/engine && mvn -B -DskipTests package` | `target/app.jar` → `java -jar target/app.jar` |
+| People Workspace (React) | `cd apps/people-workspace/frontend && npm ci && npm run build` | thư mục `dist/` (phục vụ bằng nginx hoặc `npm run dev`) |
+| Developer Portal (React) | `cd apps/developer-portal && npm ci && npm run build` | thư mục `dist/` |
+| platform-api (FastAPI) | `cd apps/platform/platform-api && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt` | `uvicorn platform_api.api:app --port 8090` |
+| RAG service | `cd ai/rag-service && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt` | `uvicorn app.main:app --port 8001` |
+
+**Cấu hình trước khi build/chạy:** chỉ bằng biến môi trường (`infrastructure/.env`, `application.yml`), không phải sửa tệp mã hay header. Nạp biến vào shell: `set -a; . infrastructure/.env; set +a`. Các script Python (`scripts/*.py`) cũng đọc mật khẩu từ biến môi trường này. Khi chạy ngoài Docker, trỏ `POSTGRES_*`, `HASURA_ADMIN_SECRET`, `KEYCLOAK_*`, `MINIO_*` tới dịch vụ tương ứng.
+
+**Thư viện phụ thuộc:** khai báo trong `pom.xml`, `package-lock.json`, `requirements.txt` và được tải về từ kho chính thức (Maven Central, npm, PyPI); kho này **không đính kèm hay chỉnh sửa mã nguồn** của thư viện bên thứ ba. Danh sách và giấy phép: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Các dịch vụ hạ tầng (Keycloak, Hasura, APISIX...) dùng image đã ghim phiên bản trong `docker-compose.yml`.
+
+**Kiểm tra bản build:** chạy các lệnh ở mục 7; kiểm tra giấy phép từng tệp bằng `python scripts/spdx-headers.py --check`.
 
 ---
 
@@ -173,7 +192,8 @@ Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc ph�
 | Thành phần | Test | Cách chạy |
 |---|---|---|
 | Tính lương (Gross→Net, trần BH, thuế 2026) | 7 (Python) | `cd core/shared/python && PYTHONPATH=. python -m pytest tests` |
-| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito (đã viết, **chưa chạy được** trong môi trường phát triển - xem lưu ý) | `cd apps/people-workspace/bff && mvn test` |
+| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito: 71 test đạt | `cd apps/people-workspace/bff && mvn test` |
+| BPMN workflow engine | 3 test đạt: API nội bộ + triển khai 6 BPMN và 2 timer | `cd core/workflow/engine && mvn test` |
 | RAG (phân loại, tính lương, truy xuất, fallback) | 21 (Python) | `cd ai/rag-service && python -m pytest tests` |
 | Kiểm toán, sao lưu, view dashboard (migration, seed, chuỗi băm DB↔Java, ghi đồng thời, giả mạo, khôi phục) | kịch bản chạy thật trên PostgreSQL 16 | `scripts/audit-verify.sql` + CI job `database` |
 | ClamAV (giao thức INSTREAM) | chạy thật với clamd giả lập; JUnit đã viết | `mvn test` |
@@ -186,9 +206,7 @@ Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc ph�
 
 Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 thật. Các lớp thuần Java (đếm ngày làm việc, tách tên, tham số) đã chạy thử trên JDK 21.
 
-> **Lưu ý trung thực:** môi trường phát triển dự án này không có Docker và không tải được thư viện Maven, nên backend Java mới chỉ được kiểm tra cú pháp bằng `javac` (chưa biên dịch đầy đủ, chưa chạy test), ClamAV thật, autoheal, sao lưu/GitOps dạng container và CI trên GitHub chưa được chạy, và `docker-compose.yml`, cấu hình Keycloak/APISIX/Hasura và 6 workflow n8n
-> được viết theo tài liệu chính thức của từng sản phẩm nhưng **chưa được chạy tích hợp đầu-cuối**. Lần chạy đầu hãy dùng `healthcheck.sh` và
-> mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md); các điểm dễ cần chỉnh nhất là URL Keycloak (issuer), tên image/phiên bản và lệnh nhập workflow của n8n.
+> **Lưu ý kiểm chứng:** tích hợp Flowable/BFF cần được chạy cùng Docker Compose trước ngày demo; engine không có UI quản trị, nên chỉnh quy trình bằng BPMN trong mã nguồn và build lại. Lần chạy đầu hãy dùng `healthcheck.sh` và mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md).
 
 ---
 
@@ -205,13 +223,12 @@ Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 
 - Kubernetes + Helm + Argo CD/Flux; Prometheus/Grafana/Loki; HA cho Keycloak và PostgreSQL
 - Neo chuỗi kiểm toán ra kho WORM bên ngoài; role CSDL tách quyền; sao lưu off-site có mã hóa
 - Đa ngôn ngữ, ứng dụng di động; thanh toán/billing cho HR-PaaS (đo đếm sử dụng đã có)
-- Thay n8n và MinIO bằng thành phần OSI còn hoạt động (xem [docs/LICENSING.md](docs/LICENSING.md))
+- Thay MinIO bằng kho S3 tương thích có nguồn phát hành đang hoạt động (xem [docs/LICENSING.md](docs/LICENSING.md))
 - Đánh giá chất lượng RAG (bộ câu hỏi chuẩn) và hỗ trợ mô hình lớn hơn
 
 ## 10. Đóng góp & Giấy phép
 
 Xem [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md).
 Mã nguồn PeopleOS phát hành theo **Apache-2.0** ([LICENSE](LICENSE), [NOTICE](NOTICE)); mỗi tệp mã có header SPDX.
-Giấy phép phần mềm bên thứ ba: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). **Hai thành phần cần lưu ý** (n8n không thuộc OSI;
-MinIO bị ngừng phát hành image upstream) và phương án thay thế: [docs/LICENSING.md](docs/LICENSING.md).
+Giấy phép phần mềm bên thứ ba: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). **MinIO** có mã nguồn AGPL-3.0 thuộc OSI nhưng upstream đã ngừng phát hành image cộng đồng; xem [docs/LICENSING.md](docs/LICENSING.md).
 Nội dung pháp luật trong `ai/knowledge` chỉ mang tính tham khảo, không thay thế tư vấn pháp lý/kế toán.

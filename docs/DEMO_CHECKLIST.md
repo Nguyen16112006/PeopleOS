@@ -1,6 +1,6 @@
 # Danh sách kiểm tra trước buổi demo / chấm điểm
 
-Mục tiêu: **không có bất ngờ lúc trình diễn**. Hệ thống gồm nhiều dịch vụ (Keycloak, APISIX, Hasura, PostgreSQL, MinIO, NATS, n8n, AI...), nên
+Mục tiêu: **không có bất ngờ lúc trình diễn**. Hệ thống gồm nhiều dịch vụ (Keycloak, APISIX, Hasura, PostgreSQL, MinIO, NATS, Flowable, AI...), nên
 hãy diễn tập trọn vẹn *trên máy sạch* ít nhất **hai lần** trước ngày chấm. Các lệnh dưới đây giống nhau trên Windows (PowerShell/CMD), Linux, macOS.
 
 ## 1. Chuẩn bị (ít nhất 3 ngày trước)
@@ -39,7 +39,7 @@ Bỏ qua bước webhook: `SKIP_WEBHOOK=1 python scripts/smoke-paas.py` (PowerSh
 | Sự cố | Cách xử lý nhanh |
 |---|---|
 | Một dịch vụ không lên | `docker compose logs <dịch vụ> --tail 50`; `docker compose restart <dịch vụ>` |
-| Token bị từ chối (403 "thiếu tenant_id") | Chưa chạy `python scripts/keycloak-paas-bootstrap.py` hoặc user mới chưa có thuộc tính `tenant_id` |
+| Hasura báo thiếu claim `x-hasura-tenant-id` / token bị từ chối (403 "thiếu tenant_id") | Chạy `python scripts/keycloak-paas-bootstrap.py`, rồi đăng xuất và đăng nhập lại; user mới cần được gán thuộc tính `tenant_id` |
 | API key vừa tạo báo 401 | Đợi 1-3 giây để Consumer lan truyền qua etcd; kiểm tra `apisix-bootstrap` đã chạy xong |
 | Hết RAM, máy treo | Tắt AI (mục 3); chuyển sang video dự phòng |
 | Không có mạng | Chạy từ image đã tải sẵn; AI cục bộ không cần mạng |

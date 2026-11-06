@@ -6,10 +6,13 @@ Mỗi tệp mã nguồn mang header "SPDX-License-Identifier: Apache-2.0".
 
 Sản phẩm sử dụng và/hoặc triển khai kèm các phần mềm của bên thứ ba theo giấy phép riêng của từng phần.
 Danh sách, giấy phép và mức độ đã xác minh: THIRD_PARTY_LICENSES.md.
-Các thành phần KHÔNG thuộc danh sách giấy phép OSI-approved (n8n) hoặc có rủi ro chuỗi cung ứng (MinIO) được nêu rõ,
-kèm phương án thay thế, tại docs/LICENSING.md.
+Flowable được phát hành theo giấy phép Apache-2.0. MinIO có mã nguồn AGPL-3.0 thuộc OSI nhưng có rủi ro chuỗi cung ứng
+do upstream ngừng phát hành image cộng đồng; xem docs/LICENSING.md.
 
 Mô hình ngôn ngữ/embedding được tải lúc chạy (không nằm trong kho mã) theo giấy phép của nhà phát hành mô hình:
   - bge-m3 (BAAI): MIT
   - qwen2.5:1.5b và qwen2.5:7b (Alibaba Cloud): Apache-2.0
   - KHÔNG dùng qwen2.5:3b: bản 3B theo Qwen Research License (phi thương mại).
+
+Ngoại lệ về header SPDX trong từng tệp: các tệp YAML trong core/data/structured/hasura/metadata/ được Hasura CLI sinh/ghi đè
+tự động nên không gắn header riêng; chúng thuộc giấy phép Apache-2.0 của toàn bộ dự án (xem LICENSE).

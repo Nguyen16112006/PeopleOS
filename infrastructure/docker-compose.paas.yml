@@ -106,6 +106,21 @@ services:
       EVENT_DISPATCHER_URL: http://platform-api:8090/internal/hasura-events
       EVENT_DISPATCHER_SECRET: ${EVENT_DISPATCHER_SECRET:-event_secret_change_me}
 
+  hasura-event-triggers-init:
+    image: python:3.12-alpine
+    volumes:
+      - ../scripts/hasura-paas-event-triggers.py:/hasura-paas-event-triggers.py:ro
+    environment:
+      HASURA_URL: http://hasura:8080
+      HASURA_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-hasura_admin_secret_change_me}
+    command: ["python", "/hasura-paas-event-triggers.py"]
+    depends_on:
+      hasura:
+        condition: service_healthy
+      platform-api:
+        condition: service_started
+    restart: "no"
+
   developer-portal:
     build:
       context: ../apps/developer-portal
