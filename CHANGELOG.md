@@ -3,6 +3,12 @@
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/).
 
 ## [Unreleased]
+### Added
+- README: mục "Biên dịch từ mã nguồn (không qua Docker)" (công cụ cần có, lệnh build từng thành phần, cấu hình bằng biến môi trường, thư viện phụ thuộc).
+### Changed
+- `scripts/setup.sh` tự sinh mật khẩu ngẫu nhiên (PostgreSQL, Keycloak admin, Hasura, MinIO, khóa API nội bộ) khi tạo `.env` và in mật khẩu Keycloak admin thực tế thay vì giá trị mặc định cố định.
+### Removed
+- `add_spdx_headers.py` ở thư mục gốc (trùng với `scripts/spdx-headers.py`).
 
 ## [2.1.0] - 2026-11-06 (thay engine quy trình bằng Flowable, hoàn thiện giấy phép từng tệp, chuẩn hóa phát hành)
 ### Added
