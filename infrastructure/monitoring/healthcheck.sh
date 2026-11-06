@@ -15,7 +15,6 @@ echo "== Tầng 1 - Open-Core =="
 check "Keycloak (realm)"   "http://localhost:8080/realms/peopleos"
 check "Hasura"             "http://localhost:8081/healthz"
 check "MinIO"              "http://localhost:9000/minio/health/live"
-check "n8n"                "http://localhost:5678/healthz"
 check "NATS"               "http://localhost:8222/healthz"
 check "Gateway (401=OK)"   "http://localhost:9080/api/me" 401
 echo "== Tầng 2 - Ứng dụng & AI =="
@@ -30,6 +29,7 @@ check_container() {
   else printf '  [FAIL] %-22s trạng thái: %s\n' "$name" "$st"; fail=$((fail+1)); fi
 }
 check_container "ClamAV (quét mã độc)" clamav
+check_container "Flowable BPMN" flowable
 check_container "Autoheal (tự phục hồi)" autoheal
 check_container "Sao lưu PostgreSQL" backup-postgres
 check_container "Sao lưu MinIO" backup-minio

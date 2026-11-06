@@ -20,8 +20,8 @@
 | willfarrell/autoheal | 1.2.0 | MIT | ✔ | kiến thức chung | |
 | Valkey | 8 (overlay PaaS) | BSD-3-Clause | ✔ | tra cứu | Thay Redis (xem mục 4) |
 | nginx / Node / Python (image nền) | 1.27 / 22 / 3.12 | BSD-2 / MIT / PSF | ✔ | kiến thức chung | |
+| **Flowable** | 7.1.0 (build từ `core/workflow/engine`) | **Apache-2.0** | ✔ | tra cứu | BPMN process engine; không dùng thành phần Enterprise |
 | **MinIO** | RELEASE.2025-09-07 (qua mirror `scnd/minio-mirror`) | **AGPL-3.0** | ✔ | tra cứu | **Rủi ro chuỗi cung ứng**: upstream ngừng phát hành image/binary cộng đồng từ 10/2025 và vào chế độ bảo trì. Xem `docs/LICENSING.md` |
-| **n8n** | 1.70.3 | **Sustainable Use License** (+ n8n Enterprise License cho tệp `.ee.`) | **✘** | tra cứu | **Không thuộc OSI.** Xem `docs/LICENSING.md` mục "n8n" |
 | KEDA, CloudNativePG | (operator, tùy chọn ở K8s) | Apache-2.0 | ✔ | kiến thức chung | |
 
 ## 2. Mô hình AI (tải lúc chạy, không nằm trong kho)
@@ -37,9 +37,10 @@ Trọng số mô hình không phải phần mềm theo định nghĩa OSI; cột
 
 ## 3. Thư viện lập trình
 
-### Java (BFF) - `apps/people-workspace/bff/pom.xml`
+### Java - `apps/people-workspace/bff/pom.xml`, `core/workflow/engine/pom.xml`
 | Thư viện | Giấy phép | Xác minh |
 |---|---|---|
+| Flowable Spring Boot Process Starter 7.1.0 (workflow engine) | Apache-2.0 | tra cứu |
 | Spring Boot (web, security, oauth2-resource-server, validation, websocket, test) | Apache-2.0 | kiến thức chung |
 | io.minio:minio 8.5.12 (SDK) | Apache-2.0 | kiến thức chung |
 | io.nats:jnats 2.20.4 | Apache-2.0 | kiến thức chung |

@@ -1,6 +1,6 @@
 # Danh sách kiểm tra trước buổi demo / chấm điểm
 
-Mục tiêu: **không có bất ngờ lúc trình diễn**. Hệ thống gồm nhiều dịch vụ (Keycloak, APISIX, Hasura, PostgreSQL, MinIO, NATS, n8n, AI...), nên
+Mục tiêu: **không có bất ngờ lúc trình diễn**. Hệ thống gồm nhiều dịch vụ (Keycloak, APISIX, Hasura, PostgreSQL, MinIO, NATS, Flowable, AI...), nên
 hãy diễn tập trọn vẹn *trên máy sạch* ít nhất **hai lần** trước ngày chấm. Các lệnh dưới đây giống nhau trên Windows (PowerShell/CMD), Linux, macOS.
 
 ## 1. Chuẩn bị (ít nhất 3 ngày trước)

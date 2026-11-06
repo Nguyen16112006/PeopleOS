@@ -41,7 +41,7 @@ export default function Onboarding() {
         base_salary: Number(form.base_salary), allowance: Number(form.allowance), dependents: Number(form.dependents),
       })
       setAccount(r.account ? { code: r.employee_code, ...r.account } : { code: r.employee_code })
-      push({ title: 'Đã tạo hồ sơ nhân viên mới', message: `Mã ${r.employee_code} - quy trình onboarding đang chạy trên n8n`, kind: 'success' })
+      push({ title: 'Đã tạo hồ sơ nhân viên mới', message: `Mã ${r.employee_code} - quy trình onboarding đang chạy trên Flowable`, kind: 'success' })
       setForm(empty); reload()
     } catch (x) { push({ title: 'Không tạo được nhân viên', message: errMsg(x), kind: 'error' }) }
     finally { setSending(false) }
@@ -55,7 +55,7 @@ export default function Onboarding() {
   if (error) return <ErrorBox message={error} />
   return (
     <div>
-      <PageHeader title="Onboarding nhân viên mới" description="Tạo hồ sơ + hợp đồng + tài khoản SSO; workflow n8n sinh checklist và gửi thông báo." />
+      <PageHeader title="Onboarding nhân viên mới" description="Tạo hồ sơ + hợp đồng + tài khoản SSO; quy trình BPMN sinh checklist và gửi thông báo." />
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Thêm nhân viên</CardTitle></CardHeader>
@@ -109,7 +109,7 @@ export default function Onboarding() {
                   <Badge variant={done === e.onboarding_tasks.length && done > 0 ? 'success' : 'warning'}>{done}/{e.onboarding_tasks.length} việc</Badge>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {e.onboarding_tasks.length === 0 && <p className="text-sm text-muted-foreground">Checklist đang được workflow n8n tạo…</p>}
+                  {e.onboarding_tasks.length === 0 && <p className="text-sm text-muted-foreground">Checklist đang được quy trình BPMN tạo…</p>}
                   {e.onboarding_tasks.map((t: any) => (
                     <div key={t.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
                       <div><p className={t.status === 'done' ? 'text-muted-foreground line-through' : 'font-medium'}>{t.title}</p>

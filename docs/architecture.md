@@ -19,7 +19,7 @@ flowchart TB
     HS["Hasura<br/>GraphQL/REST"]
     PG[("PostgreSQL")]
     MN[("MinIO<br/>hợp đồng · payslip")]
-    N8["n8n<br/>Workflow"]
+    FW["Flowable<br/>BPMN engine"]
     NT["NATS<br/>Event Bus"]
   end
   subgraph ML["AI cục bộ"]
@@ -35,8 +35,8 @@ flowchart TB
   HS -. "JWKS" .-> KC
   BFF --> HS
   BFF --> MN
-  BFF -- "webhook" --> N8
-  N8 -- "/api/internal/*" --> BFF
+  BFF -- "start process · internal key" --> FW
+  FW -- "/api/internal/* · tenant" --> BFF
   BFF <--> NT
   BFF -- "WebSocket /ws" --> FE
   AI --> OL
@@ -48,8 +48,8 @@ flowchart TB
 
 | Thái cực | Cơ chế trong PeopleOS |
 |---|---|
-| **Ốc đảo dữ liệu** | Một Keycloak cho mọi ứng dụng (một danh tính); một PostgreSQL + Hasura là nguồn dữ liệu duy nhất (frontend, BFF và AI đều đọc qua Hasura, cùng bộ quyền); một MinIO cho tài liệu; một NATS cho sự kiện; một n8n cho quy trình. Ứng dụng Tầng 2 không có CSDL riêng. |
-| **Phụ thuộc nhà cung cấp** | Mọi thành phần là mã nguồn mở và nói chuẩn mở: OIDC/JWT (Keycloak), GraphQL + SQL chuẩn (Hasura/PostgreSQL), S3 API (MinIO), HTTP webhook (n8n), NATS subject, Docker. Có thể thay từng thành phần mà giữ nguyên hợp đồng giao tiếp (ví dụ MinIO → Ceph/AWS S3; Keycloak → bất kỳ IdP OIDC nào; NATS → Kafka). |
+| **Ốc đảo dữ liệu** | Một Keycloak cho mọi ứng dụng (một danh tính); một PostgreSQL + Hasura là nguồn dữ liệu duy nhất (frontend, BFF và AI đều đọc qua Hasura, cùng bộ quyền); một MinIO cho tài liệu; một NATS cho sự kiện; một Flowable cho quy trình. Ứng dụng Tầng 2 không có CSDL riêng. |
+| **Phụ thuộc nhà cung cấp** | Các thành phần dùng chuẩn mở: OIDC/JWT (Keycloak), GraphQL + SQL chuẩn (Hasura/PostgreSQL), S3 API (MinIO), BPMN 2.0 (Flowable), NATS subject, Docker. Có thể thay từng thành phần mà giữ nguyên hợp đồng giao tiếp. |
 
 ## 3. Tầng 1 - Open-Core
 
@@ -59,7 +59,7 @@ flowchart TB
 | **Apache APISIX** | Cổng duy nhất vào hệ thống; kiểm JWT, CORS, chặn `/api/internal/*` | HTTP :9080 |
 | **PostgreSQL + Hasura** | Dữ liệu cấu trúc; Hasura tự sinh GraphQL, thực thi quyền hàng/cột theo vai trò | GraphQL `/graphql` |
 | **MinIO** | Dữ liệu phi cấu trúc: hợp đồng, payslip, chứng từ (bucket riêng, không công khai) | S3 API |
-| **n8n** | Động cơ quy trình: 6 workflow (nghỉ phép ×2, đề xuất lương, onboarding, hết hạn quyền tạm, khóa tài khoản nghỉ việc) | Webhook |
+| **Flowable** | Động cơ quy trình BPMN 2.0: 6 process definitions (4 luồng nghiệp vụ + 2 timer định kỳ); trạng thái lưu trong PostgreSQL | REST nội bộ, khóa `x-internal-key` |
 | **NATS** | Event bus: `peopleos.notify.<user_id>`, `peopleos.events.<kind>` | NATS :4222 |
 | **core/shared** | Thư viện dùng chung (`peopleos_shared.payroll` - tính Gross→Net) | Python package |
 
@@ -89,13 +89,13 @@ Backend chứa phần đó; mã nguồn chia package theo từng mục (config, 
 sequenceDiagram
   participant E as Nhân viên (UI)
   participant B as BFF
-  participant N as n8n
+  participant F as Flowable
   participant S as NATS
   participant M as Quản lý (UI)
   E->>B: POST /api/leave-requests
   B->>B: kiểm tra quỹ phép, ghi qua Hasura
-  B->>N: webhook leave-request
-  N->>B: POST /api/internal/notify (x-internal-key)
+  B->>F: POST /internal/workflows/leave-request
+  F->>B: POST /api/internal/notify (x-internal-key, x-tenant-id)
   B->>B: lưu notifications (Hasura)
   B->>S: publish peopleos.notify.<manager_id>
   S-->>B: subscriber nhận
@@ -103,7 +103,7 @@ sequenceDiagram
   M->>M: toast + tự tải lại danh sách chờ duyệt
 ```
 
-Nếu NATS hoặc n8n tạm ngừng, BFF tự chuyển sang đường dự phòng (giao trực tiếp qua WebSocket / tự soạn thông báo) để trải nghiệm không gián đoạn.
+Nếu Flowable tạm ngừng, BFF dùng fallback cho luồng nghiệp vụ; các timer sẽ chạy trễ cho tới khi engine hoạt động lại. NATS đảm nhiệm giao thông báo realtime.
 
 ## 6. Quy trình nghiệp vụ
 
@@ -114,8 +114,8 @@ Khi duyệt phép năm, `used_days` tăng; nghỉ ốm cộng vào `sick_days_us
 **Đề xuất tăng lương/phụ cấp** - Quản lý đề xuất (mức mới phải cao hơn hiện tại) → bước 1 **HR** → bước 2 **Giám đốc (Admin)**.
 Từ chối ở bất kỳ cấp nào → kết thúc. Duyệt xong cấp cuối → tự cập nhật `contracts.base_salary` hoặc `allowance`. Lịch sử từng cấp lưu ở `approval_steps`.
 
-**Onboarding** - HR nhập hồ sơ → BFF tạo `employees` + `contracts` + `leave_balances` (+ tài khoản Keycloak, mật khẩu tạm) → webhook n8n sinh 6 việc
-trong checklist và thông báo HR/quản lý/nhân viên. Người phụ trách đánh dấu hoàn thành.
+**Onboarding** - HR nhập hồ sơ → BFF tạo `employees` + `contracts` + `leave_balances` (+ tài khoản Keycloak, mật khẩu tạm) → BPMN onboarding sinh 7 việc
+trong checklist và thông báo HR/kế toán/quản lý/nhân viên. Người phụ trách đánh dấu hoàn thành.
 
 ## 7. Ma trận phân quyền (RBAC)
 

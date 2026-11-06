@@ -1,18 +1,33 @@
-# Workflow (n8n)
+# Workflow Engine (Flowable BPMN)
 
-6 workflow được nhập và kích hoạt tự động khi container khởi động:
+PeopleOS uses the **Flowable 7.1.0 process engine** (Apache-2.0) as a headless service in the Open-Core layer.
+The engine stores process state in PostgreSQL, exposes no host port or end-user UI, and accepts start requests only
+from the BFF through the internal Docker network and `INTERNAL_API_KEY`.
 
-| File | Webhook | Chức năng |
+The six executable definitions are in `engine/src/main/resources/processes/`:
+
+| Process key | BPMN file | Trigger and action |
 |---|---|---|
-| `01-leave-request.json` | `POST /webhook/leave-request` | Gửi đơn nghỉ → thông báo người duyệt theo giai đoạn (Quản lý / HR / Giám đốc) và nhân viên |
-| `02-leave-decision.json` | `POST /webhook/leave-decision` | Kết quả duyệt/từ chối → thông báo nhân viên (HR được BFF báo trực tiếp để chỉnh công) |
-| `03-salary-proposal.json` | `POST /webhook/salary-proposal` | Duyệt nhiều cấp HR → Kế toán → Giám đốc: định tuyến thông báo theo từng sự kiện |
-| `04-onboarding.json` | `POST /webhook/onboarding` | Sinh checklist hội nhập (Admin kiểm tra tài khoản, Kế toán nhận thông tin lương/BHXH/thuế), rồi thông báo HR, Kế toán, quản lý, nhân viên |
-| `05-temp-access-expire.json` | Lịch mỗi phút | Gọi `POST /api/internal/temp-access/expire` để tự chuyển quyền tạm thời quá hạn sang `expired` |
+| `leave-request` | `01-leave-request.bpmn20.xml` | BFF creates a leave request; notify the approver and employee |
+| `leave-decision` | `02-leave-decision.bpmn20.xml` | BFF records an approval/rejection; notify the employee |
+| `salary-proposal` | `03-salary-proposal.bpmn20.xml` | BFF creates or advances a proposal; route notices by approval stage |
+| `onboarding` | `04-onboarding.bpmn20.xml` | BFF creates an employee; create a seven-item checklist and notify stakeholders |
+| `temp-access-expire` | `05-temp-access-expire.bpmn20.xml` | BPMN timer start event every minute; expire overdue temporary grants |
+| `offboarding-lock` | `06-offboarding-lock.bpmn20.xml` | BPMN timer start event every 15 minutes; lock accounts due for offboarding |
 
-n8n gọi ngược BFF qua `/api/internal/notify` và `/api/internal/onboarding-tasks` (header `x-internal-key`);
-BFF lưu thông báo vào PostgreSQL và đẩy realtime qua NATS → WebSocket. Nếu n8n tạm ngừng, BFF dùng hàm dự phòng để thông báo vẫn đến.
+Event processes call the BFF through `/api/internal/*` with both `x-internal-key` and `x-tenant-id`.
+The BFF retains fallback handlers so a temporary engine outage does not block a user operation.
+Timer start events and process history are persisted by Flowable, so schedules survive container restarts.
 
-| `06-offboarding-lock.json` | Lịch mỗi 15 phút | Gọi `POST /api/internal/offboarding/lock-due` để khóa tài khoản Keycloak của nhân viên đã hoàn tất nghỉ việc và đến ngày làm việc cuối |
+## Run and test
 
-Ghi chú: tạm ứng/chi phí và cấp quyền tạm thời do BFF thông báo trực tiếp (NotificationService), không đi qua n8n.
+From `infrastructure/`, `docker compose up -d --build` builds the engine from this source, starts it after PostgreSQL,
+and keeps its HTTP API private to the Compose network. The BFF does not block startup on Flowable; if the engine is
+temporarily unavailable, the BFF uses its fallback handlers. Inspect the engine with:
+
+```bash
+docker compose logs --tail=100 flowable
+cd ../core/workflow/engine && mvn test
+```
+
+The BPMN deployment tests verify all six definitions and both recurring timer jobs.

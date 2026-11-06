@@ -5,7 +5,7 @@
 # Định tuyến API Gateway của PeopleOS (APISIX standalone)
 # - Mọi route nghiệp vụ đều bắt buộc Bearer JWT do Keycloak phát hành
 #   (plugin openid-connect, bearer_only, kiểm chữ ký bằng JWKS).
-# - /api/internal/* bị chặn ở gateway (chỉ n8n gọi trực tiếp trong mạng Docker).
+# - /api/internal/* bị chặn ở gateway (chỉ Flowable gọi trực tiếp trong mạng Docker).
 # - Một số nhóm API có lớp kiểm tra vai trò ở gateway (xem các route guard-*); /graphql chặn vai trò "admin".
 # - Nếu truy cập frontend từ origin khác http://localhost:3000, sửa allow_origins.
 # =====================================================================

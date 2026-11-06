@@ -2,6 +2,12 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/).
 
+## [Unreleased]
+### Added
+- Thay workflow engine n8n (Sustainable Use License, không thuộc OSI) bằng dịch vụ Flowable 7.1.0 (Apache-2.0).
+- Chuyển sáu quy trình hiện có sang BPMN; hai lịch định kỳ nay là timer start events được lưu bền vững trong PostgreSQL.
+- Thêm kiểm thử bảo vệ API nội bộ và kiểm thử deploy BPMN/timer jobs.
+
 ## [2.0.1] - 2026-11-03 (rà soát giấy phép, tài liệu, hạ tầng cộng đồng và giảm rủi ro demo)
 ### Fixed
 - **Giấy phép:** `redis:7-alpine` (Redis 7.4+ không thuộc OSI) → **Valkey** (BSD-3-Clause); mặc định mô hình `qwen2.5:3b` (Qwen Research License,

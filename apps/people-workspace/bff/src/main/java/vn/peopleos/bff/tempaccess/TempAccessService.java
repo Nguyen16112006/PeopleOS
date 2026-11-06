@@ -132,7 +132,7 @@ public class TempAccessService {
     }
 
     // ------------------------------------------------------------------ 4. Hết hạn và kiểm tra quyền đang hiệu lực
-    /** Chuyển các quyền đã quá hạn sang expired. Gọi định kỳ (ví dụ n8n gọi mỗi phút) hoặc trước khi kiểm tra quyền. */
+    /** Chuyển các quyền đã quá hạn sang expired. Flowable gọi định kỳ mỗi phút hoặc gọi trước khi kiểm tra quyền. */
     public int expireOverdue() {
         JsonNode r = hasura.query(TempAccessQueries.EXPIRE_OVERDUE, Params.of("now", Instant.now().toString()))
                 .path("update_temp_access_requests");

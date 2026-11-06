@@ -4,7 +4,7 @@
 |---|---|---|
 | `/graphql` | Hasura `/v1/graphql` | JWT bắt buộc |
 | `/api/*` | BFF `:8000` | JWT bắt buộc |
-| `/api/internal/*` | - | Trả 404 (chỉ n8n gọi nội bộ) |
+| `/api/internal/*` | - | Trả 404 (chỉ Flowable gọi nội bộ) |
 | `/ai/*` | RAG `:8001` | JWT bắt buộc, rewrite bỏ tiền tố `/ai` |
 | `/ws` | BFF WebSocket | Token qua `?token=`, BFF tự xác thực chữ ký |
 

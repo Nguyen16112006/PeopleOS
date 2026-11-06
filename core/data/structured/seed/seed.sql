@@ -299,9 +299,9 @@ INSERT INTO data_assets (id, name, asset_type, system, layer, classification, ow
 INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('obj_contracts', 'Bucket contracts', 'object_store', 'MinIO', 2, 'confidential', 'HR', 'PDF hợp đồng (bản sinh tự động và bản ký)');
 INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('obj_payslips', 'Bucket payslips', 'object_store', 'MinIO', 2, 'confidential', 'HR', 'PDF phiếu lương theo tháng');
 INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('vec_knowledge', 'Qdrant: peopleos_knowledge', 'vector_store', 'Qdrant', 2, 'public', 'IT', 'Vector embedding của kho tri thức pháp luật');
-INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_onboarding', 'Quy trình onboarding', 'process', 'Backend + n8n', 3, 'internal', 'HR', 'Tạo hồ sơ, hợp đồng, quỹ phép, tài khoản SSO, checklist');
-INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_leave', 'Quy trình nghỉ phép', 'process', 'Backend + n8n', 3, 'internal', 'HR', 'Kiểm tra quỹ phép, định tuyến duyệt, thông báo');
-INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_proposal', 'Quy trình đề xuất lương nhiều cấp', 'process', 'Backend + n8n', 3, 'internal', 'HR', 'Quản lý → HR → Kế toán → Giám đốc; áp dụng vào hợp đồng');
+INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_onboarding', 'Quy trình onboarding', 'process', 'BFF + Flowable', 3, 'internal', 'HR', 'Tạo hồ sơ, hợp đồng, quỹ phép, tài khoản SSO, checklist');
+INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_leave', 'Quy trình nghỉ phép', 'process', 'BFF + Flowable', 3, 'internal', 'HR', 'Kiểm tra quỹ phép, định tuyến duyệt, thông báo');
+INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_proposal', 'Quy trình đề xuất lương nhiều cấp', 'process', 'BFF + Flowable', 3, 'internal', 'HR', 'Quản lý → HR → Kế toán → Giám đốc; áp dụng vào hợp đồng');
 INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_payroll', 'Module tính lương', 'process', 'peopleos_shared', 3, 'internal', 'HR', 'Gross → Net theo luật 2026: bảo hiểm, giảm trừ, thuế lũy tiến');
 INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_pdf', 'Sinh PDF', 'process', 'Backend', 3, 'internal', 'IT', 'Tạo phiếu lương và hợp đồng PDF, lưu MinIO');
 INSERT INTO data_assets (id, name, asset_type, system, layer, classification, owner, description) VALUES ('proc_clamav', 'Quét mã độc', 'process', 'ClamAV', 3, 'internal', 'IT', 'Quét mọi tệp tải lên trước khi lưu MinIO');
@@ -324,9 +324,9 @@ INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('src_requests
 INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_leave', 'tbl_leave', 'Ghi đơn, cập nhật quỹ phép');
 INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_proposal', 'tbl_proposals', 'Ghi đề xuất và các bước duyệt');
 INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_proposal', 'tbl_contracts', 'Áp dụng mức lương mới khi duyệt xong');
-INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_leave', 'tbl_notifications', 'Workflow n8n tạo thông báo');
-INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_proposal', 'tbl_notifications', 'Workflow n8n tạo thông báo');
-INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_onboarding', 'tbl_notifications', 'Workflow n8n tạo thông báo');
+INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_leave', 'tbl_notifications', 'BPMN Flowable gọi BFF tạo thông báo');
+INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_proposal', 'tbl_notifications', 'BPMN Flowable gọi BFF tạo thông báo');
+INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_onboarding', 'tbl_notifications', 'BPMN Flowable gọi BFF tạo thông báo');
 INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('tbl_contracts', 'proc_payroll', 'Lương cơ bản, phụ cấp');
 INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('tbl_employees', 'proc_payroll', 'Người phụ thuộc, vùng lương');
 INSERT INTO data_lineage (source_id, target_id, transform) VALUES ('proc_payroll', 'tbl_payrolls', 'Gross → Net hằng tháng');

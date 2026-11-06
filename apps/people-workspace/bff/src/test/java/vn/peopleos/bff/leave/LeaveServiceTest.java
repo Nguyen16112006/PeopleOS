@@ -27,7 +27,7 @@ import vn.peopleos.bff.audit.AuditService;
 import vn.peopleos.bff.common.ApiException;
 import vn.peopleos.bff.employee.EmployeeLookup;
 import vn.peopleos.bff.integration.hasura.HasuraClient;
-import vn.peopleos.bff.integration.n8n.WorkflowClient;
+import vn.peopleos.bff.integration.flowable.WorkflowClient;
 import vn.peopleos.bff.leave.dto.CreateLeaveRequest;
 import vn.peopleos.bff.leave.dto.LeaveDecisionRequest;
 import vn.peopleos.bff.leave.dto.LeaveResult;

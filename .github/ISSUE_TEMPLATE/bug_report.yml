@@ -29,7 +29,7 @@ body:
         - Keycloak
         - BFF (Java)
         - Frontend People Workspace
-        - Workflow (n8n)
+        - Workflow (Flowable / BPMN)
         - RAG / AI
         - Hạ tầng (compose / Kubernetes / CI)
         - Tài liệu

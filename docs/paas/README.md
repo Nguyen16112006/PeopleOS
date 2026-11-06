@@ -112,8 +112,8 @@ cd .. && python scripts/keycloak-paas-bootstrap.py
 4. **FK tổng hợp là ràng buộc *thêm vào*** FK cũ (giữ nguyên để quan hệ trong metadata Hasura không đổi). Cần xác nhận Hasura không phàn nàn khi thấy thêm FK nhiều cột.
 5. **Chống SSRF** kiểm tra DNS trước khi gửi nhưng vẫn còn khoảng hở DNS-rebinding; production nên cho worker đi qua egress proxy chỉ cho phép IP công cộng.
 6. **Xóa project = xóa mềm.** Dữ liệu lõi (`public.*`) và `audit_logs` (bất biến, FK tới `tenants`) được giữ; cần chính sách lưu giữ/xóa dữ liệu cá nhân (pháp chế) trước khi đưa dữ liệu thật.
-7. **Giấy phép thành phần:** n8n (Sustainable Use License) không thuộc OSI và MinIO bị ngừng phát hành image upstream - xem [docs/LICENSING.md](../LICENSING.md).
-8. **Chưa có:** thanh toán/billing (đo đếm sử dụng đã có), job nền theo từng tenant cho n8n (hiện chạy dưới tenant mặc định qua header `x-tenant-id`), role tùy biến cho end-user của developer, Organizations của Keycloak (hiện dùng thuộc tính user + client riêng mỗi project), Ingress/TLS và etcd trong manifest K8s.
+7. **Giấy phép thành phần:** Flowable sử dụng Apache-2.0; MinIO có rủi ro phát hành image upstream - xem [docs/LICENSING.md](../LICENSING.md).
+8. **Chưa có:** thanh toán/billing (đo đếm sử dụng đã có), timer nền định kỳ tách riêng theo từng tenant (hiện chạy dưới tenant mặc định qua header `x-tenant-id`), role tùy biến cho end-user của developer, Organizations của Keycloak (hiện dùng thuộc tính user + client riêng mỗi project), Ingress/TLS và etcd trong manifest K8s.
 9. `tenant_api_write` cho phép ghi trực tiếp các bảng nghiệp vụ lõi của chính tenant (trừ `users`, `audit_logs`) mà **không** qua logic phê duyệt của BFF; developer chịu trách nhiệm toàn vẹn nghiệp vụ của họ.
 10. Control plane viết bằng Python/FastAPI (không phải Spring Boot) vì môi trường phát triển không build được Maven; schema DB và API độc lập ngôn ngữ nên chuyển sau được.
 

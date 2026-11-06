@@ -15,7 +15,7 @@ cd infrastructure && docker compose down -v && cd ..
 ./scripts/setup.sh --no-ai    # máy yếu: bỏ Ollama/Qdrant/RAG
 ```
 
-Địa chỉ: ứng dụng `http://localhost:3000`, Keycloak `:8080`, Hasura `:8081`, n8n `:5678`, gateway `:9080`.
+Địa chỉ: ứng dụng `http://localhost:3000`, Keycloak `:8080`, Hasura `:8081`, gateway `:9080`. Flowable là dịch vụ nội bộ, không publish cổng host.
 
 Tài khoản demo (mật khẩu chung `Peopleos@123`):
 
@@ -47,17 +47,17 @@ Lưu ý: dữ liệu mẫu đã có lương **đã chi trả từ tháng 1 đế
 
 ## 3. Đã kiểm tra và chưa kiểm tra
 
-Đã kiểm tra (trong môi trường phát triển, không có Docker):
-- Java: biên dịch sạch các module mới và chạy **38 test JUnit đạt** (công thức tính lương khớp bản Python, thuế cuối năm, KPI, nghỉ việc, tạm ứng). Hai file test dùng Mockito (`ProposalServiceTest`, `LeaveServiceTest`) **chưa chạy được**.
-- Frontend: `tsc` nghiêm ngặt và `npm run build` đạt.
-- Cơ sở dữ liệu: 7 migration + `seed.sql` chạy sạch trên PostgreSQL 16; `down.sql` rồi `up.sql` lại đạt.
-- Đối chiếu tĩnh: truy vấn GraphQL của BFF và giao diện khớp lược đồ thật và quyền cột Hasura; lời gọi API của giao diện khớp route BFF.
+Đã kiểm tra trong lần cập nhật này:
+- BFF Java: `mvn test` đạt **71 test**.
+- Flowable: `mvn test` đạt **3 test**, gồm xác thực API nội bộ, triển khai đủ 6 BPMN và tạo 2 timer jobs.
+- Frontend: `npm run build` đạt.
+- Compose: `docker compose config --quiet` đạt; header SPDX đầy đủ.
 
-**Chưa chạy**: toàn bộ ngăn xếp Docker. Các điểm dễ phát sinh lỗi khi chạy lần đầu:
-1. Spring Boot khởi động (`docker compose logs bff`): bean mới, cấu hình.
+**Chưa chạy**: toàn bộ ngăn xếp Docker và luồng tích hợp đầu-cuối. Các điểm cần kiểm tra khi chạy lần đầu:
+1. Spring Boot và Flowable khởi động (`docker compose logs bff flowable`): kết nối database, callback, timer jobs.
 2. Hasura nạp metadata (`docker compose logs hasura`): quan hệ hoặc quyền sai tên.
 3. Keycloak nạp realm mới (`docker compose logs keycloak`).
-4. n8n nhập 6 workflow (`docker compose logs n8n`).
+4. Flowable tự triển khai 6 BPMN khi khởi động (`docker compose logs flowable`).
 5. APISIX nạp `apisix.yaml` với plugin `serverless-post-function` (`docker compose logs apisix`); nếu gateway trả 403/401 bất thường ở nhóm API có `guard-*` thì đây là chỗ cần xem.
 
 ## 4. Báo lỗi
@@ -67,7 +67,7 @@ Gửi kèm: lệnh vừa chạy, thông báo lỗi nguyên văn, và log liên q
 ```bash
 cd infrastructure
 docker compose ps
-docker compose logs --tail=100 bff hasura keycloak apisix n8n
+docker compose logs --tail=100 bff flowable hasura keycloak apisix
 # kiểm tra riêng phần Java và giao diện
 cd ../apps/people-workspace/bff && mvn test
 cd ../frontend && npm ci && npm run build

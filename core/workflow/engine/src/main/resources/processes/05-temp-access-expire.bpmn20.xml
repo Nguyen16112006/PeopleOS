@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="https://peopleos.dev/workflows">
+  <process id="temp-access-expire" name="PeopleOS - Hết hạn quyền tạm thời" isExecutable="true">
+    <startEvent id="timerStart">
+      <timerEventDefinition>
+        <timeCycle xsi:type="tFormalExpression">R/PT1M</timeCycle>
+      </timerEventDefinition>
+    </startEvent>
+    <sequenceFlow id="timerToExpire" sourceRef="timerStart" targetRef="expireTempAccess" />
+    <serviceTask id="expireTempAccess" name="Đánh dấu quyền quá hạn"
+                 flowable:delegateExpression="${workflowDelegate}" />
+    <endEvent id="end" />
+    <sequenceFlow id="expireToEnd" sourceRef="expireTempAccess" targetRef="end" />
+  </process>
+</definitions>

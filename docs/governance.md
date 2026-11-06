@@ -59,7 +59,7 @@ docker compose logs -f gitops-agent
 Giới hạn: agent cần `docker.sock` và đường dẫn kho trùng giữa máy chủ và container nên phù hợp **máy chủ Linux**; trên Docker Desktop (Windows) dùng CI + chạy `docker compose up -d` thủ công. Với Kubernetes, hướng phát triển là Argo CD/Flux + Helm.
 
 ### 2.2 Tự phục hồi
-Ba lớp: (1) `restart: unless-stopped` - tiến trình chết thì Docker khởi động lại; (2) **healthcheck** cho PostgreSQL, Keycloak, Hasura, MinIO, NATS, n8n, APISIX, backend, frontend, Qdrant, Ollama, RAG, ClamAV; (3) **autoheal** theo dõi trạng thái và khởi động lại container "unhealthy" (tiến trình còn sống nhưng không phục vụ được).
+Ba lớp: (1) `restart: unless-stopped` - tiến trình chết thì Docker khởi động lại; (2) **healthcheck** cho PostgreSQL, Keycloak, Hasura, MinIO, NATS, Flowable, APISIX, backend, frontend, Qdrant, Ollama, RAG, ClamAV; (3) **autoheal** theo dõi trạng thái và khởi động lại container "unhealthy" (tiến trình còn sống nhưng không phục vụ được).
 
 ```bash
 # Thử: giết tiến trình chính của backend rồi xem Docker tự hồi sinh
@@ -69,7 +69,7 @@ docker compose logs autoheal | tail  # nếu là trường hợp unhealthy
 ```
 
 ### 2.3 Sao lưu và khôi phục
-- **Tự động:** `backup-postgres` chạy `pg_dump -Fc` cho `peopleos`, `keycloak`, `n8n` mỗi `BACKUP_INTERVAL_HOURS` (mặc định 24), giữ `BACKUP_RETENTION_DAYS` (mặc định 7) ngày, ghi vào thư mục `backups/postgres/`. `backup-minio` mirror 3 bucket sang `backups/minio/`.
+- **Tự động:** `backup-postgres` chạy `pg_dump -Fc` cho `peopleos` (gồm trạng thái Flowable) và `keycloak` mỗi `BACKUP_INTERVAL_HOURS` (mặc định 24), giữ `BACKUP_RETENTION_DAYS` (mặc định 7) ngày, ghi vào thư mục `backups/postgres/`. `backup-minio` mirror 3 bucket sang `backups/minio/`.
 - **Thủ công:** `./scripts/backup.sh`.
 - **Khôi phục:** `./scripts/restore.sh peopleos backups/postgres/peopleos-<thời-gian>.dump --yes` (dừng Hasura/backend, nạp lại, khởi động lại).
 - **Kiểm chứng khôi phục được:** `./scripts/verify-backup.sh` nạp bản mới nhất vào CSDL tạm, đếm bản ghi, xác minh lại chuỗi kiểm toán rồi xóa CSDL tạm; không ảnh hưởng hệ thống đang chạy.

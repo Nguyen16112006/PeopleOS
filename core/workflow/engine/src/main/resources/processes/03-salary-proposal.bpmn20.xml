@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="https://peopleos.dev/workflows">
+  <process id="salary-proposal" name="PeopleOS - Đề xuất tăng lương nhiều cấp" isExecutable="true">
+    <startEvent id="start" />
+    <sequenceFlow id="startToNotify" sourceRef="start" targetRef="handleSalaryProposal" />
+    <serviceTask id="handleSalaryProposal" name="Định tuyến thông báo theo cấp duyệt"
+                 flowable:delegateExpression="${workflowDelegate}" />
+    <endEvent id="end" />
+    <sequenceFlow id="notifyToEnd" sourceRef="handleSalaryProposal" targetRef="end" />
+  </process>
+</definitions>

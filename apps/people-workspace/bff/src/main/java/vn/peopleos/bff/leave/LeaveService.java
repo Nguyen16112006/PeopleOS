@@ -14,7 +14,7 @@ import vn.peopleos.bff.common.Params;
 import vn.peopleos.bff.common.WorkingDays;
 import vn.peopleos.bff.employee.EmployeeLookup;
 import vn.peopleos.bff.integration.hasura.HasuraClient;
-import vn.peopleos.bff.integration.n8n.WorkflowClient;
+import vn.peopleos.bff.integration.flowable.WorkflowClient;
 import vn.peopleos.bff.leave.dto.CreateLeaveRequest;
 import vn.peopleos.bff.leave.dto.LeaveDecisionRequest;
 import vn.peopleos.bff.leave.dto.LeaveResult;
@@ -111,7 +111,7 @@ public class LeaveService {
         }
     }
 
-    /** Dự phòng khi n8n không chạy: tự gửi thông báo cho người duyệt. */
+    /** Dự phòng khi engine không chạy: vẫn gửi thông báo cho người duyệt. */
     private void notifySubmittedFallback(Map<String, Object> p) {
         Object manager = p.get("manager_user_id");
         String stage = String.valueOf(p.get("stage"));
