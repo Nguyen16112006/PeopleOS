@@ -10,6 +10,7 @@ Thêm / kiểm tra header giấy phép SPDX cho mã nguồn (Apache-2.0).
 Quy tắc an toàn:
   - giữ nguyên dòng shebang, `# -*- coding -*-`, `# syntax=` / `# escape=` của Dockerfile ở đầu file;
   - giữ kiểu xuống dòng (LF/CRLF) và BOM của từng file;
+  - XML/HTML: header đặt sau khai báo <?xml ?> / <!doctype>;
   - bỏ qua file sinh tự động hoặc dữ liệu: metadata Hasura (do script ghi lại), seed.sql (do generate_seed.py sinh,
     generator tự ghi header), JSON, Markdown, package-lock, thư mục node_modules/dist/backups.
 """
@@ -22,9 +23,10 @@ SPDX_ID = "Apache-2.0"
 COPYRIGHT = "Copyright (c) 2026 PeopleOS contributors"
 ROOT = Path(__file__).resolve().parent.parent
 
-SKIP_DIRS = {"node_modules", "dist", "build", ".git", "backups", "__pycache__", ".pytest_cache", ".venv"}
+SKIP_DIRS = {"node_modules", "dist", "build", ".git", "backups", "__pycache__", ".pytest_cache", ".venv", "target"}
 SKIP_PATHS = ("core/data/structured/hasura/metadata/", "core/data/structured/seed/seed.sql", "infrastructure/data/")
-HASH_EXT = {".py", ".sh", ".yml", ".yaml"}
+HASH_EXT = {".py", ".sh", ".yml", ".yaml", ".conf"}
+XML_EXT = {".xml", ".html", ".bpmn"}
 SLASH_EXT = {".java", ".ts", ".tsx", ".js", ".mjs"}
 DASH_EXT = {".sql", ".lua"}
 CSS_EXT = {".css"}
@@ -39,6 +41,7 @@ def style(path: Path):
     if ext in SLASH_EXT: return "//"
     if ext in DASH_EXT: return "--"
     if ext in CSS_EXT: return "css"
+    if ext in XML_EXT: return "xml"
     return None
 
 
@@ -54,6 +57,8 @@ def candidates():
 
 
 def header_lines(kind: str):
+    if kind == "xml":
+        return [f"<!-- SPDX-License-Identifier: {SPDX_ID}", f"     {COPYRIGHT} -->"]
     if kind == "css":
         return [f"/* SPDX-License-Identifier: {SPDX_ID}", f"   {COPYRIGHT} */"]
     return [f"{kind} SPDX-License-Identifier: {SPDX_ID}", f"{kind} {COPYRIGHT}"]
@@ -63,7 +68,7 @@ def has_header(text: str) -> bool:
     return "SPDX-License-Identifier" in "\n".join(text.splitlines()[:12])
 
 
-KEEP_FIRST = re.compile(r"^(#!|#\s*-\*-.*coding|#\s*(vim?|coding)[:=]|#\s*syntax\s*=|#\s*escape\s*=|%YAML|<\?xml)")
+KEEP_FIRST = re.compile(r"^(<!doctype[^>]*>\s*$|(?i:<!doctype)|#!|#\s*-\*-.*coding|#\s*(vim?|coding)[:=]|#\s*syntax\s*=|#\s*escape\s*=|%YAML|<\?xml)")
 
 
 def add_header(raw: bytes, kind: str) -> bytes:

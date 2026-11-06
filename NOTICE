@@ -13,3 +13,6 @@ Mô hình ngôn ngữ/embedding được tải lúc chạy (không nằm trong k
   - bge-m3 (BAAI): MIT
   - qwen2.5:1.5b và qwen2.5:7b (Alibaba Cloud): Apache-2.0
   - KHÔNG dùng qwen2.5:3b: bản 3B theo Qwen Research License (phi thương mại).
+
+Ngoại lệ về header SPDX trong từng tệp: các tệp YAML trong core/data/structured/hasura/metadata/ được Hasura CLI sinh/ghi đè
+tự động nên không gắn header riêng; chúng thuộc giấy phép Apache-2.0 của toàn bộ dự án (xem LICENSE).
