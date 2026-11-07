@@ -74,13 +74,13 @@ flowchart TB
 
 | Thành phần | Trách nhiệm |
 |---|---|
-| **Frontend** | 10 trang: Tổng quan, Hồ sơ, Hợp đồng, Bảng lương, BHXH/BHYT, Nghỉ phép, Phê duyệt, Đề xuất tăng lương, Onboarding, Trợ lý AI. Đọc dữ liệu bằng GraphQL; gọi BFF cho hành động nghiệp vụ. |
+| **Frontend** | 19 trang: Tổng quan, Hồ sơ, Hợp đồng, Phiếu lương, BHXH/BHYT, Nghỉ phép, Thuế và báo cáo năm, KPI, Nghỉ việc, Kỳ lương, Tạm ứng và chi phí, Phê duyệt, Đề xuất tăng lương, Onboarding, Trợ lý AI, Dashboard điều hành, Phả hệ dữ liệu, Quyền tạm thời, Kiểm toán (menu hiển thị theo vai trò). Đọc dữ liệu bằng GraphQL; gọi BFF cho hành động nghiệp vụ. |
 | **Backend (Java 21 · Spring Boot 3)** | Logic nghiệp vụ + kiểm tra quyền cho: nghỉ phép, đề xuất lương nhiều cấp, onboarding (tạo tài khoản Keycloak); sinh PDF và lưu MinIO; cầu nối NATS → WebSocket. |
 | **RAG service** | Phân loại câu hỏi → công cụ tính lương / tra cứu Hasura bằng JWT của người hỏi / RAG trên kho tri thức. |
 
 ### Vì sao có backend riêng trong khi đã có Hasura?
 Hasura xuất sắc cho đọc dữ liệu có phân quyền, nhưng các quy trình cần **kiểm tra nhiều bước, ghi nhiều bảng và gọi dịch vụ khác**
-(trừ quỹ phép, chuỗi duyệt HR→Giám đốc, áp dụng mức lương mới vào hợp đồng, tạo tài khoản Keycloak, sinh PDF...).
+(trừ quỹ phép, chuỗi duyệt HR→Kế toán→Giám đốc, áp dụng mức lương mới vào hợp đồng, tạo tài khoản Keycloak, sinh PDF...).
 Backend chứa phần đó; mã nguồn chia package theo từng mục (config, security, integration, leave, proposal, onboarding, document, internal... - xem `apps/people-workspace/bff/README.md`). Frontend không bao giờ ghi trực tiếp vào các bảng nghiệp vụ.
 
 ## 5. Luồng realtime
@@ -108,10 +108,10 @@ Nếu Flowable tạm ngừng, BFF dùng fallback cho luồng nghiệp vụ; các
 ## 6. Quy trình nghiệp vụ
 
 **Nghỉ phép / nghỉ ốm** - `pending → approved | rejected | cancelled`. Số ngày = ngày làm việc T2–T6. Phép năm kiểm tra
-`quỹ phép − đã dùng − đơn đang chờ`. Chỉ quản lý trực tiếp (hoặc HR/Admin) được duyệt; không ai tự duyệt đơn của mình.
+`quỹ phép − đã dùng − đơn đang chờ`. Chỉ người duyệt đúng cấp theo luồng (xem `ROLES_AND_WORKFLOWS.md` mục 4.3) được duyệt; không ai tự duyệt đơn của mình.
 Khi duyệt phép năm, `used_days` tăng; nghỉ ốm cộng vào `sick_days_used`.
 
-**Đề xuất tăng lương/phụ cấp** - Quản lý đề xuất (mức mới phải cao hơn hiện tại) → bước 1 **HR** → bước 2 **Giám đốc (Admin)**.
+**Đề xuất tăng lương/phụ cấp** - Quản lý đề xuất (mức mới phải cao hơn hiện tại) → bước 1 **HR** → bước 2 **Kế toán** (kiểm ngân sách) → bước 3 **Giám đốc**.
 Từ chối ở bất kỳ cấp nào → kết thúc. Duyệt xong cấp cuối → tự cập nhật `contracts.base_salary` hoặc `allowance`. Lịch sử từng cấp lưu ở `approval_steps`.
 
 **Onboarding** - HR nhập hồ sơ → BFF tạo `employees` + `contracts` + `leave_balances` (+ tài khoản Keycloak, mật khẩu tạm) → BPMN onboarding sinh 7 việc
@@ -119,19 +119,9 @@ trong checklist và thông báo HR/kế toán/quản lý/nhân viên. Người p
 
 ## 7. Ma trận phân quyền (RBAC)
 
-| Dữ liệu / hành động | Employee | Manager | HR | Admin |
-|---|:--:|:--:|:--:|:--:|
-| Hồ sơ cá nhân | của mình | mình + nhóm | tất cả | tất cả |
-| Hợp đồng, phiếu lương, BHXH | của mình | của mình | tất cả | tất cả |
-| Đơn nghỉ phép: xem | của mình | mình + nhóm | tất cả | tất cả |
-| Đơn nghỉ phép: duyệt | - | nhóm | tất cả | tất cả |
-| Đề xuất tăng lương: tạo | - | cho nhóm | cho bất kỳ ai | cho bất kỳ ai |
-| Đề xuất tăng lương: duyệt | - | - | bước HR | mọi bước |
-| Onboarding / tạo nhân viên | - | - | ✓ | ✓ |
-| Tải bản hợp đồng đã ký lên MinIO | - | - | ✓ | ✓ |
-| Thông báo | của mình | của mình | của mình | của mình |
+Ma trận phân quyền đầy đủ cho **6 vai trò** (`employee`, `manager`, `hr`, `director`, `accountant`, `sysadmin`) nằm ở [ROLES_AND_WORKFLOWS.md](ROLES_AND_WORKFLOWS.md) mục 3; đây là tài liệu chuẩn, tránh lệch giữa các file.
 
-Ghi chú: role `admin` của Keycloak ánh xạ sang role `admin` (siêu quyền) của Hasura. Quản lý **không** xem được bảng lương của nhóm.
+Ghi chú bảo mật: Admin kỹ thuật dùng khóa **`sysadmin`**, không dùng `admin`, vì trong Hasura `admin` là siêu quyền (bỏ qua mọi phân quyền). `sysadmin` **không** đọc được lương, hợp đồng, BHXH. Quản lý **không** xem được bảng lương của nhóm.
 
 ## 8. AI Assistant
 
@@ -162,7 +152,7 @@ Bổ sung 4 nhóm năng lực (chi tiết và cách kiểm chứng: [governance.
 
 - **Quét mã độc ClamAV** mọi tệp tải lên trước khi vào MinIO.
 - **GitOps + tự phục hồi + sao lưu:** CI, agent đối chiếu trạng thái với Git, healthcheck + autoheal, sao lưu PostgreSQL/MinIO định kỳ và script khôi phục/kiểm chứng.
-- **Kiểm toán bất biến:** `audit_logs` append-only với chuỗi băm SHA-256; trigger ghi cả thay đổi dữ liệu trực tiếp; Admin xác minh toàn vẹn trên giao diện.
+- **Kiểm toán chống sửa/xóa:** `audit_logs` append-only với chuỗi băm SHA-256; trigger ghi cả thay đổi dữ liệu trực tiếp. Cơ chế này **phát hiện** thay đổi trái phép trong phạm vi mô hình hiện tại; người có quyền quản trị CSDL cao vẫn có thể sửa cả dữ liệu lẫn trigger (neo chuỗi ra kho WORM là hướng phát triển); Admin kỹ thuật (`sysadmin`), Giám đốc hoặc HR xác minh toàn vẹn trên giao diện.
 - **Phả hệ dữ liệu và dashboard điều hành:** danh mục tài sản/quan hệ dữ liệu có phân loại PII; 5 view SQL cho dashboard.
 
 ## 11. Bảo mật & giới hạn đã biết
