@@ -9,7 +9,7 @@
 - Cấu trúc một tầng: Nhân viên → Quản lý → Giám đốc. HR, Kế toán, Admin báo cáo trực tiếp cho Giám đốc.
 - Không ai được tự duyệt yêu cầu của chính mình.
 - Admin **không xem trực tiếp** dữ liệu nhạy cảm (lương, hợp đồng, BHXH).
-- Mọi thao tác nhạy cảm đều ghi **audit log** bất biến.
+- Mọi thao tác nhạy cảm đều ghi **audit log** chống sửa/xóa (chuỗi băm giúp phát hiện thay đổi trái phép).
 
 ### Khóa vai trò trong hệ thống
 
@@ -257,7 +257,7 @@ flowchart LR
 
 Yêu cầu của Quản lý, HR, Kế toán, Admin: **Giám đốc** duyệt cấp 1 thay Quản lý.
 
-**Triển khai:** người giao mục tiêu và người đánh giá là **quản lý trực tiếp** (với Quản lý, HR, Kế toán, Admin thì đó là Giám đốc); không ai tự đánh giá mình. Tổng trọng số mục tiêu của mỗi người phải đúng 100 mới đánh giá được. Điểm tổng = Σ(trọng số × mức hoàn thành) / 100; xếp loại: từ 90 xuất sắc, từ 75 tốt, từ 60 đạt, dưới 60 cần cải thiện. HR chỉ tổng hợp được khi mọi nhân viên đang làm việc có quản lý đều đã được đánh giá. Nhân viên chỉ thấy kết quả sau khi Giám đốc duyệt.
+**Triển khai:** ngưỡng duyệt cấp 2 đọc từ bảng `app_settings` (khóa `advance_level2_threshold_vnd`, mặc định 20.000.000 đ); Giám đốc duyệt cấp 1 các yêu cầu của Quản lý, HR, Kế toán, Admin; yêu cầu của Giám đốc đi thẳng tới Kế toán. Tạm ứng đã chi thì nhân viên khai hoàn ứng, Kế toán đối chiếu và quyết toán.
 
 ### 4.7 Đánh giá hiệu suất (KPI) theo quý
 
@@ -276,7 +276,7 @@ flowchart LR
 
 Không có bước nhân viên tự đánh giá.
 
-**Triển khai tạm ứng/chi phí:** ngưỡng duyệt cấp 2 đọc từ bảng `app_settings` (khóa `advance_level2_threshold_vnd`, mặc định 20.000.000 đ); Giám đốc duyệt cấp 1 các yêu cầu của Quản lý, HR, Kế toán, Admin; yêu cầu của Giám đốc đi thẳng tới Kế toán. Tạm ứng đã chi thì nhân viên khai hoàn ứng, Kế toán đối chiếu và quyết toán.
+**Triển khai:** người giao mục tiêu và người đánh giá là **quản lý trực tiếp** (với Quản lý, HR, Kế toán, Admin thì đó là Giám đốc); không ai tự đánh giá mình. Tổng trọng số mục tiêu của mỗi người phải đúng 100 mới đánh giá được. Điểm tổng = Σ(trọng số × mức hoàn thành) / 100; xếp loại: từ 90 xuất sắc, từ 75 tốt, từ 60 đạt, dưới 60 cần cải thiện. HR chỉ tổng hợp được khi mọi nhân viên đang làm việc có quản lý đều đã được đánh giá. Nhân viên chỉ thấy kết quả sau khi Giám đốc duyệt.
 
 ### 4.8 Thuế TNCN, BHXH, báo cáo tài chính năm
 
@@ -346,7 +346,7 @@ Tự động hóa (Flowable): BPMN xử lý thông báo nghỉ phép, đề xu�
 
 ### 6.3 Điểm còn hở và giới hạn đã biết
 
-- **Chưa kiểm chứng:** toàn bộ code Java, TypeScript, SQL và workflow mới chưa được biên dịch hay chạy trong môi trường thật.
+- **Mức kiểm chứng hiện tại:** CI (`.github/workflows/ci.yml`) biên dịch và chạy test Java (`mvn verify`), test Python, build frontend và Developer Portal, áp migration + seed trên PostgreSQL thật, kiểm tra chuỗi kiểm toán, cô lập đa tenant, sao lưu/khôi phục thử, test control plane `platform-api` và Lua gateway, và validate manifest Kubernetes. **Chưa có** kiểm thử đầu-cuối trên toàn bộ stack Docker Compose/Kubernetes đang chạy (ví dụ webhook PaaS, luồng người dùng qua giao diện); các luồng này cần diễn tập thủ công trước khi trình bày.
 - **Quyền tạm thời chưa có tác dụng thực tế:** `hasActiveGrant` chưa được nối vào API nào, nên quyền được duyệt mới chỉ là bản ghi và nhật ký.
 - **APISIX:** chưa có chính sách truy cập theo vai trò cho các đường API mới.
 - **HR chỉnh công khi nghỉ phép:** HR được thông báo để chỉnh công nhưng chưa có endpoint đánh dấu đã chỉnh (cột `hr_adjusted_at` đã có).
