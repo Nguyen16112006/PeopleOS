@@ -41,6 +41,36 @@ fi
 echo ">> Build và khởi chạy các dịch vụ (lần đầu mất vài phút)..."
 docker compose up -d --build "${SERVICES[@]}"
 
+echo ">> Chờ Keycloak sẵn sàng và đảm bảo token có claim tenant_id..."
+for i in $(seq 1 90); do
+  curl -fs http://localhost:8080/realms/peopleos >/dev/null 2>&1 && break
+  sleep 2
+done
+# Bootstrap idempotent: bổ sung thuộc tính/mapper tenant_id nếu realm còn thiếu (an toàn khi chạy lại)
+export KEYCLOAK_URL=http://localhost:8080 KEYCLOAK_ADMIN_PASSWORD="$KC_ADMIN_PASS"
+[[ -n "$KC_ADMIN_USER" ]] && export KEYCLOAK_ADMIN="$KC_ADMIN_USER"
+if command -v python3 >/dev/null 2>&1 && python3 --version >/dev/null 2>&1; then
+  (cd .. && python3 scripts/keycloak-paas-bootstrap.py) || echo "!! Bootstrap Keycloak lỗi (xem thông báo trên)"
+elif command -v python >/dev/null 2>&1 && python --version >/dev/null 2>&1; then
+  (cd .. && python scripts/keycloak-paas-bootstrap.py) || echo "!! Bootstrap Keycloak lỗi (xem thông báo trên)"
+else
+  KC_NET="$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$(docker compose ps -q keycloak)")"
+  MSYS_NO_PATHCONV=1 docker run --rm --network "$KC_NET" -v "$(cd .. && pwd -W 2>/dev/null || (cd .. && pwd)):/w" -w /w \
+    -e KEYCLOAK_URL=http://keycloak:8080 -e KEYCLOAK_ADMIN="${KC_ADMIN_USER:-admin}" -e KEYCLOAK_ADMIN_PASSWORD="$KC_ADMIN_PASS" \
+    python:3.12-slim python scripts/keycloak-paas-bootstrap.py || echo "!! Bootstrap Keycloak lỗi (xem thông báo trên)"
+fi
+# Kiểm tra thật: lấy token của user demo và xác nhận có claim tenant_id
+TOKEN_JSON="$(curl -fs -X POST http://localhost:8080/realms/peopleos/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=people-workspace -d username=hr -d password='Peopleos@123' || true)"
+if echo "$TOKEN_JSON" | grep -q access_token; then
+  PAYLOAD="$(echo "$TOKEN_JSON" | sed -E 's/.*"access_token":"[^."]+\.([^."]+)\..*/\1/' | tr '_-' '/+')"
+  PAYLOAD="$PAYLOAD$(printf '%*s' $(( (4 - ${#PAYLOAD} % 4) % 4 )) '' | tr ' ' '=')"
+  if echo "$PAYLOAD" | base64 -d 2>/dev/null | grep -q tenant_id; then echo "   Token có tenant_id: OK"
+  else echo "!! Token vẫn THIẾU tenant_id - giao diện sẽ báo lỗi JWT claim. Xem docs/paas/README.md"; fi
+else
+  echo "!! Không lấy được token thử (Keycloak chưa sẵn sàng?)"
+fi
+
 echo ">> Chờ Hasura áp dụng migration/metadata..."
 ../scripts/init-db.sh
 
