@@ -6,6 +6,8 @@ Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 th
 lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
 
 ## [Unreleased]
+
+## [2.2.0] - 2026-11-10
 ### Added
 - README: mục "Biên dịch từ mã nguồn (không qua Docker)" (công cụ cần có, lệnh build từng thành phần, cấu hình bằng biến môi trường, thư viện phụ thuộc).
 ### Changed
@@ -13,6 +15,10 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 ### Fixed
 - Sửa ngày phát hành các phiên bản 1.0.0, 1.1.0, 2.0.0, 2.0.1 trong CHANGELOG cho khớp với ngày thật trong lịch sử Git.
 - Thêm `.mailmap` để gộp các tên tác giả trùng email khi xem `git log`/`git shortlog`.
+- BFF: WebSocket chỉ chấp nhận origin khai báo trong `FRONTEND_URL` thay vì mọi origin.
+- Tài liệu và script: đồng bộ danh sách 7 tài khoản demo.
+- Dockerfile (BFF, Flowable): bộ nhớ đệm Maven và thử lại khi tải thư viện lỗi.
+- `.gitignore`: chặn thư mục `target/`.
 ### Removed
 - `add_spdx_headers.py` ở thư mục gốc (trùng với `scripts/spdx-headers.py`).
 
