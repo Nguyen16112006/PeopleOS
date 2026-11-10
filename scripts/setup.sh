@@ -58,7 +58,7 @@ cat <<MSG
  Flowable         : dịch vụ BPMN nội bộ (không publish cổng host)
 
  Tài khoản demo (mật khẩu chung: Peopleos@123)
-   admin / hr / manager / employee / employee2
+   admin / hr / manager / director / accountant / employee / employee2
 
  Kiểm tra sức khỏe : ./infrastructure/monitoring/healthcheck.sh
  Lưu ý: Ollama đang tải mô hình AI ở nền (docker compose logs -f ollama-init).

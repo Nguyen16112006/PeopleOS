@@ -41,7 +41,7 @@ Theo dõi: `docker compose logs -f ollama-init rag-service`.
 
 | Dịch vụ | URL | Đăng nhập |
 |---|---|---|
-| People Workspace | http://localhost:3000 | SSO: `admin`, `hr`, `manager`, `employee`, `employee2` / `Peopleos@123` |
+| People Workspace | http://localhost:3000 | SSO: `admin`, `hr`, `manager`, `director`, `accountant`, `employee`, `employee2` / `Peopleos@123` |
 | Keycloak | http://localhost:8080 | `KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD` |
 | Hasura Console | http://localhost:8081 | `HASURA_ADMIN_SECRET` |
 | MinIO Console | http://localhost:9001 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
