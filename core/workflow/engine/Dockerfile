@@ -4,9 +4,9 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /build
 COPY core/workflow/engine/pom.xml .
-RUN mvn -q -B dependency:go-offline
+RUN --mount=type=cache,target=/root/.m2 mvn -B -Dmaven.wagon.http.retryHandler.count=5 dependency:go-offline
 COPY core/workflow/engine/src ./src
-RUN mvn -q -B -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 mvn -B -Dmaven.wagon.http.retryHandler.count=5 -DskipTests package
 
 FROM eclipse-temurin:21-jre
 RUN apt-get update && apt-get install -y --no-install-recommends curl \

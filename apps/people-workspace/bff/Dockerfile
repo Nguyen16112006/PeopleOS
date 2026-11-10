@@ -6,9 +6,9 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /build
 COPY apps/people-workspace/bff/pom.xml .
-RUN mvn -q -B dependency:go-offline
+RUN --mount=type=cache,target=/root/.m2 mvn -B -Dmaven.wagon.http.retryHandler.count=5 dependency:go-offline
 COPY apps/people-workspace/bff/src ./src
-RUN mvn -q -B -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 mvn -B -Dmaven.wagon.http.retryHandler.count=5 -DskipTests package
 
 # ---------- Giai đoạn 2: chạy bằng JRE ----------
 FROM eclipse-temurin:21-jre
