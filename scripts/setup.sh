@@ -42,7 +42,7 @@ echo ">> Build và khởi chạy các dịch vụ (lần đầu mất vài phút
 docker compose up -d --build "${SERVICES[@]}"
 
 echo ">> Chờ Keycloak sẵn sàng và đảm bảo token có claim tenant_id..."
-for i in $(seq 1 90); do
+for _ in $(seq 1 90); do
   curl -fs http://localhost:8080/realms/peopleos >/dev/null 2>&1 && break
   sleep 2
 done
