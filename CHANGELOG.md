@@ -6,6 +6,8 @@ Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 th
 lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
 
 ## [Unreleased]
+
+## [2.3.0] - 2026-11-15
 ### Added
 - **Bảng công cho cả 6 vai trò** (migration `1760000000012_timesheets`): bảng `attendance_records` (chấm công từng ngày) và `timesheets` (bảng công tháng) có RLS và khóa ngoại tổng hợp theo tenant;
   BFF `timesheet/` (`/api/attendance/check-in`, `/check-out`, `/days`, `/api/timesheets`, `/submit`, `/{id}/decision`); trang **Bảng công**; quyền Hasura theo vai trò
@@ -14,20 +16,32 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
   (150% / 200% / 300%); phiếu lương lưu công chuẩn, ngày công và giờ làm thêm (`payrolls.standard_days`, `paid_days`, `overtime_hours`).
 - Dữ liệu mẫu: chấm công tháng 10 và 11/2026, bảng công tháng 10; thêm tài sản `tbl_timesheets` vào phả hệ dữ liệu (32 tài sản, 56 quan hệ).
 - Kiểm thử: 17 test JUnit cho tổng hợp bảng công và quy đổi lương; ca T16 (cô lập tenant của bảng công) trong `scripts/tests/tenant_isolation.sql`.
-- `REUSE.toml` và thư mục `LICENSES/` (Apache-2.0, MIT): toàn kho đạt chuẩn REUSE 3.3, kể cả tệp JSON, metadata Hasura, Markdown không mang được header.
-- CI job `license-compliance` chạy thêm `reuse lint`.
 ### Changed
 - Kỳ lương cũ không có bảng công đã chốt vẫn tính đủ tháng như trước; `overtime_pay` trong `adjustments` trở thành giá trị nhập đè (để trống: tự tính).
+- Số phiên bản các thành phần nâng lên 2.3.0.
+### Fixed
+- Chỉ cho chốt công khi tháng đã kết thúc (trước đây chốt được tháng đang diễn ra).
+
+## [2.2.2] - 2026-11-15
+### Added
+- `REUSE.toml` và thư mục `LICENSES/` (Apache-2.0, MIT): toàn kho đạt chuẩn REUSE 3.3, kể cả tệp JSON, metadata Hasura, Markdown không mang được header.
+- CI job `license-compliance` chạy thêm `reuse lint`.
+- README: mục "Bản phát hành" (tag, gói `.tar.gz` + `SHA256SUMS`, cách kiểm tra gói tải về).
+### Changed
 - Đồng bộ số phiên bản các thành phần (BFF, Workflow Engine, frontend, Developer Portal, platform-api, RAG) với phiên bản phát hành của dự án.
+### Fixed
+- Ghi công tác giả shadcn/ui (MIT) cho các thành phần `components/ui/*` phỏng theo shadcn/ui.
+- Bổ sung dòng bản quyền còn thiếu ở 10 tệp (Dockerfile RAG, các trang frontend, `requirements.txt`).
+- `generate_seed.py`: tách chuỗi header SPDX ghi vào `seed.sql` để `reuse lint` không hiểu nhầm là header của chính tệp.
+
+## [2.2.1] - 2026-11-15
+### Changed
 - RAG service: khi chạy ngoài Docker, mặc định đọc tri thức từ `ai/knowledge` trong kho mã (vẫn ghi đè được bằng `KNOWLEDGE_DIR`).
 ### Fixed
 - **Frontend gửi sai định dạng khóa JSON:** các trang Kỳ lương, Nghỉ việc, KPI, Tạm ứng, Quyền tạm thời, Thuế và báo cáo năm gửi khóa camelCase (`employeeId`, `lastWorkingDay`...) trong khi BFF
   đọc snake_case và bỏ qua khóa lạ, nên các trường này thành null phía server và yêu cầu bị từ chối 400. `api()` nay chuẩn hóa mọi khóa sang snake_case.
-- Chỉ cho chốt công khi tháng đã kết thúc (trước đây chốt được tháng đang diễn ra).
-- Thông báo nghỉ phép hiển thị "2 ngày" thay vì "2.0 ngày".
 - Keycloak: thêm claim `tenant_id` vào realm và tự bootstrap trong `setup.sh`; `setup.sh` qua ShellCheck SC2034.
-- Ghi công tác giả shadcn/ui (MIT) cho các thành phần `components/ui/*` phỏng theo shadcn/ui.
-- Bổ sung dòng bản quyền còn thiếu ở 10 tệp (Dockerfile RAG, các trang frontend, `requirements.txt`).
+- Thông báo nghỉ phép hiển thị "2 ngày" thay vì "2.0 ngày".
 - `.gitignore`: chặn `*.tsbuildinfo` do `npm run build` sinh ra.
 
 ## [2.2.0] - 2026-11-10
