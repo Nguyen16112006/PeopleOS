@@ -7,6 +7,16 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-15
+### Changed
+- RAG service: khi chạy ngoài Docker, mặc định đọc tri thức từ `ai/knowledge` trong kho mã (vẫn ghi đè được bằng `KNOWLEDGE_DIR`).
+### Fixed
+- **Frontend gửi sai định dạng khóa JSON:** các trang Kỳ lương, Nghỉ việc, KPI, Tạm ứng, Quyền tạm thời, Thuế và báo cáo năm gửi khóa camelCase (`employeeId`, `lastWorkingDay`...) trong khi BFF
+  đọc snake_case và bỏ qua khóa lạ, nên các trường này thành null phía server và yêu cầu bị từ chối 400. `api()` nay chuẩn hóa mọi khóa sang snake_case.
+- Keycloak: thêm claim `tenant_id` vào realm và tự bootstrap trong `setup.sh`; `setup.sh` qua ShellCheck SC2034.
+- Thông báo nghỉ phép hiển thị "2 ngày" thay vì "2.0 ngày".
+- `.gitignore`: chặn `*.tsbuildinfo` do `npm run build` sinh ra.
+
 ## [2.2.0] - 2026-11-10
 ### Added
 - README: mục "Biên dịch từ mã nguồn (không qua Docker)" (công cụ cần có, lệnh build từng thành phần, cấu hình bằng biến môi trường, thư viện phụ thuộc).
