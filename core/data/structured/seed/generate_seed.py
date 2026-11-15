@@ -54,7 +54,7 @@ emps = [
 ]
 E_BY = {e[0]: e for e in emps}
 
-out.append("-- SPDX-License-Identifier: Apache-2.0")
+out.append("-- SPDX-" "License-Identifier: Apache-2.0")  # tách chuỗi để `reuse lint` không hiểu nhầm là header của chính tệp này
 out.append("-- Copyright (c) 2026 PeopleOS contributors")
 out.append("-- Sinh bởi generate_seed.py - KHÔNG sửa tay. Chạy lại sẽ XÓA dữ liệu demo cũ.")
 # Đa tenant: seed là dữ liệu DEMO của tenant first-party. TRUNCATE ... CASCADE bên dưới sẽ xóa dữ liệu của MỌI tenant,
