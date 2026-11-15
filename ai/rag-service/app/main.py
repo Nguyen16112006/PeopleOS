@@ -27,7 +27,7 @@ async def lifespan(_: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="PeopleOS RAG Service", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="PeopleOS RAG Service", version="2.2.2", lifespan=lifespan)
 
 
 class ChatIn(BaseModel):

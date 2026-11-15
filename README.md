@@ -183,7 +183,18 @@ Dùng khi muốn build/chạy riêng từng thành phần hoặc đóng góp mã
 
 **Thư viện phụ thuộc:** khai báo trong `pom.xml`, `package-lock.json`, `requirements.txt` và được tải về từ kho chính thức (Maven Central, npm, PyPI); kho này **không đính kèm hay chỉnh sửa mã nguồn** của thư viện bên thứ ba. Danh sách và giấy phép: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Các dịch vụ hạ tầng (Keycloak, Hasura, APISIX...) dùng image đã ghim phiên bản trong `docker-compose.yml`.
 
-**Kiểm tra bản build:** chạy các lệnh ở mục 7; kiểm tra giấy phép từng tệp bằng `python scripts/spdx-headers.py --check`.
+**Kiểm tra bản build:** chạy các lệnh ở mục 7; kiểm tra giấy phép từng tệp bằng `python scripts/spdx-headers.py --check` và toàn kho theo chuẩn REUSE bằng `pipx run reuse lint`.
+
+**RAG ngoài Docker:** dịch vụ tự đọc tri thức từ `ai/knowledge`; đặt `KNOWLEDGE_DIR` nếu muốn dùng thư mục khác. Cần Ollama (`OLLAMA_URL`) và Qdrant (`QDRANT_URL`); nếu chưa có mô hình, dịch vụ tự hạ cấp về tìm kiếm từ khóa.
+
+### Bản phát hành
+
+Mỗi phiên bản là một git tag có chú thích `vX.Y.Z` và một GitHub Release kèm `PeopleOS-X.Y.Z.tar.gz` + `SHA256SUMS` do `python scripts/make-release.py` tạo (tái lập được). Tệp "Source code (zip)" trên trang Release do GitHub tự sinh, không phải định dạng phát hành chính thức của dự án. Kiểm tra gói tải về:
+
+```bash
+sha256sum -c SHA256SUMS
+tar -xzf PeopleOS-X.Y.Z.tar.gz && cd PeopleOS-X.Y.Z && ./scripts/setup.sh
+```
 
 ---
 

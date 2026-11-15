@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2026 PeopleOS contributors
+#
+# Khai báo giấy phép cho các tệp KHÔNG thể mang header (JSON, metadata Hasura do CLI sinh,
+# tài liệu Markdown, tệp cấu hình dạng dữ liệu) theo chuẩn REUSE 3.3 (https://reuse.software).
+# Kiểm tra toàn bộ kho: `pipx run reuse lint` (CI job license-compliance chạy lệnh này).
+version = 1
+SPDX-PackageName = "PeopleOS"
+SPDX-PackageSupplier = "PeopleOS contributors"
+SPDX-PackageDownloadLocation = "https://github.com/Nguyen16112006/PeopleOS"
+
+# Metadata Hasura: do Hasura CLI sinh/ghi đè, không gắn được header riêng
+[[annotations]]
+path = "core/data/structured/hasura/metadata/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 PeopleOS contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+# JSON (không có cú pháp chú thích): realm Keycloak, tsconfig, package.json, lockfile
+[[annotations]]
+path = ["**/*.json"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 PeopleOS contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Tài liệu, tri thức RAG, tệp cấu hình/dữ liệu không mang header
+[[annotations]]
+path = [
+  "**/*.md",
+  "**/.gitkeep",
+  "**/.gitignore",
+  "**/.dockerignore",
+  "**/.env.example",
+  "**/.env.paas.example",
+  ".gitattributes",
+  ".mailmap",
+  "NOTICE",
+  "core/data/structured/seed/seed.sql",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 PeopleOS contributors"
+SPDX-License-Identifier = "Apache-2.0"
