@@ -23,3 +23,6 @@ infrastructure/data/
 backups/
 infrastructure/gitops-status.log
 target/
+
+# Sản phẩm phụ của `tsc -b` khi chạy npm run build
+*.tsbuildinfo
