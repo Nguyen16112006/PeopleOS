@@ -123,6 +123,7 @@ PeopleOS/
 ### People Workspace
 - Đăng nhập SSO Keycloak; menu và dữ liệu theo vai trò
 - **Cổng tự phục vụ:** hồ sơ cá nhân, hợp đồng lao động (tải PDF), bảng lương theo tháng (tải PDF), quá trình đóng BHXH/BHYT
+- **Bảng công cho cả 6 vai trò:** chấm công vào/ra, khai làm thêm giờ, gửi bảng công tháng → quản lý xác nhận → HR chốt công → **lương tính theo ngày công và giờ làm thêm** (150% / 200% / 300%)
 - **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý → HR → Giám đốc)
 - Thông báo realtime (toast + chuông) khi có người duyệt hoặc từ chối
 
@@ -183,7 +184,18 @@ Dùng khi muốn build/chạy riêng từng thành phần hoặc đóng góp mã
 
 **Thư viện phụ thuộc:** khai báo trong `pom.xml`, `package-lock.json`, `requirements.txt` và được tải về từ kho chính thức (Maven Central, npm, PyPI); kho này **không đính kèm hay chỉnh sửa mã nguồn** của thư viện bên thứ ba. Danh sách và giấy phép: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Các dịch vụ hạ tầng (Keycloak, Hasura, APISIX...) dùng image đã ghim phiên bản trong `docker-compose.yml`.
 
-**Kiểm tra bản build:** chạy các lệnh ở mục 7; kiểm tra giấy phép từng tệp bằng `python scripts/spdx-headers.py --check`.
+**Kiểm tra bản build:** chạy các lệnh ở mục 7; kiểm tra giấy phép từng tệp bằng `python scripts/spdx-headers.py --check` và toàn kho theo chuẩn REUSE bằng `pipx run reuse lint`.
+
+**RAG ngoài Docker:** dịch vụ tự đọc tri thức từ `ai/knowledge`; đặt `KNOWLEDGE_DIR` nếu muốn dùng thư mục khác. Cần Ollama (`OLLAMA_URL`) và Qdrant (`QDRANT_URL`); nếu chưa có mô hình, dịch vụ tự hạ cấp về tìm kiếm từ khóa.
+
+### Bản phát hành
+
+Mỗi phiên bản là một git tag có chú thích `vX.Y.Z` và một GitHub Release kèm `PeopleOS-X.Y.Z.tar.gz` + `SHA256SUMS` do `python scripts/make-release.py` tạo (tái lập được). Tệp "Source code (zip)" trên trang Release do GitHub tự sinh, không phải định dạng phát hành chính thức của dự án. Kiểm tra gói tải về:
+
+```bash
+sha256sum -c SHA256SUMS
+tar -xzf PeopleOS-X.Y.Z.tar.gz && cd PeopleOS-X.Y.Z && ./scripts/setup.sh
+```
 
 ---
 
@@ -192,14 +204,14 @@ Dùng khi muốn build/chạy riêng từng thành phần hoặc đóng góp mã
 | Thành phần | Test | Cách chạy |
 |---|---|---|
 | Tính lương (Gross→Net, trần BH, thuế 2026) | 7 (Python) | `cd core/shared/python && PYTHONPATH=. python -m pytest tests` |
-| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito: 71 test đạt | `cd apps/people-workspace/bff && mvn test` |
+| Backend Java (nghỉ phép, duyệt nhiều cấp, vai trò) | JUnit 5 + Mockito: 88 test (thêm 17 test bảng công và lương theo ngày công) | `cd apps/people-workspace/bff && mvn test` |
 | BPMN workflow engine | 3 test đạt: API nội bộ + triển khai 6 BPMN và 2 timer | `cd core/workflow/engine && mvn test` |
 | RAG (phân loại, tính lương, truy xuất, fallback) | 21 (Python) | `cd ai/rag-service && python -m pytest tests` |
 | Kiểm toán, sao lưu, view dashboard (migration, seed, chuỗi băm DB↔Java, ghi đồng thời, giả mạo, khôi phục) | kịch bản chạy thật trên PostgreSQL 16 | `scripts/audit-verify.sql` + CI job `database` |
 | ClamAV (giao thức INSTREAM) | chạy thật với clamd giả lập; JUnit đã viết | `mvn test` |
 | Frontend | kiểm tra kiểu + build | `cd apps/people-workspace/frontend && npm run build` |
 | Control plane HR-PaaS (`platform-api`: auth, saga cấp phát, API key, schema, custom field, webhook, usage) | 45 (Python, PostgreSQL thật; Keycloak/APISIX/Hasura là mock) | `cd apps/platform/platform-api && python -m pytest tests` |
-| Cô lập đa tenant ở tầng SQL (RLS, audit theo tenant, view, FK chéo tenant) | 15 ca trên PostgreSQL 16 thật | `scripts/test-tenant-isolation.sh` |
+| Cô lập đa tenant ở tầng SQL (RLS, audit theo tenant, view, FK chéo tenant, bảng công) | 16 ca trên PostgreSQL 16 thật | `scripts/test-tenant-isolation.sh` |
 | Gateway Lua + script bootstrap Keycloak/APISIX | 6 ca Lua + 4 test (server giả) | `lua5.4 core/gateway/paas/test_api_key_to_hasura.lua` · `python -m pytest scripts/tests` |
 | Developer Portal | kiểm tra kiểu + build | `cd apps/developer-portal && npm ci && npm run build` |
 | Manifest Kubernetes | `kustomize build` + `kubeconform --strict` | xem `infrastructure/k8s/README.md` |
@@ -218,7 +230,7 @@ Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 
 ## 9. Hướng phát triển
 
 - Phân hệ Tuyển dụng, KPI/OKR, Đào tạo gắn vào cùng lõi
-- Bảng lương tự động từ chấm công; trừ ngày lễ trong tính ngày nghỉ; khoản miễn thuế
+- Lịch ngày lễ và ca làm việc cho bảng công, nối máy chấm công; trừ ngày lễ trong tính ngày nghỉ; khoản miễn thuế, làm thêm ban đêm
 - Ký số hợp đồng điện tử; đồng bộ cổng BHXH/thuế
 - Kubernetes + Helm + Argo CD/Flux; Prometheus/Grafana/Loki; HA cho Keycloak và PostgreSQL
 - Neo chuỗi kiểm toán ra kho WORM bên ngoài; role CSDL tách quyền; sao lưu off-site có mã hóa

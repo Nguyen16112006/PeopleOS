@@ -47,6 +47,9 @@ src/main/java/vn/peopleos/bff/
 ├── leave/                             ⑧ NGHỈ PHÉP / NGHỈ ỐM
 │   ├── LeaveController · LeaveService · LeaveQueries · dto/
 │
+├── timesheet/                         BẢNG CÔNG (cả 6 vai trò): chấm công, gửi/xác nhận bảng công tháng, HR chốt công
+│   ├── TimesheetController · TimesheetService · TimesheetCalculator · TimesheetQueries · dto/
+│
 ├── proposal/                          ⑨ ĐỀ XUẤT TĂNG LƯƠNG (duyệt Quản lý → HR → Giám đốc)
 │   ├── ProposalController · ProposalService · ProposalQueries · dto/
 │
@@ -69,6 +72,8 @@ src/main/java/vn/peopleos/bff/
 |---|---|
 | Hệ thống | `GET /api/health`, `GET /api/me`, `WS /ws?token=` |
 | Nghỉ phép | `POST /api/leave-requests`, `/{id}/decision`, `/{id}/cancel` |
+| Bảng công | `POST /api/attendance/check-in`, `/check-out`, `PUT /api/attendance/days`, `GET /api/timesheets`, `POST /api/timesheets/submit`, `/{id}/decision` |
+| Kỳ lương | `POST /api/payroll-runs`, `/{id}/calculate`, `/hr-review`, `/decision`, `/pay` |
 | Đề xuất lương | `POST /api/salary-proposals`, `/{id}/decision` |
 | Onboarding | `POST /api/employees`, `POST /api/onboarding-tasks/{id}/complete` |
 | Tài liệu | `GET /api/payslips/{id}/download`, `GET /api/contracts/{id}/download`, `POST /api/contracts/{id}/upload` |

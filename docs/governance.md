@@ -11,7 +11,7 @@ Tài liệu này mô tả 4 nhóm tiêu chí bổ sung và cách kiểm chứng 
 | **Tự phục hồi** | `restart: unless-stopped` + healthcheck mọi dịch vụ chính + `autoheal` khởi động lại container "unhealthy" | `docker-compose.yml` (healthcheck, `autoheal`) | Làm hỏng một dịch vụ, xem tự hồi sinh (mục 2.2) |
 | **Sao lưu** | `backup-postgres` (pg_dump định kỳ, giữ N ngày), `backup-minio` (mirror bucket); khôi phục và kiểm chứng bằng script | `scripts/backup/*`, `scripts/backup.sh`, `restore.sh`, `verify-backup.sh` | `./scripts/verify-backup.sh` (mục 2.3) |
 | **Kiểm toán, nhật ký bất biến** | Bảng `audit_logs` append-only, chuỗi băm SHA-256, trigger chặn sửa/xóa/truncate, trigger ghi mọi thay đổi dữ liệu nhạy cảm; trang Kiểm toán + API xác minh | `hasura/migrations/.../1760000000001_governance/up.sql`, `bff/.../audit/`, `frontend/src/pages/Audit.tsx` | Trang **Kiểm toán** → "Xác minh toàn vẹn" (mục 3) |
-| **Phả hệ dữ liệu** | Danh mục `data_assets` + `data_lineage` (31 tài sản, 52 quan hệ), phân loại dữ liệu (công khai/nội bộ/mật/PII), trang truy vết ngược-xuôi | migration `1760000000001`, `seed/generate_seed.py`, `pages/Lineage.tsx` | Trang **Phả hệ dữ liệu** (mục 4) |
+| **Phả hệ dữ liệu** | Danh mục `data_assets` + `data_lineage` (32 tài sản, 56 quan hệ), phân loại dữ liệu (công khai/nội bộ/mật/PII), trang truy vết ngược-xuôi | migration `1760000000001`, `seed/generate_seed.py`, `pages/Lineage.tsx` | Trang **Phả hệ dữ liệu** (mục 4) |
 | **Dashboard điều hành** | 5 view SQL (`v_kpi_summary`, `v_headcount_by_department`, `v_payroll_monthly`, `v_leave_summary`, `v_contracts_expiring`) qua Hasura (HR/Admin) | migration `1760000000001`, `pages/Executive.tsx` | Trang **Dashboard điều hành** (mục 4) |
 
 ---
@@ -111,8 +111,8 @@ docker compose exec postgres psql -U peopleos -d peopleos \
 ## 4. Phả hệ dữ liệu và dashboard điều hành
 
 ### Phả hệ dữ liệu (data lineage)
-- **Danh mục** `data_assets`: 31 tài sản dữ liệu gồm nguồn, bảng, view, kho tệp, kho vector, tiến trình xử lý, đầu ra; mỗi tài sản có hệ thống chứa, **chủ sở hữu** và **phân loại** (`public`/`internal`/`confidential`/`pii`).
-- **Quan hệ** `data_lineage`: 52 cạnh "từ đâu → đến đâu" kèm phép biến đổi (ví dụ `tbl_payrolls → proc_pdf → obj_payslips → out_files`; `src_law → proc_embed → vec_knowledge → out_ai`).
+- **Danh mục** `data_assets`: 32 tài sản dữ liệu gồm nguồn, bảng, view, kho tệp, kho vector, tiến trình xử lý, đầu ra; mỗi tài sản có hệ thống chứa, **chủ sở hữu** và **phân loại** (`public`/`internal`/`confidential`/`pii`).
+- **Quan hệ** `data_lineage`: 56 cạnh "từ đâu → đến đâu" kèm phép biến đổi (ví dụ `tbl_payrolls → proc_pdf → obj_payslips → out_files`; `src_law → proc_embed → vec_knowledge → out_ai`).
 - **Trang Phả hệ dữ liệu** (HR/Admin): sơ đồ trái → phải; bấm một nút để truy vết ngược/xuôi, xem mô tả, chủ sở hữu và có đụng tới dữ liệu cá nhân (PII) hay không - hữu ích cho đánh giá tác động khi đổi một nguồn dữ liệu hoặc khi xử lý yêu cầu về dữ liệu cá nhân.
 - Danh mục được **khai báo thủ công** trong `seed/generate_seed.py` (không tự suy ra từ mã). Khi thêm bảng/tích hợp mới, thêm một dòng vào `ASSETS`/`EDGES` rồi `./scripts/seed-data.sh --regenerate`.
 

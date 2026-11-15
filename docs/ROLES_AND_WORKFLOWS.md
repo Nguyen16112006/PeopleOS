@@ -180,7 +180,9 @@ flowchart LR
 
 **Triển khai:** HR chốt công (tạo kỳ lương) → Kế toán tính lương (các phiếu ở trạng thái nháp, chỉ HR và Kế toán thấy) → HR rà soát → Giám đốc duyệt → Kế toán chi trả (phiếu chuyển `paid`, ghi bảo hiểm tháng, thông báo từng nhân viên). HR hoặc Giám đốc từ chối thì kỳ lương quay về Kế toán kèm lý do. Nhân viên khiếu nại phiếu lương đã phát hành (mỗi phiếu một khiếu nại đang xử lý): HR chuyển Kế toán hoặc từ chối; Kế toán điều chỉnh tiền làm thêm giờ/thưởng, hệ thống tính lại phiếu và bảo hiểm tháng, nhân viên nhận thông báo. Công thức tính (bảo hiểm, giảm trừ gia cảnh, biểu thuế lũy tiến, trần đóng) là bản Java của `peopleos_shared.payroll` và được đối chiếu bằng test với các ca của bản Python.
 
-**Giới hạn:** hệ thống chưa có bảng chấm công chi tiết, nên tiền làm thêm giờ và thưởng do Kế toán nhập theo số liệu HR đã chốt; lương tính đủ tháng cho mọi nhân viên đang làm việc có hợp đồng hiệu lực (chưa tính theo ngày công thực tế). Không cho chốt công một tháng đã có phiếu lương đã chi trả.
+**Bảng công:** cả 6 vai trò chấm công vào/ra hằng ngày và khai giờ làm thêm ở trang **Bảng công**; cuối tháng gửi bảng công, quản lý trực tiếp xác nhận hoặc trả lại (HR xác nhận thay được cho bất kỳ ai trừ chính mình; Giám đốc xác nhận cho người không có quản lý trực tiếp). Đơn nghỉ đã duyệt tự tính vào bảng công (phép năm, ốm: hưởng lương; không lương, việc riêng: không lương); ngày làm việc không chấm công và không có đơn nghỉ bị tính vắng. HR sửa được công của mọi người cho đến khi chốt. HR chốt công sẽ khóa bảng công của cả tháng. Kế toán tính lương theo bảng công đã chốt: lương cơ bản và phụ cấp × ngày công hưởng lương ÷ công chuẩn; tiền làm thêm giờ = lương cơ bản ÷ công chuẩn ÷ 8 × số giờ × 150% (ngày thường), 200% (ngày nghỉ hằng tuần), 300% (ngày lễ) theo Điều 98 Bộ luật Lao động 2019; Kế toán có thể nhập đè tiền làm thêm và nhập thưởng.
+
+**Giới hạn:** công chuẩn là số ngày thứ 2 đến thứ 6 của tháng (chưa có lịch ngày lễ và ca làm việc: ngày lễ do HR ghi nhận từng ngày); chưa xử lý làm thêm ban đêm và phần tiền làm thêm được miễn thuế TNCN; chấm công là tự khai trên web (chưa nối máy chấm công). Chỉ chốt công khi tháng đã kết thúc và chưa có phiếu lương đã chi trả.
 
 ### 4.3 Nghỉ phép
 
@@ -333,7 +335,7 @@ Chủ sở hữu dữ liệu: Kế toán (dữ liệu lương), HR (dữ liệu 
 | Quy trình | BFF (đường API) | Giao diện |
 |---|---|---|
 | 4.1 Đề xuất lương | `/api/salary-proposals` và `/{id}/decision` (HR → Kế toán → Giám đốc) | Đề xuất tăng lương, Phê duyệt |
-| 4.2 Tính lương hằng tháng | `/api/payroll-runs` (`/{id}/calculate`, `/hr-review`, `/decision`, `/pay`), `/api/payslip-complaints` (`/{id}/review`, `/adjust`) | Kỳ lương, Bảng lương (khiếu nại) |
+| 4.2 Tính lương hằng tháng | `/api/attendance` (`/check-in`, `/check-out`, `/days`), `/api/timesheets` (`/submit`, `/{id}/decision`), `/api/payroll-runs` (`/{id}/calculate`, `/hr-review`, `/decision`, `/pay`), `/api/payslip-complaints` (`/{id}/review`, `/adjust`) | Bảng công, Kỳ lương, Bảng lương (khiếu nại) |
 | 4.3 Nghỉ phép | `/api/leave-requests`, `/{id}/decision`, `/{id}/cancel` (duyệt theo giai đoạn) | Nghỉ phép, Phê duyệt |
 | 4.4 Onboarding | `/api/employees` (HR tạo hồ sơ), `/api/onboarding-tasks/{id}/complete` | Onboarding |
 | 4.5 Nghỉ việc | `/api/offboarding/resignations`, `/terminations`, `/{id}/action` | Nghỉ việc |
@@ -351,5 +353,5 @@ Tự động hóa (Flowable): BPMN xử lý thông báo nghỉ phép, đề xu�
 - **APISIX:** chưa có chính sách truy cập theo vai trò cho các đường API mới.
 - **HR chỉnh công khi nghỉ phép:** HR được thông báo để chỉnh công nhưng chưa có endpoint đánh dấu đã chỉnh (cột `hr_adjusted_at` đã có).
 - **Khai và nộp thuế, BHXH định kỳ với nhà nước:** không theo dõi trong hệ thống.
-- **Tính lương hằng tháng (4.2):** đã có đủ DB, Hasura, BFF, test và giao diện; còn giới hạn chưa có bảng chấm công chi tiết và chưa tính theo ngày công thực tế (xem mục 4.2).
+- **Tính lương hằng tháng (4.2):** đã có đủ DB, Hasura, BFF, test và giao diện; đã có bảng công cho cả 6 vai trò và tính lương theo ngày công, giờ làm thêm (giới hạn còn lại xem mục 4.2).
 - **Giấy xác nhận lương cần HR duyệt, chứng từ thuế tải tự động:** giả định đã ghi ở mục 5.
