@@ -2,7 +2,9 @@ PeopleOS
 Copyright (c) 2026 PeopleOS contributors
 
 Sản phẩm này được phát hành theo giấy phép Apache License, Version 2.0 (xem tệp LICENSE).
+REUSE-IgnoreStart
 Mỗi tệp mã nguồn mang header "SPDX-License-Identifier: Apache-2.0".
+REUSE-IgnoreEnd
 
 Sản phẩm sử dụng và/hoặc triển khai kèm các phần mềm của bên thứ ba theo giấy phép riêng của từng phần.
 Danh sách, giấy phép và mức độ đã xác minh: THIRD_PARTY_LICENSES.md.
@@ -15,4 +17,7 @@ Mô hình ngôn ngữ/embedding được tải lúc chạy (không nằm trong k
   - KHÔNG dùng qwen2.5:3b: bản 3B theo Qwen Research License (phi thương mại).
 
 Ngoại lệ về header SPDX trong từng tệp: các tệp YAML trong core/data/structured/hasura/metadata/ được Hasura CLI sinh/ghi đè
-tự động nên không gắn header riêng; chúng thuộc giấy phép Apache-2.0 của toàn bộ dự án (xem LICENSE).
+tự động nên không gắn header riêng; chúng thuộc giấy phép Apache-2.0 của toàn bộ dự án (xem LICENSE và REUSE.toml).
+
+Một số thành phần giao diện trong apps/people-workspace/frontend/src/components/ui/ phỏng theo shadcn/ui
+(Copyright (c) 2023 shadcn, giấy phép MIT); mỗi tệp ghi rõ trong header, toàn văn MIT ở LICENSES/MIT.txt.

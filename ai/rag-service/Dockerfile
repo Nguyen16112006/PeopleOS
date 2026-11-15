@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 # Build context = thư mục gốc của repo (xem docker-compose.yml)
 FROM python:3.12-slim
 WORKDIR /app

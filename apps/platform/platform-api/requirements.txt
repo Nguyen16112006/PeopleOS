@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
 fastapi>=0.110
 uvicorn[standard]>=0.29
 psycopg[binary,pool]>=3.1
