@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 PeopleOS contributors
 
-import { BarChart3, Bell, Bot, Briefcase, CalendarDays, CheckSquare, FileText, HeartPulse, Key, Landmark, LayoutDashboard, LogOut, Network, Receipt, ShieldCheck, Target, TrendingUp, UserCircle, UserMinus, UserPlus, Wallet, Wifi, WifiOff } from 'lucide-react'
+import { BarChart3, Bell, Bot, Briefcase, CalendarCheck, CalendarDays, CheckSquare, FileText, HeartPulse, Key, Landmark, LayoutDashboard, LogOut, Network, Receipt, ShieldCheck, Target, TrendingUp, UserCircle, UserMinus, UserPlus, Wallet, Wifi, WifiOff } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
@@ -17,6 +17,7 @@ const NAV = [
   { to: '/contracts', label: 'Hợp đồng lao động', icon: FileText },
   { to: '/payslips', label: 'Bảng lương', icon: Wallet },
   { to: '/insurance', label: 'BHXH / BHYT', icon: HeartPulse },
+  { to: '/timesheet', label: 'Bảng công', icon: CalendarCheck },
   { to: '/leave', label: 'Nghỉ phép', icon: CalendarDays },
   { to: '/tax-year', label: 'Thuế và báo cáo năm', icon: Landmark },
   { to: '/kpi', label: 'Đánh giá KPI', icon: Target },

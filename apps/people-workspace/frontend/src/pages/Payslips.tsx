@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
 import {
   CalendarDays,
   ChevronRight,
@@ -22,6 +23,7 @@ const Q = `query Payslips($uid: uuid!) {
   payrolls(where: {employee: {user_id: {_eq: $uid}}}, order_by: [{period_year: desc}, {period_month: desc}]) {
     id period_year period_month base_salary allowance overtime_pay bonus gross insured_salary
     bhxh_employee bhyt_employee bhtn_employee taxable_income personal_income_tax net_salary paid_at
+    standard_days paid_days overtime_hours
   }
 }`
 
@@ -220,8 +222,14 @@ export default function Payslips() {
                     </div>
 
                     <div className="divide-y divide-slate-100">
-                      <PayslipRow label="Lương cơ bản" value={p.base_salary} />
-                      <PayslipRow label="Phụ cấp" value={p.allowance} />
+                      {p.standard_days != null && (
+                        <p className="py-2 text-sm text-slate-500">
+                          Ngày công hưởng lương: <span className="font-semibold text-slate-800">{String(Number(p.paid_days)).replace('.', ',')} / {String(Number(p.standard_days)).replace('.', ',')}</span>
+                          {Number(p.overtime_hours) > 0 && <> · Làm thêm: <span className="font-semibold text-slate-800">{String(Number(p.overtime_hours)).replace('.', ',')} giờ</span></>}
+                        </p>
+                      )}
+                      <PayslipRow label={p.standard_days != null ? 'Lương cơ bản (theo ngày công)' : 'Lương cơ bản'} value={p.base_salary} />
+                      <PayslipRow label={p.standard_days != null ? 'Phụ cấp (theo ngày công)' : 'Phụ cấp'} value={p.allowance} />
                       <PayslipRow label="Làm thêm giờ" value={p.overtime_pay} />
                       <PayslipRow label="Thưởng" value={p.bonus} />
                       <PayslipRow label="Tổng thu nhập (Gross)" value={p.gross} strong highlight />

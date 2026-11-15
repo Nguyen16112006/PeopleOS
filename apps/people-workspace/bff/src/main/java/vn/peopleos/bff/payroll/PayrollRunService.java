@@ -25,6 +25,7 @@ import vn.peopleos.bff.payroll.dto.PayrollAdjustment;
 import vn.peopleos.bff.payroll.dto.PayrollRunResult;
 import vn.peopleos.bff.payroll.dto.ReviewRequest;
 import vn.peopleos.bff.security.CurrentUser;
+import vn.peopleos.bff.timesheet.TimesheetService;
 
 /**
  * Tính lương và chi trả hằng tháng.
@@ -33,8 +34,9 @@ import vn.peopleos.bff.security.CurrentUser;
  * → Giám đốc duyệt → Kế toán chi trả (phiếu chuyển paid, ghi bảo hiểm tháng, thông báo từng nhân viên).
  * HR hoặc Giám đốc từ chối thì kỳ lương quay về Kế toán kèm lý do để tính lại.
  *
- * <p>Giới hạn: hệ thống chưa có bảng chấm công chi tiết nên tiền làm thêm giờ và thưởng do Kế toán nhập theo số liệu HR đã chốt;
- * lương tính đủ tháng cho mọi nhân viên đang làm việc có hợp đồng hiệu lực (chưa tính theo ngày công thực tế).
+ * <p>Lương tính theo bảng công đã chốt: lương cơ bản và phụ cấp hưởng theo ngày công (đi làm + nghỉ hưởng lương + nghỉ lễ) trên công chuẩn,
+ * tiền làm thêm giờ tính từ số giờ trên bảng công (Kế toán có thể nhập đè); thưởng do Kế toán nhập.
+ * Nhân viên không có bảng công đã chốt của tháng (kỳ lương tạo trước khi có phân hệ bảng công) được tính đủ tháng như trước.
  */
 @Service
 public class PayrollRunService {
@@ -42,19 +44,25 @@ public class PayrollRunService {
     private final EmployeeLookup employees;
     private final NotificationService notifications;
     private final AuditService audit;
+    private final TimesheetService timesheets;
 
-    public PayrollRunService(HasuraClient hasura, EmployeeLookup employees, NotificationService notifications, AuditService audit) {
+    public PayrollRunService(HasuraClient hasura, EmployeeLookup employees, NotificationService notifications, AuditService audit,
+                             TimesheetService timesheets) {
         this.hasura = hasura;
         this.employees = employees;
         this.notifications = notifications;
         this.audit = audit;
+        this.timesheets = timesheets;
     }
 
     // ------------------------------------------------------------------ 1. HR chốt công
     public PayrollRunResult closeTimesheet(CurrentUser user, CloseTimesheetRequest req) {
         if (!user.isHr()) throw ApiException.forbidden("Chỉ HR được chốt công và tạo kỳ lương");
         LocalDate first = LocalDate.of(req.year(), req.month(), 1);
-        if (first.isAfter(LocalDate.now().withDayOfMonth(1))) throw ApiException.badRequest("Chưa đến kỳ lương " + req.month() + "/" + req.year());
+        // Chỉ chốt công khi tháng đã kết thúc: chốt giữa tháng sẽ bỏ sót ngày công của những ngày còn lại
+        LocalDate today = TimesheetService.today();
+        if (first.isAfter(today.withDayOfMonth(1))) throw ApiException.badRequest("Chưa đến kỳ lương " + req.month() + "/" + req.year());
+        if (first.plusMonths(1).isAfter(today)) throw ApiException.badRequest("Tháng " + req.month() + "/" + req.year() + " chưa kết thúc, chưa thể chốt công");
         JsonNode ex = hasura.query(PayrollQueries.RUN_EXISTS, Params.of("y", req.year(), "m", req.month()));
         if (ex.path("payroll_runs").isArray() && !ex.path("payroll_runs").isEmpty()) throw ApiException.conflict("Kỳ lương " + req.month() + "/" + req.year() + " đã được tạo");
         if (ex.path("payrolls_aggregate").path("aggregate").path("count").asInt(0) > 0) {
@@ -64,10 +72,14 @@ public class PayrollRunService {
         String id = hasura.query(PayrollQueries.RUN_INSERT, Params.of("obj", Params.of("period_year", req.year(), "period_month", req.month(),
                 "status", "timesheet_closed", "timesheet_closed_by", hr.get("id").asText(), "timesheet_closed_at", java.time.Instant.now().toString())))
                 .get("insert_payroll_runs_one").get("id").asText();
+        // Khóa bảng công của tháng: từ đây nhân viên và HR không sửa công được nữa, Kế toán tính lương theo đúng số liệu này
+        TimesheetService.CloseResult closed = timesheets.closeMonth(req.year(), req.month());
         notifications.notify(Target.role("accountant"), "HR đã chốt công tháng " + req.month() + "/" + req.year(),
-                "Kế toán có thể tính lương và lập bảng lương.", "payroll_run", id, "payroll.timesheet_closed");
-        audit.record(user, "PAYROLL.TIMESHEET_CLOSED", "payroll_run", id, Params.of("year", req.year(), "month", req.month()));
-        return new PayrollRunResult(id, "timesheet_closed", 0);
+                "Đã chốt " + closed.total() + " bảng công (" + closed.confirmed() + " bảng đã được xác nhận trước khi chốt). Kế toán có thể tính lương.",
+                "payroll_run", id, "payroll.timesheet_closed");
+        audit.record(user, "PAYROLL.TIMESHEET_CLOSED", "payroll_run", id, Params.of("year", req.year(), "month", req.month(),
+                "timesheets", closed.total(), "confirmed", closed.confirmed()));
+        return new PayrollRunResult(id, "timesheet_closed", closed.total());
     }
 
     // ------------------------------------------------------------------ 2. Kế toán tính lương, lập bảng lương
@@ -90,15 +102,28 @@ public class PayrollRunService {
                 adj.put(a.employeeId(), a);
             }
         }
+        Map<String, JsonNode> closedTimesheets = timesheets.closedOfMonth(year, month);
         List<Map<String, Object>> rows = new ArrayList<>();
         long totalGross = 0, totalNet = 0;
         for (Map.Entry<String, JsonNode> e : byEmployee.entrySet()) {
             JsonNode c = e.getValue();
             JsonNode emp = c.get("employee");
             PayrollAdjustment a = adj.get(e.getKey());
-            Map<String, Object> row = PayrollRows.payroll(e.getKey(), year, month, c.get("base_salary").asLong(), c.get("allowance").asLong(),
-                    a == null || a.overtimePay() == null ? 0 : a.overtimePay(), a == null || a.bonus() == null ? 0 : a.bonus(),
-                    emp.path("dependents").asInt(0), emp.path("region").asInt(1), "draft");
+            long bonus = a == null || a.bonus() == null ? 0 : a.bonus();
+            Long overtimeOverride = a == null ? null : a.overtimePay();
+            JsonNode ts = closedTimesheets.get(e.getKey());
+            Map<String, Object> row;
+            if (ts != null) {
+                double paidDays = ts.path("work_days").asDouble(0) + ts.path("paid_leave_days").asDouble(0) + ts.path("holiday_days").asDouble(0);
+                row = PayrollRows.payrollFromTimesheet(e.getKey(), year, month, c.get("base_salary").asLong(), c.get("allowance").asLong(),
+                        ts.path("standard_days").asDouble(0), paidDays, ts.path("ot_weekday_hours").asDouble(0),
+                        ts.path("ot_weekend_hours").asDouble(0), ts.path("ot_holiday_hours").asDouble(0), overtimeOverride, bonus,
+                        emp.path("dependents").asInt(0), emp.path("region").asInt(1), "draft");
+            } else {   // không có bảng công đã chốt: tính đủ tháng
+                row = PayrollRows.payroll(e.getKey(), year, month, c.get("base_salary").asLong(), c.get("allowance").asLong(),
+                        overtimeOverride == null ? 0 : overtimeOverride, bonus,
+                        emp.path("dependents").asInt(0), emp.path("region").asInt(1), "draft");
+            }
             rows.add(row);
             totalGross += (Long) row.get("gross");
             totalNet += (Long) row.get("net_salary");

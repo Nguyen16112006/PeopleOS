@@ -31,3 +31,5 @@
 - "!include public_hr_budgets.yaml"
 - "!include public_payroll_runs.yaml"
 - "!include public_payslip_complaints.yaml"
+- "!include public_attendance_records.yaml"
+- "!include public_timesheets.yaml"

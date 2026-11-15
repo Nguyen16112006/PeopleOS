@@ -28,6 +28,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       _and:
       - tenant_id:
@@ -61,6 +64,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       _and:
       - tenant_id:
@@ -94,6 +100,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
@@ -120,6 +129,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       _and:
       - tenant_id:
@@ -153,6 +165,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
@@ -179,6 +194,9 @@ select_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       _and:
       - tenant_id:
@@ -213,6 +231,9 @@ select_permissions:
     - paid_at
     - file_key
     - tenant_id
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
@@ -240,6 +261,9 @@ select_permissions:
     - paid_at
     - file_key
     - tenant_id
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
@@ -268,6 +292,9 @@ select_permissions:
     - paid_at
     - file_key
     - tenant_id
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
@@ -301,6 +328,9 @@ insert_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     backend_only: false
 - role: tenant_api_write
   permission:
@@ -329,6 +359,9 @@ insert_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     backend_only: false
 update_permissions:
 - role: bff_service
@@ -352,6 +385,9 @@ update_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id
@@ -379,6 +415,9 @@ update_permissions:
     - status
     - paid_at
     - file_key
+    - standard_days
+    - paid_days
+    - overtime_hours
     filter:
       tenant_id:
         _eq: X-Hasura-Tenant-Id

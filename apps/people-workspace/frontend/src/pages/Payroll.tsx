@@ -2,6 +2,7 @@
 // Copyright (c) 2026 PeopleOS contributors
 
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { Empty, ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'
 import { Badge } from '@/components/ui/badge'
@@ -27,15 +28,23 @@ const QRuns = `query PayrollRuns {
 }`
 const QRows = `query PayrollRows($y: smallint!, $m: smallint!) {
   payrolls(where: {period_year: {_eq: $y}, period_month: {_eq: $m}}, order_by: {employee: {full_name: asc}}) {
-    id status base_salary allowance overtime_pay bonus gross personal_income_tax net_salary employee { full_name department }
+    id status base_salary allowance overtime_pay bonus gross personal_income_tax net_salary standard_days paid_days overtime_hours employee { full_name department }
   }
 }`
 const QEmps = `query PayrollEmployees { employees(where: {status: {_eq: "active"}}, order_by: {full_name: asc}) { id full_name department } }`
+const QSheets = `query PayrollTimesheets($y: smallint!, $m: smallint!) {
+  timesheets(where: {period_year: {_eq: $y}, period_month: {_eq: $m}}) {
+    employee_id status standard_days work_days paid_leave_days holiday_days ot_weekday_hours ot_weekend_hours ot_holiday_hours
+  }
+  employees_aggregate(where: {status: {_eq: "active"}}) { aggregate { count } }
+}`
 const QCompl = `query ComplaintQueue($statuses: [String!]!) {
   payslip_complaints(where: {status: {_in: $statuses}}, order_by: {created_at: asc}) {
     id message status hr_note employee { full_name } payroll { period_year period_month net_salary overtime_pay bonus }
   }
 }`
+
+const days = (n: number | string | null | undefined) => (n == null ? '—' : String(Number(n)).replace('.', ','))
 
 const now = new Date()
 const defaultMonth = now.getMonth() === 0 ? 12 : now.getMonth()          // tháng trước
@@ -56,11 +65,18 @@ export default function Payroll() {
   const compl = useQuery<any>(QCompl, { statuses: isHr ? ['open'] : ['adjusting'] }, isHr || isAcc)
 
   const [form, setForm] = useState({ year: String(defaultYear), month: String(defaultMonth) })
+  // Bảng công: HR xem tình hình xác nhận của tháng sắp chốt; Kế toán xem bảng công đã chốt của kỳ đang tính
+  const sheetPeriod = isHr ? { y: Number(form.year) || 0, m: Number(form.month) || 0 } : { y: run?.period_year ?? 0, m: run?.period_month ?? 0 }
+  const sheets = useQuery<any>(QSheets, sheetPeriod, isHr || (isAcc && !!run))
+  const sheetList: any[] = sheets.data?.timesheets ?? []
+  const sheetByEmp = new Map<string, any>(sheetList.map((t) => [t.employee_id, t]))
+  const countBy = (s: string) => sheetList.filter((t) => t.status === s).length
+  const activeCount: number = sheets.data?.employees_aggregate?.aggregate?.count ?? 0
   const [adj, setAdj] = useState<Record<string, { ot: string; bonus: string }>>({})
   const [busy, setBusy] = useState(false)
   const [fix, setFix] = useState<Record<string, { ot: string; bonus: string; note: string }>>({})
 
-  const reloadAll = () => { runs.reload(); rows.reload(); emps.reload(); compl.reload() }
+  const reloadAll = () => { runs.reload(); rows.reload(); emps.reload(); compl.reload(); sheets.reload() }
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true)
     try { await fn(); push({ title: ok, kind: 'success' }); reloadAll(); return true }
@@ -79,7 +95,7 @@ export default function Payroll() {
 
   return (
     <div>
-      <PageHeader title="Kỳ lương hằng tháng" description="HR chốt công → Kế toán tính lương → HR rà soát → Giám đốc duyệt → Kế toán chi trả và phát hành phiếu lương. Nhân viên có thể khiếu nại phiếu lương." />
+      <PageHeader title="Kỳ lương hằng tháng" description="Nhân viên gửi bảng công, quản lý xác nhận → HR chốt công → Kế toán tính lương theo ngày công → HR rà soát → Giám đốc duyệt → Kế toán chi trả và phát hành phiếu lương. Nhân viên có thể khiếu nại phiếu lương." />
 
       {isHr && (
         <Card className="mb-4">
@@ -97,6 +113,12 @@ export default function Payroll() {
               </Field>
               <Button type="submit" disabled={busy}>Chốt công</Button>
             </form>
+            {sheets.data && (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Bảng công tháng {form.month}/{form.year}: <span className="font-medium text-foreground">{countBy('confirmed')}</span> đã xác nhận, <span className="font-medium text-foreground">{countBy('submitted')}</span> chờ xác nhận, <span className="font-medium text-foreground">{Math.max(0, activeCount - sheetList.length) + countBy('open')}</span> chưa gửi (trên {activeCount} nhân viên đang làm việc).
+                {' '}Khi chốt, bảng công bị khóa và số liệu được tính lại từ chấm công và đơn nghỉ đã duyệt; người chưa gửi vẫn được chốt theo số liệu hệ thống. Rà soát ở mục <Link className="text-primary hover:underline" to="/timesheet">Bảng công</Link> trước khi chốt.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -140,15 +162,23 @@ export default function Payroll() {
         <Card className="mb-4">
           <CardHeader><CardTitle>Tính lương {monthLabel(run.period_year, run.period_month)}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">Nhập tiền làm thêm giờ và thưởng theo số liệu HR đã chốt (để trống nếu không có). Lương cơ bản và phụ cấp lấy từ hợp đồng đang hiệu lực; lương tính đủ tháng.</p>
+            <p className="text-sm text-muted-foreground">Lương cơ bản và phụ cấp (theo hợp đồng đang hiệu lực) được tính theo ngày công hưởng lương trên bảng công đã chốt. Tiền làm thêm giờ tự tính từ số giờ trên bảng công (150% ngày thường, 200% ngày nghỉ hằng tuần, 300% ngày lễ); chỉ nhập khi cần ghi đè. Thưởng để trống nếu không có.</p>
             {emps.loading ? <Loading /> : emps.error ? <ErrorBox message={emps.error} /> : (
               <Table>
-                <THead><TR><TH>Nhân viên</TH><TH>Làm thêm giờ (đ)</TH><TH>Thưởng (đ)</TH></TR></THead>
+                <THead><TR><TH>Nhân viên</TH><TH>Ngày công</TH><TH>Giờ làm thêm</TH><TH>Làm thêm giờ (đ)</TH><TH>Thưởng (đ)</TH></TR></THead>
                 <TBody>
                   {emps.data.employees.map((e: any) => (
                     <TR key={e.id}>
                       <TD>{e.full_name}<div className="text-xs text-muted-foreground">{e.department}</div></TD>
-                      <TD><Input type="number" min={0} className="h-8 w-40" value={adj[e.id]?.ot ?? ''} onChange={(ev) => setAdj((s) => ({ ...s, [e.id]: { ot: ev.target.value, bonus: s[e.id]?.bonus ?? '' } }))} /></TD>
+                      {(() => {
+                        const t = sheetByEmp.get(e.id)
+                        if (!t) return <><TD className="text-muted-foreground">Đủ tháng (không có bảng công)</TD><TD>—</TD></>
+                        return <>
+                          <TD>{days(Number(t.work_days) + Number(t.paid_leave_days) + Number(t.holiday_days))} / {days(t.standard_days)}</TD>
+                          <TD>{days(Number(t.ot_weekday_hours) + Number(t.ot_weekend_hours) + Number(t.ot_holiday_hours))}</TD>
+                        </>
+                      })()}
+                      <TD><Input type="number" min={0} className="h-8 w-40" placeholder="Tự tính" value={adj[e.id]?.ot ?? ''} onChange={(ev) => setAdj((s) => ({ ...s, [e.id]: { ot: ev.target.value, bonus: s[e.id]?.bonus ?? '' } }))} /></TD>
                       <TD><Input type="number" min={0} className="h-8 w-40" value={adj[e.id]?.bonus ?? ''} onChange={(ev) => setAdj((s) => ({ ...s, [e.id]: { ot: s[e.id]?.ot ?? '', bonus: ev.target.value } }))} /></TD>
                     </TR>
                   ))}
@@ -166,12 +196,13 @@ export default function Payroll() {
           <CardContent>
             {rows.loading ? <Loading /> : rows.error ? <ErrorBox message={rows.error} /> : (
               <Table>
-                <THead><TR><TH>Nhân viên</TH><TH>Lương cơ bản</TH><TH>Phụ cấp</TH><TH>Làm thêm</TH><TH>Thưởng</TH><TH>Gộp</TH><TH>Thuế TNCN</TH><TH>Thực nhận</TH></TR></THead>
+                <THead><TR><TH>Nhân viên</TH><TH>Ngày công</TH><TH>Lương cơ bản</TH><TH>Phụ cấp</TH><TH>Làm thêm</TH><TH>Thưởng</TH><TH>Gộp</TH><TH>Thuế TNCN</TH><TH>Thực nhận</TH></TR></THead>
                 <TBody>
                   {rows.data.payrolls.map((p: any) => (
                     <TR key={p.id}>
                       <TD>{p.employee?.full_name}<div className="text-xs text-muted-foreground">{p.employee?.department}</div></TD>
-                      <TD>{vnd(p.base_salary)}</TD><TD>{vnd(p.allowance)}</TD><TD>{vnd(p.overtime_pay)}</TD><TD>{vnd(p.bonus)}</TD>
+                      <TD className="whitespace-nowrap">{p.standard_days == null ? 'Đủ tháng' : `${days(p.paid_days)} / ${days(p.standard_days)}`}</TD>
+                      <TD>{vnd(p.base_salary)}</TD><TD>{vnd(p.allowance)}</TD><TD>{vnd(p.overtime_pay)}{Number(p.overtime_hours) > 0 && <div className="text-xs text-muted-foreground">{days(p.overtime_hours)} giờ</div>}</TD><TD>{vnd(p.bonus)}</TD>
                       <TD>{vnd(p.gross)}</TD><TD>{vnd(p.personal_income_tax)}</TD><TD className="font-medium">{vnd(p.net_salary)}</TD>
                     </TR>
                   ))}

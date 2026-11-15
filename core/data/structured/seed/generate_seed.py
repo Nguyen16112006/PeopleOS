@@ -67,7 +67,7 @@ out.append("DO $$ BEGIN\n"
            "END $$;")
 # Mọi dòng seed thuộc tenant first-party: cột tenant_id lấy mặc định từ phiên (platform.current_tenant()).
 out.append("DO $$ BEGIN PERFORM set_config('hasura.user', '{\"x-hasura-tenant-id\":\"00000000-0000-0000-0000-000000000001\"}', false); END $$;")
-out.append("TRUNCATE users, employees, contracts, payrolls, insurance_records, leave_balances, leave_requests,"
+out.append("TRUNCATE users, employees, contracts, payrolls, insurance_records, leave_balances, leave_requests, attendance_records, timesheets,"
            " salary_proposals, approval_steps, onboarding_tasks, notifications, data_lineage, data_assets,"
            " advance_requests, temp_access_requests, approval_events CASCADE;")
 insert("users", [dict(id=U(n), username=un, email=em, full_name=fn, role=r) for n, un, em, fn, r in users])
@@ -145,6 +145,71 @@ for key, emp, lt, s, e_, st, appr, note, created in leaves:
         status=st, stage=("done" if st != "pending" else LEAVE_STAGE.get(key, "manager")),
         approver_id=E(appr) if appr else None, decision_note=note,
         decided_at=f"{created.isoformat()} 17:00:00+07" if appr else None, created_at=f"{created.isoformat()} 09:00:00+07")])
+# ----- bảng công: chấm công tháng 10 và 11/2026 + bảng công tháng 10 ------------------------------
+# Tháng 10 (đã kết thúc) dùng để demo quy trình kỳ lương: 5 bảng công đã xác nhận, Em đã gửi (chờ Quản lý), Dung chưa gửi.
+# Dung (19-20/10) và Em (12/10) có đơn nghỉ phép đang chờ duyệt nên những ngày đó chưa chấm công:
+# duyệt đơn xong, bảng công tự chuyển các ngày này thành nghỉ hưởng lương.
+# Tháng 11 chỉ có chấm công (chưa ai gửi bảng công) để demo bước nhân viên gửi và Quản lý xác nhận.
+PENDING_LEAVE_DAYS = {4: {date(2026,10,19), date(2026,10,20)}, 5: {date(2026,10,12)}, 3: {date(2026,11,2), date(2026,11,3)}}
+REMOTE_DAYS = {4: {date(2026,10,9), date(2026,11,13)}, 3: {date(2026,10,23)}}
+TRIP_DAYS = {7: {date(2026,10,14), date(2026,10,15)}}
+# (nhân viên, ngày) -> (giờ làm thêm, loại)
+OVERTIME = {(4, date(2026,10,6)): (2, "weekday"), (4, date(2026,10,13)): (2, "weekday"), (4, date(2026,10,27)): (2, "weekday"),
+            (4, date(2026,10,24)): (4, "weekend"), (5, date(2026,10,7)): (2, "weekday"), (5, date(2026,10,28)): (2, "weekday"),
+            (4, date(2026,11,10)): (2, "weekday")}
+ACTIVE = [e for e in emps if e[11] == "active"]
+
+def month_days(y, m):
+    d = date(y, m, 1)
+    while d.month == m:
+        yield d
+        d += timedelta(1)
+
+att = {}   # (n, y, m) -> list các bản ghi của tháng (để tổng hợp bảng công)
+for e in ACTIVE:
+    n = e[0]
+    for (y, m) in ((2026, 10), (2026, 11)):
+        recs = []
+        for d in month_days(y, m):
+            ot = OVERTIME.get((n, d))
+            weekend = d.weekday() >= 5
+            if (weekend and not ot) or d in PENDING_LEAVE_DAYS.get(n, ()): continue
+            status = "remote" if d in REMOTE_DAYS.get(n, ()) else "business_trip" if d in TRIP_DAYS.get(n, ()) else "present"
+            cin = f"{d.isoformat()} 08:{(n * 7 + d.day * 3) % 30:02d}:00+07"
+            hours_out = 17 + (0 if weekend else int(ot[0]) if ot else 0)
+            cout = f"{d.isoformat()} {12 if weekend else hours_out}:{30 + (n + d.day) % 25:02d}:00+07"
+            rec = dict(id=uid(f"att-{n}-{d.isoformat()}"), employee_id=E(n), work_date=d, check_in=cin, check_out=cout, status=status,
+                       work_days=0 if weekend else 1, overtime_hours=ot[0] if ot else 0,
+                       overtime_type=ot[1] if ot else ("weekend" if weekend else "weekday"),
+                       note="Làm thêm theo yêu cầu dự án" if ot else None, source="self")
+            recs.append(rec)
+        att[(n, y, m)] = recs
+        insert("attendance_records", recs)
+
+def summarize(n, y, m):
+    """Cùng quy tắc với TimesheetCalculator (BFF): ngày làm việc không có bản ghi và không có đơn nghỉ đã duyệt là vắng."""
+    recs = {r["work_date"]: r for r in att[(n, y, m)]}
+    approved = [(s, e_, lt) for _, emp, lt, s, e_, st, *_ in leaves if emp == n and st == "approved"]
+    std = work = paid_leave = unpaid = absent = 0
+    for d in month_days(y, m):
+        if d.weekday() >= 5: continue
+        std += 1
+        if d in recs: work += recs[d]["work_days"]; continue
+        lv = next((lt for s, e_, lt in approved if s <= d <= e_), None)
+        if lv in ("annual", "sick"): paid_leave += 1
+        elif lv: unpaid += 1
+        else: absent += 1
+    ot = {k: sum(r["overtime_hours"] for r in att[(n, y, m)] if r["overtime_type"] == k) for k in ("weekday", "weekend", "holiday")}
+    return dict(standard_days=std, work_days=work, paid_leave_days=paid_leave, holiday_days=0, unpaid_leave_days=unpaid, absent_days=absent,
+                ot_weekday_hours=ot["weekday"], ot_weekend_hours=ot["weekend"], ot_holiday_hours=ot["holiday"])
+
+# người xác nhận: quản lý trực tiếp; Giám đốc (không có quản lý) do HR xác nhận
+TS_OCT = {1: ("confirmed", 7), 2: ("confirmed", 7), 3: ("confirmed", 7), 7: ("confirmed", 2), 8: ("confirmed", 7), 5: ("submitted", None)}
+for n, (st, confirmer) in TS_OCT.items():
+    insert("timesheets", [dict(id=uid(f"ts-{n}-2026-10"), employee_id=E(n), period_year=2026, period_month=10, **summarize(n, 2026, 10),
+        status=st, submitted_at="2026-11-02 09:00:00+07", confirmed_by=E(confirmer) if confirmer else None,
+        confirmed_at="2026-11-03 10:00:00+07" if confirmer else None)])
+
 for e in emps:
     n, hire = e[0], e[7]
     if hire.year == 2026:
@@ -219,6 +284,7 @@ ASSETS = [
   ("tbl_payrolls", "payrolls", "table", "PostgreSQL", 2, "confidential", "HR", "Bảng lương hằng tháng: Gross, bảo hiểm, thuế, Net"),
   ("tbl_insurance", "insurance_records", "table", "PostgreSQL", 2, "confidential", "HR", "Quá trình đóng BHXH, BHYT, BHTN theo tháng"),
   ("tbl_leave", "leave_requests / leave_balances", "table", "PostgreSQL", 2, "internal", "HR", "Đơn nghỉ phép và quỹ phép năm"),
+  ("tbl_timesheets", "attendance_records / timesheets", "table", "PostgreSQL", 2, "internal", "HR", "Chấm công từng ngày và bảng công tháng (căn cứ tính lương)"),
   ("tbl_proposals", "salary_proposals / approval_steps", "table", "PostgreSQL", 2, "confidential", "HR", "Đề xuất tăng lương và lịch sử duyệt từng cấp"),
   ("tbl_notifications", "notifications", "table", "PostgreSQL", 2, "internal", "IT", "Thông báo gửi cho người dùng"),
   ("tbl_audit", "audit_logs", "table", "PostgreSQL", 2, "confidential", "Kiểm toán", "Nhật ký bất biến, liên kết chuỗi băm SHA-256"),
@@ -255,6 +321,10 @@ EDGES = [
   ("proc_leave", "tbl_notifications", "BPMN Flowable gọi BFF tạo thông báo"),
   ("proc_proposal", "tbl_notifications", "BPMN Flowable gọi BFF tạo thông báo"),
   ("proc_onboarding", "tbl_notifications", "BPMN Flowable gọi BFF tạo thông báo"),
+  ("tbl_leave", "tbl_timesheets", "Đơn nghỉ đã duyệt thành ngày nghỉ hưởng lương / không lương"),
+  ("tbl_timesheets", "proc_payroll", "Ngày công hưởng lương, giờ làm thêm (bảng công đã chốt)"),
+  ("tbl_timesheets", "out_portal", "GraphQL theo quyền hàng"),
+  ("tbl_timesheets", "proc_audit", "Trigger ghi mọi thay đổi bảng công tháng"),
   ("tbl_contracts", "proc_payroll", "Lương cơ bản, phụ cấp"),
   ("tbl_employees", "proc_payroll", "Người phụ thuộc, vùng lương"),
   ("proc_payroll", "tbl_payrolls", "Gross → Net hằng tháng"),
