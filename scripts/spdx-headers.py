@@ -57,11 +57,13 @@ def candidates():
 
 
 def header_lines(kind: str):
+    # REUSE-IgnoreStart
     if kind == "xml":
         return [f"<!-- SPDX-License-Identifier: {SPDX_ID}", f"     {COPYRIGHT} -->"]
     if kind == "css":
         return [f"/* SPDX-License-Identifier: {SPDX_ID}", f"   {COPYRIGHT} */"]
     return [f"{kind} SPDX-License-Identifier: {SPDX_ID}", f"{kind} {COPYRIGHT}"]
+    # REUSE-IgnoreEnd
 
 
 def has_header(text: str) -> bool:

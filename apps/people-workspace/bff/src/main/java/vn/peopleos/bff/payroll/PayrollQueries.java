@@ -60,7 +60,8 @@ final class PayrollQueries {
             mutation PrPayrolls($objs: [payrolls_insert_input!]!) {
               insert_payrolls(objects: $objs, on_conflict: {constraint: payrolls_employee_id_period_year_period_month_key,
                 update_columns: [base_salary, allowance, overtime_pay, bonus, gross, insured_salary, bhxh_employee, bhyt_employee,
-                                 bhtn_employee, taxable_income, personal_income_tax, net_salary, status]}) { affected_rows }
+                                 bhtn_employee, taxable_income, personal_income_tax, net_salary, status,
+                                 standard_days, paid_days, overtime_hours]}) { affected_rows }
             }""";
 
     /** Các dòng lương của một tháng để phát hành. */

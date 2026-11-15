@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
 import { AlertTriangle, Inbox, Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge } from './ui/badge'

@@ -6,6 +6,29 @@ Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 th
 lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
 
 ## [Unreleased]
+### Added
+- **Bảng công cho cả 6 vai trò** (migration `1760000000012_timesheets`): bảng `attendance_records` (chấm công từng ngày) và `timesheets` (bảng công tháng) có RLS và khóa ngoại tổng hợp theo tenant;
+  BFF `timesheet/` (`/api/attendance/check-in`, `/check-out`, `/days`, `/api/timesheets`, `/submit`, `/{id}/decision`); trang **Bảng công**; quyền Hasura theo vai trò
+  (Nhân viên, Admin: của mình; Quản lý: của mình và nhân viên trực thuộc; HR, Kế toán, Giám đốc: toàn công ty).
+- **Lương tính theo bảng công:** HR chốt công sẽ khóa bảng công của tháng; Kế toán tính lương cơ bản và phụ cấp theo ngày công hưởng lương, tiền làm thêm giờ tự tính từ số giờ
+  (150% / 200% / 300%); phiếu lương lưu công chuẩn, ngày công và giờ làm thêm (`payrolls.standard_days`, `paid_days`, `overtime_hours`).
+- Dữ liệu mẫu: chấm công tháng 10 và 11/2026, bảng công tháng 10; thêm tài sản `tbl_timesheets` vào phả hệ dữ liệu (32 tài sản, 56 quan hệ).
+- Kiểm thử: 17 test JUnit cho tổng hợp bảng công và quy đổi lương; ca T16 (cô lập tenant của bảng công) trong `scripts/tests/tenant_isolation.sql`.
+- `REUSE.toml` và thư mục `LICENSES/` (Apache-2.0, MIT): toàn kho đạt chuẩn REUSE 3.3, kể cả tệp JSON, metadata Hasura, Markdown không mang được header.
+- CI job `license-compliance` chạy thêm `reuse lint`.
+### Changed
+- Kỳ lương cũ không có bảng công đã chốt vẫn tính đủ tháng như trước; `overtime_pay` trong `adjustments` trở thành giá trị nhập đè (để trống: tự tính).
+- Đồng bộ số phiên bản các thành phần (BFF, Workflow Engine, frontend, Developer Portal, platform-api, RAG) với phiên bản phát hành của dự án.
+- RAG service: khi chạy ngoài Docker, mặc định đọc tri thức từ `ai/knowledge` trong kho mã (vẫn ghi đè được bằng `KNOWLEDGE_DIR`).
+### Fixed
+- **Frontend gửi sai định dạng khóa JSON:** các trang Kỳ lương, Nghỉ việc, KPI, Tạm ứng, Quyền tạm thời, Thuế và báo cáo năm gửi khóa camelCase (`employeeId`, `lastWorkingDay`...) trong khi BFF
+  đọc snake_case và bỏ qua khóa lạ, nên các trường này thành null phía server và yêu cầu bị từ chối 400. `api()` nay chuẩn hóa mọi khóa sang snake_case.
+- Chỉ cho chốt công khi tháng đã kết thúc (trước đây chốt được tháng đang diễn ra).
+- Thông báo nghỉ phép hiển thị "2 ngày" thay vì "2.0 ngày".
+- Keycloak: thêm claim `tenant_id` vào realm và tự bootstrap trong `setup.sh`; `setup.sh` qua ShellCheck SC2034.
+- Ghi công tác giả shadcn/ui (MIT) cho các thành phần `components/ui/*` phỏng theo shadcn/ui.
+- Bổ sung dòng bản quyền còn thiếu ở 10 tệp (Dockerfile RAG, các trang frontend, `requirements.txt`).
+- `.gitignore`: chặn `*.tsbuildinfo` do `npm run build` sinh ra.
 
 ## [2.2.0] - 2026-11-10
 ### Added
@@ -128,3 +151,9 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 - **AI Assistant:** RAG trên Luật Lao động 2019, Luật BHXH 2024, thuế TNCN 2026, chính sách nội bộ; tính Gross↔Net; tra cứu dữ liệu theo quyền.
 - Tài liệu: architecture, api-reference, deployment, demo-script; scripts setup/init-db/seed-data; healthcheck.
 - Test: 7 (tính lương) + 21 (RAG) bằng pytest đã chạy; JUnit 5 + Mockito cho backend Java đã viết nhưng chưa chạy được trong môi trường phát triển.
+
+[Unreleased]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.0.1...v2.1.0
+[2.0.1]: https://github.com/Nguyen16112006/PeopleOS/compare/v1.1.0...v2.0.1
+[1.1.0]: https://github.com/Nguyen16112006/PeopleOS/releases/tag/v1.1.0

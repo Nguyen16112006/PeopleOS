@@ -34,6 +34,14 @@ Frontend chỉ **đọc** bằng GraphQL (và đánh dấu đã đọc thông b�
 | `POST /api/leave-requests` | đăng nhập | Tạo đơn: `{leave_type, start_date, end_date, reason?}`. 400 nếu không đủ phép, 409 nếu trùng ngày |
 | `POST /api/leave-requests/{id}/decision` | quản lý trực tiếp / HR / Admin | `{decision: "approve"\|"reject", note?}`. 403 nếu tự duyệt; 409 nếu đã xử lý |
 | `POST /api/leave-requests/{id}/cancel` | chủ đơn | Huỷ đơn đang chờ |
+| `POST /api/attendance/check-in`, `/check-out` | đăng nhập (cả 6 vai trò) | Chấm công vào/ra hôm nay (giờ Việt Nam). 409 nếu đã chấm, hoặc bảng công tháng đã gửi/đã chốt |
+| `PUT /api/attendance/days` | đăng nhập / HR | Khai hoặc sửa công một ngày: `{work_date, status, work_days?, overtime_hours?, overtime_type?, note?, employee_id?}`. Tự khai: `status` ∈ `present`, `remote`, `business_trip`, không khai ngày chưa đến. HR (kèm `employee_id`) dùng được mọi loại: thêm `holiday`, `paid_leave`, `unpaid_leave`, `absent` |
+| `GET /api/timesheets?year=&month=&employee_id=` | chủ bảng công / quản lý trực tiếp / HR / Kế toán / Giám đốc | Bảng công tháng tính trực tiếp: công chuẩn, công hưởng lương, nghỉ, vắng, giờ làm thêm, `missing_dates`, `status`, `editable` |
+| `POST /api/timesheets/submit` | đăng nhập | `{year, month}`: gửi bảng công để xác nhận. 409 nếu đã gửi |
+| `POST /api/timesheets/{id}/decision` | quản lý trực tiếp / HR / Giám đốc (người không có quản lý) | `{decision: "approve"\|"reject", note?}`; trả lại bắt buộc có `note`. 403 nếu tự xác nhận |
+| `POST /api/payroll-runs` | HR | `{year, month}`: chốt công (khóa bảng công cả tháng) và tạo kỳ lương. 400 nếu tháng chưa kết thúc; 409 nếu đã có kỳ lương |
+| `POST /api/payroll-runs/{id}/calculate` | Kế toán | `{adjustments?: [{employee_id, overtime_pay?, bonus?}]}`: tính lương theo bảng công đã chốt; `overtime_pay` để trống thì tự tính từ giờ làm thêm |
+| `POST /api/payroll-runs/{id}/hr-review`, `/decision`, `/pay` | HR / Giám đốc / Kế toán | Rà soát, duyệt (`{decision, comment?}`), chi trả và phát hành phiếu lương |
 | `POST /api/salary-proposals` | manager (nhóm mình) / hr / admin | `{employee_id, proposal_type: "raise"\|"allowance", proposed_amount, reason, effective_date?}` |
 | `POST /api/salary-proposals/{id}/decision` | HR (bước 1) / Admin (mọi bước) | `{decision, comment?}`; duyệt cấp cuối sẽ cập nhật hợp đồng |
 | `POST /api/employees` | hr / admin | Onboarding: tạo hồ sơ, hợp đồng, quỹ phép, tài khoản SSO; trả `employee_code` và mật khẩu tạm |

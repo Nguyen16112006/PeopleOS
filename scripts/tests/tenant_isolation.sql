@@ -177,6 +177,28 @@ DO $$ BEGIN
   RAISE NOTICE 'PASS T15b tham chiếu cùng tenant vẫn ghi được';
 END $$;
 
+-- ---- Bảng công (migration 1760000000012): bảng tạo sau đợt đa tenant cũng phải có RLS và FK tổng hợp ----
+DO $$
+DECLARE n int;
+BEGIN
+  BEGIN
+    INSERT INTO attendance_records (employee_id, work_date) VALUES ('b2000000-0000-0000-0000-000000000001', '2026-10-01');
+    RAISE EXCEPTION 'FAIL T16: A chấm công được cho nhân viên của B';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO timesheets (employee_id, period_year, period_month) VALUES ('b2000000-0000-0000-0000-000000000001', 2026, 10);
+    RAISE EXCEPTION 'FAIL T16: A tạo được bảng công cho nhân viên của B';
+  EXCEPTION WHEN foreign_key_violation THEN NULL;
+  END;
+  INSERT INTO attendance_records (employee_id, work_date) VALUES ('a2000000-0000-0000-0000-000000000002', '2026-10-01');
+  INSERT INTO timesheets (employee_id, period_year, period_month) VALUES ('a2000000-0000-0000-0000-000000000002', 2026, 10);
+  PERFORM set_config('hasura.user', '{"x-hasura-tenant-id":"bbbbbbbb-0000-0000-0000-00000000000b"}', true);
+  SELECT (SELECT count(*) FROM attendance_records) + (SELECT count(*) FROM timesheets) INTO n;
+  IF n <> 0 THEN RAISE EXCEPTION 'FAIL T16: tenant B thấy % dòng chấm công/bảng công của A', n; END IF;
+  RAISE NOTICE 'PASS T16  bảng công: FK chéo tenant bị chặn, tenant khác không đọc được';
+END $$;
+
 RESET ROLE;
 ROLLBACK;
 \echo '>>> Tất cả ca bắt buộc đạt. Dữ liệu thử đã ROLLBACK.'

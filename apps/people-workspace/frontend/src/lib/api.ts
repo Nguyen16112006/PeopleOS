@@ -29,12 +29,25 @@ export async function gql<T>(query: string, variables: Record<string, unknown> =
   return json.data as T
 }
 
-/** Gọi REST của BFF qua API Gateway. */
+/**
+ * Đổi mọi khóa của body sang snake_case (employeeId -> employee_id), đệ quy qua mảng và object lồng nhau.
+ * BFF đọc JSON theo snake_case (spring.jackson.property-naming-strategy=SNAKE_CASE) và âm thầm bỏ qua khóa lạ,
+ * nên một khóa camelCase gửi lên sẽ thành null phía server. Chuẩn hóa tại một chỗ để mọi trang gửi đúng định dạng.
+ */
+export function toSnakeKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toSnakeKeys)
+  if (value === null || typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype) return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([k, v]) => [k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`), toSnakeKeys(v)]),
+  )
+}
+
+/** Gọi REST của BFF qua API Gateway. Khóa của body được chuẩn hóa sang snake_case. */
 export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(await authHeaders()) },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? JSON.stringify(toSnakeKeys(body)) : undefined,
   })
   const json = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(errorText(json, res.status))

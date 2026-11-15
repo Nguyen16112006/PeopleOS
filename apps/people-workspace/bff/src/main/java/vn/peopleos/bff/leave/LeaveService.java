@@ -156,7 +156,7 @@ public class LeaveService {
         if ("hr".equals(stage) && approve) {
             hasura.query(LeaveQueries.STAGE, Params.of("id", requestId, "stage", "director"));
             notifications.notify(Target.role("director"), "Đơn nghỉ phép chờ Giám đốc duyệt",
-                    emp.get("full_name").asText() + " xin nghỉ " + req.get("days").asDouble() + " ngày (HR đã kiểm tra ngày phép).",
+                    emp.get("full_name").asText() + " xin nghỉ " + fmt(req.get("days").asDouble()) + " ngày (HR đã kiểm tra ngày phép).",
                     "leave_request", requestId, "leave.pending");
             audit.record(user, "LEAVE.HR_CHECKED", "leave_request", requestId,
                     Params.of("employee", emp.get("full_name").asText(), "note", body.note()));
@@ -172,7 +172,7 @@ public class LeaveService {
                     Integer.parseInt(req.get("start_date").asText().substring(0, 4)), req.get("days").asDouble());
             // Báo HR chỉnh công / lưu lại
             notifications.notify(Target.role("hr"), "Đơn nghỉ phép đã duyệt - cần chỉnh công",
-                    emp.get("full_name").asText() + " nghỉ " + req.get("days").asDouble() + " ngày ("
+                    emp.get("full_name").asText() + " nghỉ " + fmt(req.get("days").asDouble()) + " ngày ("
                             + req.get("start_date").asText() + " → " + req.get("end_date").asText() + ").",
                     "leave_request", requestId, "leave.adjust_timesheet");
         }

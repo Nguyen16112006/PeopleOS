@@ -182,6 +182,8 @@ jobs:
         with: { python-version: "3.12" }
       - name: Mọi tệp mã có header SPDX
         run: python scripts/spdx-headers.py --check
+      - name: Toàn kho tuân thủ chuẩn REUSE 3.3 (giấy phép + bản quyền cho từng tệp)
+        run: pipx run reuse==5.* lint
       - name: Không có bí mật/dump lọt vào gói phát hành
         run: python scripts/make-release.py --check
       - name: Gói .tar.gz tái lập được (build 2 lần phải giống hệt)

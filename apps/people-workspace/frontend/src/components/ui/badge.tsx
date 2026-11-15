@@ -1,5 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
-// Copyright (c) 2026 PeopleOS contributors
+// SPDX-License-Identifier: Apache-2.0 AND MIT
+// SPDX-FileCopyrightText: 2026 PeopleOS contributors
+// SPDX-FileCopyrightText: 2023 shadcn
+// Phỏng theo thành phần của shadcn/ui (https://github.com/shadcn-ui/ui, giấy phép MIT),
+// đã được PeopleOS rút gọn và chỉnh sửa. Bản quyền và giấy phép gốc: LICENSES/MIT.txt.
 
 import { cva, type VariantProps } from 'class-variance-authority'
 import type { HTMLAttributes } from 'react'

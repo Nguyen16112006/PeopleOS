@@ -21,6 +21,7 @@ import Payroll from '@/pages/Payroll'
 import TaxYear from '@/pages/TaxYear'
 import Offboarding from '@/pages/Offboarding'
 import TempAccess from '@/pages/TempAccess'
+import Timesheet from '@/pages/Timesheet'
 import Onboarding from '@/pages/Onboarding'
 import Payslips from '@/pages/Payslips'
 import Profile from '@/pages/Profile'
@@ -46,6 +47,7 @@ export default function App() {
                 <Route path="contracts" element={<Contracts />} />
                 <Route path="payslips" element={<Payslips />} />
                 <Route path="insurance" element={<Insurance />} />
+                <Route path="timesheet" element={<Timesheet />} />
                 <Route path="leave" element={<Leave />} />
                 <Route path="tax-year" element={<TaxYear />} />
                 <Route path="kpi" element={<Kpi />} />

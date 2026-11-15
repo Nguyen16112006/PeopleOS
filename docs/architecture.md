@@ -74,7 +74,7 @@ flowchart TB
 
 | Thành phần | Trách nhiệm |
 |---|---|
-| **Frontend** | 19 trang: Tổng quan, Hồ sơ, Hợp đồng, Phiếu lương, BHXH/BHYT, Nghỉ phép, Thuế và báo cáo năm, KPI, Nghỉ việc, Kỳ lương, Tạm ứng và chi phí, Phê duyệt, Đề xuất tăng lương, Onboarding, Trợ lý AI, Dashboard điều hành, Phả hệ dữ liệu, Quyền tạm thời, Kiểm toán (menu hiển thị theo vai trò). Đọc dữ liệu bằng GraphQL; gọi BFF cho hành động nghiệp vụ. |
+| **Frontend** | 20 trang: Tổng quan, Hồ sơ, Hợp đồng, Phiếu lương, BHXH/BHYT, Bảng công, Nghỉ phép, Thuế và báo cáo năm, KPI, Nghỉ việc, Kỳ lương, Tạm ứng và chi phí, Phê duyệt, Đề xuất tăng lương, Onboarding, Trợ lý AI, Dashboard điều hành, Phả hệ dữ liệu, Quyền tạm thời, Kiểm toán (menu hiển thị theo vai trò). Đọc dữ liệu bằng GraphQL; gọi BFF cho hành động nghiệp vụ. |
 | **Backend (Java 21 · Spring Boot 3)** | Logic nghiệp vụ + kiểm tra quyền cho: nghỉ phép, đề xuất lương nhiều cấp, onboarding (tạo tài khoản Keycloak); sinh PDF và lưu MinIO; cầu nối NATS → WebSocket. |
 | **RAG service** | Phân loại câu hỏi → công cụ tính lương / tra cứu Hasura bằng JWT của người hỏi / RAG trên kho tri thức. |
 

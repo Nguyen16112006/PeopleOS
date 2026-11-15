@@ -39,11 +39,12 @@ Tài khoản demo (mật khẩu chung `Peopleos@123`):
 | Nghỉ việc | `employee` xin nghỉ → `manager` chốt ngày → `hr` → bàn giao → chốt công → `accountant` lương cuối → `director` → chi trả → `hr` chấm dứt hợp đồng | Nghỉ việc |
 | Tạm ứng / chi phí | `employee` gửi 25.000.000 đ → `manager` → `director` (cấp 2) → `accountant` chi → `employee` hoàn ứng → `accountant` quyết toán | Tạm ứng và chi phí |
 | KPI quý | `hr` mở chu kỳ → `manager` giao mục tiêu (tổng 100%) và chấm → `director` giao/chấm cho `manager` → `hr` tổng hợp → `director` duyệt → `employee` xem và phản hồi | Đánh giá KPI |
-| Kỳ lương | `hr` chốt công tháng → `accountant` tính → `hr` rà soát → `director` duyệt → `accountant` chi trả → `employee` khiếu nại phiếu lương → `hr` → `accountant` điều chỉnh | Kỳ lương, Bảng lương |
+| Bảng công | mọi tài khoản chấm công vào/ra, khai làm thêm giờ → gửi bảng công tháng → `manager` (hoặc `hr`) xác nhận / trả lại → `hr` sửa công nếu cần | Bảng công |
+| Kỳ lương | `hr` chốt công tháng (khóa bảng công) → `accountant` tính theo ngày công → `hr` rà soát → `director` duyệt → `accountant` chi trả → `employee` khiếu nại phiếu lương → `hr` → `accountant` điều chỉnh | Kỳ lương, Bảng lương |
 | Thuế và báo cáo năm | `hr` xác nhận → `accountant` quyết toán (phát chứng từ) → lập báo cáo → `director` duyệt → ngân sách năm sau | Thuế và báo cáo năm |
 | Quyền tạm thời | `admin` tạo yêu cầu → `accountant` (hoặc `hr`) và `director` cùng duyệt | Quyền tạm thời |
 
-Lưu ý: dữ liệu mẫu đã có lương **đã chi trả từ tháng 1 đến tháng 9/2026**. Hệ thống không cho chốt công tháng đã có lương đã chi trả, nên khi thử kỳ lương hãy chọn **tháng 10/2026** (giao diện mặc định là tháng trước, tức tháng 9, sẽ báo trùng). Trang Thuế và báo cáo năm dùng dữ liệu lương 2026 có sẵn.
+Lưu ý: dữ liệu mẫu đã có lương **đã chi trả từ tháng 1 đến tháng 9/2026**. Hệ thống không cho chốt công tháng đã có lương đã chi trả, nên khi thử kỳ lương hãy chọn **tháng 10/2026** (giao diện mặc định là tháng trước, tức tháng 9, sẽ báo trùng). Dữ liệu mẫu có sẵn chấm công tháng 10 và 11/2026: bảng công tháng 10 của 5 người đã xác nhận, của `employee2` đang chờ `manager` xác nhận, của `employee` chưa gửi (`employee` và `employee2` còn đơn nghỉ phép tháng 10 chờ `manager` duyệt; duyệt xong các ngày đó tự thành nghỉ hưởng lương). Trang Thuế và báo cáo năm dùng dữ liệu lương 2026 có sẵn.
 
 ## 3. Đã kiểm tra và chưa kiểm tra
 
@@ -76,7 +77,7 @@ cd ../frontend && npm ci && npm run build
 ## 5. Giới hạn đã biết
 
 - **Quyền tạm thời mới là bản ghi và nhật ký**: chưa có API nào dùng quyền đó để mở dữ liệu cho Admin (`TempAccessService.hasActiveGrant` chưa được nối).
-- Chưa có bảng chấm công chi tiết: tiền làm thêm giờ và thưởng do Kế toán nhập tay khi tính lương; lương tính đủ tháng, không theo ngày công thực tế.
+- Bảng công: chưa có lịch ngày lễ và ca làm việc (HR ghi nhận ngày lễ từng ngày), chưa nối máy chấm công, chưa xử lý làm thêm ban đêm và phần tiền làm thêm miễn thuế.
 - Việc khai và nộp thuế/BHXH định kỳ với cơ quan nhà nước nằm ngoài hệ thống.
 - Giám đốc và Kế toán đọc đủ cột hồ sơ nhân viên (Hasura chỉ cho một bộ cột mỗi vai trò).
 - Tài khoản Keycloak của nhân viên mới do hệ thống tạo tự động khi HR tạo hồ sơ (không qua bước Admin tạo tay như tài liệu mô tả ban đầu).
