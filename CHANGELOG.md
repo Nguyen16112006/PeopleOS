@@ -7,6 +7,18 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-11-15
+### Added
+- `REUSE.toml` và thư mục `LICENSES/` (Apache-2.0, MIT): toàn kho đạt chuẩn REUSE 3.3, kể cả tệp JSON, metadata Hasura, Markdown không mang được header.
+- CI job `license-compliance` chạy thêm `reuse lint`.
+- README: mục "Bản phát hành" (tag, gói `.tar.gz` + `SHA256SUMS`, cách kiểm tra gói tải về).
+### Changed
+- Đồng bộ số phiên bản các thành phần (BFF, Workflow Engine, frontend, Developer Portal, platform-api, RAG) với phiên bản phát hành của dự án.
+### Fixed
+- Ghi công tác giả shadcn/ui (MIT) cho các thành phần `components/ui/*` phỏng theo shadcn/ui.
+- Bổ sung dòng bản quyền còn thiếu ở 10 tệp (Dockerfile RAG, các trang frontend, `requirements.txt`).
+- `generate_seed.py`: tách chuỗi header SPDX ghi vào `seed.sql` để `reuse lint` không hiểu nhầm là header của chính tệp.
+
 ## [2.2.1] - 2026-11-15
 ### Changed
 - RAG service: khi chạy ngoài Docker, mặc định đọc tri thức từ `ai/knowledge` trong kho mã (vẫn ghi đè được bằng `KNOWLEDGE_DIR`).
