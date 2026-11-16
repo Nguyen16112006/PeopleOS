@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import React from 'react';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';

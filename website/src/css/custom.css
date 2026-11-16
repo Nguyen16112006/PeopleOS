@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: Apache-2.0
+   Copyright (c) 2026 PeopleOS contributors */
+
 /* Theme navy của PeopleOS - khớp bảng màu developer-portal. Bố cục học theo reactnative.dev. */
 :root {
   --ifm-color-primary: #2f5d9a;

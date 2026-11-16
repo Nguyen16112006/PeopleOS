@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 import React from 'react';
 
 // Khóa vai trò trong hệ thống -> nhãn hiển thị (xem docs/ROLES_AND_WORKFLOWS.md).

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 PeopleOS contributors
+
 // Bố cục học theo reactnative.dev: Hướng dẫn (học dần từ cơ bản) · Platform API · HR Workspace API.
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
