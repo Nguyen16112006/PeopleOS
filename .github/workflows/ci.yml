@@ -205,6 +205,8 @@ jobs:
           - { name: platform-api, file: apps/platform/platform-api/Dockerfile, context: apps/platform/platform-api }
           - { name: developer-portal, file: apps/developer-portal/Dockerfile, context: apps/developer-portal }
           - { name: db-migrate, file: core/data/structured/Dockerfile.migrate, context: . }
+          - { name: hasura-metadata, file: core/data/structured/Dockerfile.metadata, context: . }
+          - { name: minio, file: core/data/unstructured/minio/Dockerfile, context: core/data/unstructured/minio }
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f ${{ matrix.file }} -t peopleos/${{ matrix.name }}:ci ${{ matrix.context }}

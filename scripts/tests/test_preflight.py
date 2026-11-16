@@ -18,6 +18,8 @@ def test_resolve_uses_env_then_default():
 def test_images_pinned_and_resolved():
     imgs = pf.extract_images((ROOT / "infrastructure/docker-compose.yml").read_text(encoding="utf-8"), {})
     assert "ollama/ollama:0.32.6" in imgs
+    assert "hasura/graphql-engine:v2.40.0-ce.cli-migrations-v3" in imgs                    # bản Community, không kèm EE
+    assert not any("minio-mirror" in i for i in imgs)                                       # MinIO build từ mã nguồn
     assert not any(i.endswith(":latest") or ":" not in i for i in imgs), [i for i in imgs if i.endswith(":latest") or ":" not in i]
     over = pf.extract_images((ROOT / "infrastructure/docker-compose.paas.yml").read_text(encoding="utf-8"), {})
     assert "valkey/valkey:8-alpine" in over and not any("redis" in i for i in over)         # không còn Redis

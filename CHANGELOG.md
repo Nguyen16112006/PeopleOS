@@ -6,6 +6,13 @@ Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 th
 lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
 
 ## [Unreleased]
+### Fixed
+- **Giấy phép - Hasura:** đổi sang tag Community `hasura/graphql-engine:v2.40.0-ce` / `v2.40.0-ce.cli-migrations-v3` (compose, `Dockerfile.metadata`,
+  `k8s/cell/hasura.yaml`); image thường từ v2.12.0 chứa thêm thành phần Enterprise độc quyền.
+- **Giấy phép - MinIO:** bỏ image mirror bên thứ ba `scnd/minio-mirror`; MinIO + mc build từ tag phát hành chính thức
+  (`core/data/unstructured/minio/Dockerfile`, image `peopleos/minio:RELEASE.2025-10-15T17-29-55Z`). CI build thêm image `minio` và `hasura-metadata`;
+  `preflight.py --check-images` bỏ qua image `peopleos/*` build tại chỗ.
+- `THIRD_PARTY_LICENSES.md` viết lại: mỗi thành phần ghi rõ dùng ở tệp nào (có link), giấy phép và mức đáp ứng yêu cầu của dự án.
 ### Changed
 - **Giao diện mới cho People Workspace và Developer Portal** (cùng một bộ nhận diện): menu bên trái xanh dương mực, nền xám lạnh, phông Be Vietnam Pro
   (hiển thị đúng dấu tiếng Việt), cỡ chữ lớn hơn, số tiền và ngày tháng thẳng cột; có chế độ nền tối (nút trên thanh trên cùng, ghi nhớ lựa chọn).
