@@ -5,6 +5,9 @@ import { useState } from 'react'
 import { call, type ApiKey } from '../api'
 import { Card, ErrorBox, Secret, fmt, useLoad } from '../ui'
 
+const SCOPE: Record<string, string> = { read: 'Chỉ đọc', write: 'Đọc và ghi' }
+const ENV: Record<string, string> = { sandbox: 'Thử nghiệm', live: 'Chính thức' }
+
 export default function Keys({ projectId }: { projectId: string }) {
   const { data, error, reload } = useLoad(() => call<ApiKey[]>(`/v1/projects/${projectId}/api-keys`), [projectId])
   const [name, setName] = useState('')
@@ -21,34 +24,46 @@ export default function Keys({ projectId }: { projectId: string }) {
     } catch (e) { setErr((e as Error).message) }
   }
   async function revoke(k: ApiKey) {
-    if (!window.confirm(`Thu hồi khóa ${k.prefix}…? Ứng dụng đang dùng khóa này sẽ ngừng hoạt động.`)) return
+    if (!window.confirm(`Thu hồi khóa "${k.name}" (${k.prefix}…)? Ứng dụng đang dùng khóa này sẽ bị từ chối ngay.`)) return
     try { await call<void>(`/v1/projects/${projectId}/api-keys/${k.id}`, { method: 'DELETE' }); reload() } catch (e) { setErr((e as Error).message) }
   }
 
   return (
     <>
-      {fresh && <Secret label="API key mới" value={fresh} onClose={() => setFresh(null)} />}
-      <Card title="API keys">
+      {fresh && <Secret label="API key vừa tạo" value={fresh} onClose={() => setFresh(null)} />}
+      <Card title="Khóa đang có">
         <ErrorBox message={error ?? err} />
-        <table>
-          <thead><tr><th>Tên</th><th>Tiền tố</th><th>Phạm vi</th><th>Môi trường</th><th>Tạo lúc</th><th /></tr></thead>
-          <tbody>
-            {data?.map(k => (
-              <tr key={k.id} className={k.revoked_at ? 'muted' : ''}>
-                <td>{k.name}</td><td><code>{k.prefix}…</code></td><td>{k.scope}</td><td>{k.env}</td><td>{fmt(k.created_at)}</td>
-                <td>{k.revoked_at ? 'đã thu hồi' : <button className="danger" onClick={() => void revoke(k)}>Thu hồi</button>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {data?.length === 0 ? <p className="empty">Dự án chưa có API key nào.</p> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Tên</th><th>Tiền tố</th><th>Quyền</th><th>Môi trường</th><th>Ngày tạo</th><th /></tr></thead>
+              <tbody>
+                {data?.map(k => (
+                  <tr key={k.id} className={k.revoked_at ? 'muted' : ''}>
+                    <td>{k.name}</td><td><code>{k.prefix}…</code></td><td>{SCOPE[k.scope] ?? k.scope}</td><td>{ENV[k.env] ?? k.env}</td><td>{fmt(k.created_at)}</td>
+                    <td className="actions">{k.revoked_at ? `Thu hồi ${fmt(k.revoked_at)}` : <button className="danger small" onClick={() => void revoke(k)}>Thu hồi</button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
       <Card title="Tạo API key">
-        <label>Tên<input value={name} onChange={e => setName(e.target.value)} placeholder="server-backend" /></label>
+        <label>Tên gợi nhớ<input value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: máy chủ backend" /></label>
         <div className="row">
-          <label>Phạm vi<select value={scope} onChange={e => setScope(e.target.value as 'read' | 'write')}><option value="read">read (chỉ đọc)</option><option value="write">write (đọc + ghi)</option></select></label>
-          <label>Môi trường<select value={env} onChange={e => setEnv(e.target.value as 'sandbox' | 'live')}><option value="sandbox">sandbox</option><option value="live">live</option></select></label>
+          <label>Quyền
+            <select value={scope} onChange={e => setScope(e.target.value as 'read' | 'write')}>
+              <option value="read">Chỉ đọc</option><option value="write">Đọc và ghi</option>
+            </select>
+          </label>
+          <label>Môi trường
+            <select value={env} onChange={e => setEnv(e.target.value as 'sandbox' | 'live')}>
+              <option value="sandbox">Thử nghiệm (sandbox)</option><option value="live">Chính thức (live)</option>
+            </select>
+          </label>
+          <button disabled={!name.trim()} onClick={() => void create()}>Tạo khóa</button>
         </div>
-        <button disabled={!name.trim()} onClick={() => void create()}>Tạo khóa</button>
       </Card>
     </>
   )

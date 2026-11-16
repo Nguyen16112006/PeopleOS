@@ -6,6 +6,7 @@ import { call, type CustomFieldDef } from '../api'
 import { Card, ErrorBox, useLoad } from '../ui'
 
 const TYPES = ['string', 'number', 'boolean', 'date', 'enum'] as const
+const TYPE_LABEL: Record<string, string> = { string: 'Văn bản', number: 'Số', boolean: 'Có / không', date: 'Ngày', enum: 'Danh sách chọn' }
 
 export default function Fields({ projectId }: { projectId: string }) {
   const { data, error, reload } = useLoad(() => call<CustomFieldDef[]>(`/v1/projects/${projectId}/custom-fields`), [projectId])
@@ -32,27 +33,41 @@ export default function Fields({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <Card title="Trường tùy chỉnh của nhân viên">
+      <Card title="Trường của hồ sơ nhân viên">
         <ErrorBox message={error ?? err} />
-        <p><small>Lưu trong cột <code>custom</code> (JSON) của bảng <code>employees</code>, kiểm tra kiểu dữ liệu ở cơ sở dữ liệu - không cần DDL.</small></p>
-        <table>
-          <thead><tr><th>Khóa</th><th>Kiểu</th><th>Bắt buộc</th><th>Giá trị</th><th /></tr></thead>
-          <tbody>
-            {data?.map(f => (
-              <tr key={f.key}><td><code>{f.key}</code></td><td>{f.type}</td><td>{f.required ? 'có' : ''}</td><td>{f.options?.join(', ')}</td>
-                <td><button className="danger" onClick={() => void remove(f)}>Gỡ</button></td></tr>
-            ))}
-          </tbody>
-        </table>
+        <p className="hint">Giá trị được lưu trong cột <code>custom</code> (JSON) của bảng <code>employees</code> và được kiểm tra kiểu ngay ở cơ sở dữ liệu.</p>
+        {data?.length === 0 ? <p className="empty">Chưa có trường tùy chỉnh nào.</p> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Khóa</th><th>Kiểu</th><th>Bắt buộc</th><th>Giá trị cho phép</th><th /></tr></thead>
+              <tbody>
+                {data?.map(f => (
+                  <tr key={f.key}>
+                    <td><code>{f.key}</code></td><td>{TYPE_LABEL[f.type] ?? f.type}</td><td>{f.required ? 'Có' : 'Không'}</td><td>{f.options?.join(', ') ?? ''}</td>
+                    <td className="actions"><button className="danger small" onClick={() => void remove(f)}>Gỡ</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
       <Card title="Thêm trường">
         <div className="row">
-          <label>Khóa<input value={key} onChange={e => setKey(e.target.value)} placeholder="level" /></label>
-          <label>Kiểu<select value={type} onChange={e => setType(e.target.value as (typeof TYPES)[number])}>{TYPES.map(t => <option key={t}>{t}</option>)}</select></label>
-          <label className="inline"><input type="checkbox" checked={required} onChange={e => setRequired(e.target.checked)} />bắt buộc</label>
+          <label>Khóa<input value={key} onChange={e => setKey(e.target.value)} placeholder="Ví dụ: level" /></label>
+          <label>Kiểu
+            <select value={type} onChange={e => setType(e.target.value as (typeof TYPES)[number])}>
+              {TYPES.map(t => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+            </select>
+          </label>
+          <label className="inline" style={{ height: 40 }}><input type="checkbox" checked={required} onChange={e => setRequired(e.target.checked)} />Bắt buộc</label>
         </div>
-        {type === 'enum' && <label>Các giá trị (cách nhau bởi dấu phẩy)<input value={options} onChange={e => setOptions(e.target.value)} placeholder="junior, senior" /></label>}
-        <button disabled={!key.trim()} onClick={() => void add()}>Thêm trường</button>
+        {type === 'enum' && (
+          <label style={{ marginTop: 14 }}>Các giá trị cho phép <span className="opt">(cách nhau bằng dấu phẩy)</span>
+            <input value={options} onChange={e => setOptions(e.target.value)} placeholder="junior, senior" />
+          </label>
+        )}
+        <div style={{ marginTop: 14 }}><button disabled={!key.trim()} onClick={() => void add()}>Thêm trường</button></div>
       </Card>
     </>
   )

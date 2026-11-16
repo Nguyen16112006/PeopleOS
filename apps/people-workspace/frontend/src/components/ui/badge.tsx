@@ -8,14 +8,14 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import type { HTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
-const badgeVariants = cva('inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap', {
+const badgeVariants = cva('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[13px] font-medium whitespace-nowrap', {
   variants: {
     variant: {
       default: 'border-transparent bg-primary/10 text-primary',
       secondary: 'border-transparent bg-slate-100 text-slate-700',
-      success: 'border-transparent bg-emerald-100 text-emerald-700',
-      warning: 'border-transparent bg-amber-100 text-amber-800',
-      destructive: 'border-transparent bg-red-100 text-red-700',
+      success: 'border-transparent bg-[#e1f0e8] text-[#24603f] dark:bg-[#5bae8f]/20 dark:text-[#9fdcbf]',
+      warning: 'border-transparent bg-[#fcf3e1] text-[#8a5a12] dark:bg-[#e0a33a]/20 dark:text-[#f0c27a]',
+      destructive: 'border-transparent bg-[#fbeeec] text-[#9c3a32] dark:bg-[#e2847b]/20 dark:text-[#f0aaa2]',
       outline: 'text-foreground',
     },
   },

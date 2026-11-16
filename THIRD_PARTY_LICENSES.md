@@ -65,6 +65,13 @@ Trọng số mô hình không phải phần mềm theo định nghĩa OSI; cột
 - Frontend: 157 gói - MIT 125, ISC 10, Apache-2.0 6, BSD-3-Clause 1, CC-BY-4.0 1 (dữ liệu `caniuse-lite`, yêu cầu ghi công); không có GPL/AGPL. (Một số mục "UNKNOWN" là tệp thử nghiệm lồng trong gói, không phải phụ thuộc thật.)
 - Trực tiếp: React, React DOM, react-router-dom, keycloak-js (Apache-2.0), lucide-react (ISC), tailwind-merge, clsx, class-variance-authority, Vite, TypeScript (Apache-2.0). Xác minh: `quét`.
 
+### Phông chữ - `apps/people-workspace/frontend`, `apps/developer-portal`
+Tải lúc chạy từ Google Fonts (thẻ `<link>` trong `index.html`), không nằm trong kho. Nếu không tải được, giao diện dùng phông của hệ thống.
+| Phông | Dùng ở | Giấy phép | OSI | Xác minh |
+|---|---|---|---|---|
+| Be Vietnam Pro | cả hai ứng dụng (chữ giao diện) | OFL-1.1 | ✔ | kiến thức chung |
+| JetBrains Mono | Developer Portal (khối mã) | OFL-1.1 | ✔ | kiến thức chung |
+
 ## 4. Thay đổi giấy phép đã thực hiện (đợt rà soát 30/10/2026)
 | Trước | Sau | Lý do |
 |---|---|---|

@@ -2,7 +2,9 @@
 // Copyright (c) 2026 PeopleOS contributors
 
 import { call, type Usage as UsageData } from '../api'
-import { Card, ErrorBox, useLoad } from '../ui'
+import { Card, ErrorBox, num, planLabel, useLoad } from '../ui'
+
+const dayLabel = (d: string) => new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })
 
 export default function Usage({ projectId }: { projectId: string }) {
   const { data, error, reload } = useLoad(() => call<UsageData>(`/v1/projects/${projectId}/usage?days=30`), [projectId])
@@ -11,30 +13,36 @@ export default function Usage({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <Card title="Hôm nay" right={<button className="ghost" onClick={reload}>Làm mới</button>}>
+      <Card title="Hôm nay" right={<button className="ghost small" onClick={reload}>Làm mới</button>}>
         <ErrorBox message={error} />
         {data && (
           <>
-            <p><b>{data.today.requests.toLocaleString('vi-VN')}</b> / {data.daily_quota.toLocaleString('vi-VN')} request (gói {data.plan}) · còn {data.today.remaining.toLocaleString('vi-VN')}</p>
-            <div className="bar"><div style={{ width: `${pct}%` }} className={pct >= 90 ? 'hot' : ''} /></div>
-            <small>Vượt hạn mức, gateway trả HTTP 429. Số liệu cập nhật theo lô (vài giây trễ).</small>
+            <p className="big-number">{num(data.today.requests)} <small>/ {num(data.daily_quota)} lượt gọi</small></p>
+            <div className="meter" role="img" aria-label={`Đã dùng ${pct}% hạn mức hôm nay`}><div style={{ width: `${pct}%` }} className={pct >= 90 ? 'hot' : ''} /></div>
+            <p className="hint" style={{ margin: '10px 0 0' }}>
+              Còn {num(data.today.remaining)} lượt trong hạn mức gói {planLabel(data.plan)}. Khi hết hạn mức, gateway trả mã HTTP 429.
+              Số liệu được cập nhật theo lô nên có thể chậm vài giây.
+            </p>
           </>
         )}
       </Card>
       <Card title="30 ngày gần nhất">
-        <table>
-          <thead><tr><th>Ngày</th><th>Request</th><th /><th>4xx</th><th>5xx</th><th>Dung lượng trả về</th></tr></thead>
-          <tbody>
-            {data?.days.map(d => (
-              <tr key={d.day}>
-                <td>{d.day}</td><td>{d.requests.toLocaleString('vi-VN')}</td>
-                <td style={{ width: '40%' }}><div className="bar thin"><div style={{ width: `${(d.requests / max) * 100}%` }} /></div></td>
-                <td>{d.errors_4xx}</td><td>{d.errors_5xx}</td><td>{(d.bytes_out / 1024).toFixed(1)} KB</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {data?.days.length === 0 && <p>Chưa có request nào qua API key.</p>}
+        {data?.days.length === 0 ? <p className="empty">Chưa có lượt gọi nào bằng API key.</p> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Ngày</th><th>Lượt gọi</th><th style={{ width: '32%' }} /><th>Lỗi 4xx</th><th>Lỗi 5xx</th><th>Dữ liệu trả về</th></tr></thead>
+              <tbody>
+                {data?.days.map(d => (
+                  <tr key={d.day}>
+                    <td>{dayLabel(d.day)}</td><td>{num(d.requests)}</td>
+                    <td><div className="meter thin"><div style={{ width: `${(d.requests / max) * 100}%` }} /></div></td>
+                    <td>{num(d.errors_4xx)}</td><td>{num(d.errors_5xx)}</td><td>{(d.bytes_out / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} KB</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </>
   )
