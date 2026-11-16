@@ -12,6 +12,10 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 - People Workspace: menu chia nhóm *Của tôi / Công việc quản lý / Hệ thống*; ô tìm trang ở thanh trên cùng (`Ctrl K` / `⌘ K`, tìm được khi gõ không dấu);
   trang **Tổng quan** có dải số liệu (phép năm còn lại, lương thực nhận, việc chờ duyệt) và danh sách **Việc cần làm** dẫn thẳng tới trang xử lý;
   nút đăng xuất hiện sẵn ở cuối menu. Bảng màu `slate`/`blue`/`indigo` của Tailwind được ánh xạ sang biến CSS nên các trang cũ đổi màu theo, không cần sửa từng trang.
+- People Workspace cá nhân hóa: trang **Tùy chỉnh giao diện** (`/settings`) cho từng người chọn cách gọi trong lời chào (tên, anh/chị + tên, họ tên),
+  màu nhấn (Mực, Chàm, Than, Cà phê), cỡ chữ, khoảng cách, nền sáng/tối/theo máy và các trang ghim lên đầu menu (gợi ý sẵn theo vai trò);
+  trang Tổng quan có mục **Bạn hay mở** (số ngày mở mỗi trang trong 30 ngày). Cài đặt và lượt mở lưu theo tài khoản trên trình duyệt đang dùng (localStorage), chưa đồng bộ giữa các máy.
+- Phiếu lương trình bày như tờ phiếu giấy, có con dấu đỏ "Đã chi" kèm ngày chi khi kỳ lương đã chi (`components/Stamp.tsx`; con dấu chỉ dùng cho việc đã hoàn tất).
 - Developer Portal: menu bên trái liệt kê dự án và các mục của dự án đang mở (thay cho hàng tab); trạng thái, quyền khóa, môi trường, kiểu trường hiển thị bằng
   tiếng Việt; khối mã `curl` có nút sao chép; khung **Xóa dự án** tách riêng; tạo dự án xong thì mở luôn dự án đó.
 

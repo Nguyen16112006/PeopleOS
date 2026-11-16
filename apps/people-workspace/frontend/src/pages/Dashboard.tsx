@@ -8,6 +8,8 @@ import { ErrorBox, Loading } from '@/components/common'
 import { useMe } from '@/hooks/useMe'
 import { useQuery } from '@/hooks/useQuery'
 import { fmtDate, monthLabel, ROLE_LABEL, vnd } from '@/lib/format'
+import { navLabel } from '@/lib/nav'
+import { callName, usePrefs } from '@/lib/prefs'
 import { cn } from '@/lib/utils'
 
 const Q = `query Dash($uid: uuid!, $year: smallint!) {
@@ -73,6 +75,8 @@ export default function Dashboard() {
   const { data, loading, error } = useQuery<any>(Q, { uid: user.sub, year: new Date().getFullYear() })
   const meInfo = useMe()
   const counts = useApproverCounts()
+  const { prefs, topVisits } = usePrefs()
+  const frequent = topVisits(4).filter((v) => navLabel(v.path))
   if (loading) return <Loading />
   if (error) return <ErrorBox message={error} />
 
@@ -97,7 +101,7 @@ export default function Dashboard() {
     <div>
       <div className="po-greeting">
         <div>
-          <h1>{greeting(new Date())}, {user.name}</h1>
+          <h1>{greeting(new Date())}, {callName(user.name, prefs.salutation)}</h1>
           <p>{me ? `${me.job_title}, ${me.department}` : `${ROLE_LABEL[user.role] ?? ''}. Tài khoản chưa liên kết với hồ sơ nhân sự.`}</p>
         </div>
         <Link to="/leave" className="po-btn po-btn-primary"><Plus aria-hidden="true" /> Xin nghỉ phép</Link>
@@ -143,6 +147,16 @@ export default function Dashboard() {
 
         <div className="po-side-stack">
           <ThisWeek />
+          {frequent.length > 0 && (
+            <section className="po-panel">
+              <div className="po-panel-head"><h2>Bạn hay mở</h2><Link to="/settings">Ghim trang</Link></div>
+              <ul className="po-frequent">
+                {frequent.map((v) => (
+                  <li key={v.path}><Link to={v.path}>{navLabel(v.path)}<span>{v.count} ngày trong 30 ngày qua</span></Link></li>
+                ))}
+              </ul>
+            </section>
+          )}
           {me && (
             <section className="po-panel">
               <div className="po-panel-head"><h2>Công việc của bạn</h2><Link to="/profile">Hồ sơ</Link></div>

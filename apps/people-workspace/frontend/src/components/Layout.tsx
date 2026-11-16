@@ -1,71 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 PeopleOS contributors
 
-import {
-  BarChart3, Bell, Bot, CalendarCheck, CalendarDays, CheckSquare, FileText, HeartPulse, Key, Landmark, LayoutDashboard,
-  LogOut, Menu, Moon, Network, Receipt, Search, ShieldCheck, Sun, Target, TrendingUp, UserCircle, UserMinus,
-  UserPlus, Wallet, X, type LucideIcon,
-} from 'lucide-react'
+import { Bell, LogOut, Menu, Moon, Search, SlidersHorizontal, Sun, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
 import { useRealtime } from '@/hooks/realtime'
 import { fmtDateTime, ROLE_LABEL } from '@/lib/format'
+import { ALL_NAV, NAV_GROUPS, type NavItem } from '@/lib/nav'
+import { usePrefs } from '@/lib/prefs'
 import { cn } from '@/lib/utils'
-
-type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean; roles?: string[] }
-
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: 'Của tôi',
-    items: [
-      { to: '/', label: 'Tổng quan', icon: LayoutDashboard, end: true },
-      { to: '/profile', label: 'Hồ sơ cá nhân', icon: UserCircle },
-      { to: '/contracts', label: 'Hợp đồng lao động', icon: FileText },
-      { to: '/payslips', label: 'Phiếu lương', icon: Wallet },
-      { to: '/insurance', label: 'BHXH, BHYT', icon: HeartPulse },
-      { to: '/timesheet', label: 'Bảng công', icon: CalendarCheck },
-      { to: '/leave', label: 'Nghỉ phép', icon: CalendarDays },
-      { to: '/advances', label: 'Tạm ứng và chi phí', icon: Receipt },
-      { to: '/tax-year', label: 'Thuế và báo cáo năm', icon: Landmark },
-      { to: '/kpi', label: 'Đánh giá KPI', icon: Target },
-      { to: '/offboarding', label: 'Nghỉ việc', icon: UserMinus },
-      { to: '/assistant', label: 'Trợ lý AI', icon: Bot },
-    ],
-  },
-  {
-    label: 'Công việc quản lý',
-    items: [
-      { to: '/approvals', label: 'Phê duyệt', icon: CheckSquare, roles: ['manager', 'hr', 'accountant', 'director'] },
-      { to: '/payroll', label: 'Kỳ lương', icon: Wallet, roles: ['hr', 'accountant', 'director'] },
-      { to: '/proposals', label: 'Đề xuất tăng lương', icon: TrendingUp, roles: ['manager', 'hr', 'accountant', 'director'] },
-      { to: '/onboarding', label: 'Tiếp nhận nhân viên mới', icon: UserPlus, roles: ['hr'] },
-      { to: '/executive', label: 'Báo cáo điều hành', icon: BarChart3, roles: ['hr', 'director'] },
-    ],
-  },
-  {
-    label: 'Hệ thống',
-    items: [
-      { to: '/lineage', label: 'Nguồn gốc dữ liệu', icon: Network, roles: ['hr', 'director', 'sysadmin'] },
-      { to: '/temp-access', label: 'Quyền tạm thời', icon: Key, roles: ['sysadmin', 'hr', 'accountant', 'director'] },
-      { to: '/audit', label: 'Nhật ký kiểm toán', icon: ShieldCheck, roles: ['sysadmin', 'director', 'hr'] },
-    ],
-  },
-]
 
 const initials = (name: string) =>
   name.trim().split(/\s+/).slice(-2).map((w) => w[0]?.toUpperCase() ?? '').join('') || 'P'
-
-function useTheme() {
-  const [dark, setDark] = useState(() => {
-    try { return localStorage.getItem('peopleos-theme') === 'dark' } catch { return false }
-  })
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    try { localStorage.setItem('peopleos-theme', dark ? 'dark' : 'light') } catch { /* trình duyệt chặn lưu trữ */ }
-  }, [dark])
-  return { dark, toggle: () => setDark((d) => !d) }
-}
 
 function NoticeDropdown({ onClose }: { onClose: () => void }) {
   const { notices, unread, markAllRead, markRead } = useRealtime()
@@ -132,7 +79,9 @@ function CommandPalette({ items, onClose }: { items: NavItem[]; onClose: () => v
 export default function Layout() {
   const { user, logout, hasRole } = useAuth()
   const { connected, unread } = useRealtime()
-  const { dark, toggle } = useTheme()
+  const { prefs, setPrefs, recordVisit } = usePrefs()
+  const dark = prefs.theme === 'dark' || (prefs.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const toggleTheme = () => setPrefs({ theme: dark ? 'light' : 'dark' })
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -144,9 +93,13 @@ export default function Layout() {
     [hasRole],
   )
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups])
+  const pinned = useMemo(
+    () => prefs.pins.map((p) => ALL_NAV.find((i) => i.to === p)).filter((i): i is NavItem => !!i && allItems.includes(i)),
+    [prefs.pins, allItems],
+  )
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 
-  useEffect(() => { setSidebarOpen(false); setNoticeOpen(false) }, [location.pathname])
+  useEffect(() => { setSidebarOpen(false); setNoticeOpen(false); recordVisit(location.pathname) }, [location.pathname, recordVisit])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -172,10 +125,22 @@ export default function Layout() {
         </div>
 
         <div className="po-nav">
+          {pinned.length > 0 && (
+            <div className="po-nav-group">
+              <p className="po-nav-label">Đã ghim</p>
+              <nav aria-label="Trang đã ghim">
+                {pinned.map(({ to, label, icon: Icon, end }) => (
+                  <NavLink key={to} to={to} end={end} className={({ isActive }) => cn('po-nav-link', isActive && 'active')}>
+                    <Icon aria-hidden="true" /> {label}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          )}
           {groups.map((g) => (
             <div className="po-nav-group" key={g.label}>
               <p className="po-nav-label">{g.label}</p>
-              <nav>
+              <nav aria-label={g.label}>
                 {g.items.map(({ to, label, icon: Icon, end }) => (
                   <NavLink key={to} to={to} end={end} className={({ isActive }) => cn('po-nav-link', isActive && 'active')}>
                     <Icon aria-hidden="true" /> {label}
@@ -186,6 +151,9 @@ export default function Layout() {
           ))}
         </div>
 
+        <NavLink to="/settings" className={({ isActive }) => cn('po-nav-link po-settings-link', isActive && 'active')}>
+          <SlidersHorizontal aria-hidden="true" /> Tùy chỉnh giao diện
+        </NavLink>
         <p className={cn('po-live', connected && 'on')}>
           <i aria-hidden="true" />{connected ? 'Đang cập nhật trực tiếp' : 'Đang kết nối lại…'}
         </p>
@@ -215,7 +183,7 @@ export default function Layout() {
               </button>
               {noticeOpen && <NoticeDropdown onClose={() => setNoticeOpen(false)} />}
             </div>
-            <button className="po-icon-btn" onClick={toggle} aria-label={dark ? 'Chuyển sang nền sáng' : 'Chuyển sang nền tối'}
+            <button className="po-icon-btn" onClick={toggleTheme} aria-label={dark ? 'Chuyển sang nền sáng' : 'Chuyển sang nền tối'}
               title={dark ? 'Nền sáng' : 'Nền tối'}>{dark ? <Sun /> : <Moon />}</button>
           </div>
         </header>
@@ -223,7 +191,7 @@ export default function Layout() {
         <main className="po-content"><Outlet /></main>
       </div>
 
-      {paletteOpen && <CommandPalette items={allItems} onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && <CommandPalette items={[...allItems, { to: '/settings', label: 'Tùy chỉnh giao diện', icon: SlidersHorizontal }]} onClose={() => setPaletteOpen(false)} />}
     </div>
   )
 }

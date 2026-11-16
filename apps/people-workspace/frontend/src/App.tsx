@@ -26,6 +26,8 @@ import Onboarding from '@/pages/Onboarding'
 import Payslips from '@/pages/Payslips'
 import Profile from '@/pages/Profile'
 import Proposals from '@/pages/Proposals'
+import Settings from '@/pages/Settings'
+import { PrefsProvider } from '@/lib/prefs'
 import type { ReactElement } from 'react'
 
 /** Chặn truy cập trang theo vai trò (dữ liệu vẫn được Hasura/BFF bảo vệ ở phía server). */
@@ -38,6 +40,7 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
+        <PrefsProvider>
         <RealtimeProvider>
           <BrowserRouter>
             <Routes>
@@ -58,6 +61,7 @@ export default function App() {
                 <Route path="proposals" element={<Guard roles={['manager', 'hr', 'accountant', 'director']}><Proposals /></Guard>} />
                 <Route path="onboarding" element={<Guard roles={['hr']}><Onboarding /></Guard>} />
                 <Route path="assistant" element={<Assistant />} />
+                <Route path="settings" element={<Settings />} />
                 <Route path="executive" element={<Guard roles={['hr', 'director']}><Executive /></Guard>} />
                 <Route path="lineage" element={<Guard roles={['hr', 'director', 'sysadmin']}><Lineage /></Guard>} />
                 <Route path="temp-access" element={<Guard roles={['sysadmin', 'hr', 'accountant', 'director']}><TempAccess /></Guard>} />
@@ -67,6 +71,7 @@ export default function App() {
             </Routes>
           </BrowserRouter>
         </RealtimeProvider>
+        </PrefsProvider>
       </AuthProvider>
     </ToastProvider>
   )

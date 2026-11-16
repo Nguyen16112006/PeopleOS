@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 PeopleOS contributors
-import {
-  CalendarDays,
-  ChevronRight,
-  Download,
-  Loader2,
-  Receipt,
-  ShieldCheck,
-  TrendingUp,
-  Wallet,
-} from 'lucide-react'
+
+import { Download, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
-import { Empty, ErrorBox, errMsg, Loading } from '@/components/common'
+import { Empty, ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'
+import { Stamp } from '@/components/Stamp'
 import { useToast } from '@/hooks/toast'
 import { useQuery } from '@/hooks/useQuery'
 import { download } from '@/lib/api'
@@ -25,43 +18,18 @@ const Q = `query Payslips($uid: uuid!) {
     bhxh_employee bhyt_employee bhtn_employee taxable_income personal_income_tax net_salary paid_at
     standard_days paid_days overtime_hours
   }
+  employees(where: {user_id: {_eq: $uid}}, limit: 1) { full_name employee_code }
 }`
 
-function PayslipRow({
-  label,
-  value,
-  strong,
-  minus,
-  highlight,
-}: {
-  label: string
-  value: number | string | null | undefined
-  strong?: boolean
-  minus?: boolean
-  highlight?: boolean
-}) {
+const num = (v: unknown) => String(Number(v)).replace('.', ',')
+const plain = (n: number | string | null | undefined) => (n == null ? '—' : new Intl.NumberFormat('vi-VN').format(Number(n)))
+
+function Line({ label, value, minus, strong }: { label: string; value: number | string | null | undefined; minus?: boolean; strong?: boolean }) {
+  if (!strong && (value == null || Number(value) === 0)) return null
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between py-2.5 text-sm border-b border-slate-100 last:border-0',
-        strong && 'font-bold text-slate-900',
-        highlight && 'bg-blue-50/50 -mx-3 px-3 rounded-lg py-2 my-0.5'
-      )}
-    >
-      <span className={cn('text-slate-500 font-medium', strong && 'text-slate-900 font-semibold')}>
-        {label}
-      </span>
-      <span
-        className={cn(
-          'text-slate-800 font-semibold',
-          strong && 'text-slate-900 font-bold',
-          minus && 'text-rose-600',
-          highlight && 'text-[#1D4ED8] font-bold text-base'
-        )}
-      >
-        {minus ? '− ' : ''}
-        {vnd(value)}
-      </span>
+    <div className={cn('po-slip-line', strong && 'strong')}>
+      <span>{label}</span>
+      <span>{minus && Number(value) > 0 ? '−' : ''}{plain(value)}</span>
     </div>
   )
 }
@@ -69,29 +37,26 @@ function PayslipRow({
 export default function Payslips() {
   const { user } = useAuth()
   const { push } = useToast()
-  const { data, loading, error } = useQuery<{ payrolls: any[] }>(Q, { uid: user.sub })
+  const { data, loading, error } = useQuery<{ payrolls: any[]; employees: any[] }>(Q, { uid: user.sub })
   const [selected, setSelected] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (data && !selected && data.payrolls[0]) {
-      setSelected(data.payrolls[0].id)
-    }
+    if (data && !selected && data.payrolls[0]) setSelected(data.payrolls[0].id)
   }, [data, selected])
 
   if (loading) return <Loading />
   if (error) return <ErrorBox message={error} />
   const list = data!.payrolls
+  const me = data!.employees?.[0]
   const p = list.find((x) => x.id === selected)
+  const latest = list[0]
 
   const dl = async () => {
     if (!p) return
     setBusy(true)
     try {
-      await download(
-        `/api/payslips/${p.id}/download`,
-        `payslip-${p.period_year}-${String(p.period_month).padStart(2, '0')}.pdf`
-      )
+      await download(`/api/payslips/${p.id}/download`, `payslip-${p.period_year}-${String(p.period_month).padStart(2, '0')}.pdf`)
     } catch (e) {
       push({ title: 'Không tải được phiếu lương', message: errMsg(e), kind: 'error' })
     } finally {
@@ -100,167 +65,81 @@ export default function Payslips() {
   }
 
   return (
-    <div className="-mt-4 space-y-6">
-      {/* Title Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Bảng lương</h1>
-        <p className="mt-1 text-base font-medium text-slate-500">
-          Phiếu lương chi tiết theo tháng, minh bạch thu nhập và các khoản khấu trừ
-        </p>
-      </div>
+    <div>
+      <PageHeader title="Phiếu lương"
+        description={latest
+          ? latest.paid_at
+            ? `Lương ${monthLabel(latest.period_year, latest.period_month).toLowerCase()} đã chi ngày ${fmtDate(latest.paid_at)}. Thấy khoản nào chưa đúng, hãy báo HR để được xem lại.`
+            : `Lương ${monthLabel(latest.period_year, latest.period_month).toLowerCase()} đang chờ chi.`
+          : undefined} />
 
       {list.length === 0 ? (
-        <Empty text="Chưa có phiếu lương" />
+        <Empty text="Bạn chưa có phiếu lương nào. Phiếu lương xuất hiện ở đây sau khi kế toán tính lương và giám đốc duyệt." />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column: Danh sách các kỳ lương */}
-          <div className="rounded-2xl border border-slate-100/90 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] lg:col-span-1">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#2563EB]">
-                <CalendarDays className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Các kỳ lương</h2>
-                <p className="text-xs font-medium text-slate-400">{list.length} kỳ gần nhất</p>
-              </div>
-            </div>
-
-            <div className="mt-4 max-h-[32rem] space-y-2 overflow-y-auto pr-1">
-              {list.map((x) => {
-                const isSelected = x.id === selected
-                return (
-                  <button
-                    key={x.id}
-                    onClick={() => setSelected(x.id)}
-                    className={cn(
-                      'group flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left transition-all',
-                      isSelected
-                        ? 'bg-[#1D68F2] text-white shadow-sm'
-                        : 'bg-slate-50/70 text-slate-700 hover:bg-slate-100/80 border border-slate-100/80'
-                    )}
-                  >
-                    <div>
-                      <p className={cn('text-sm font-semibold', isSelected ? 'text-white' : 'text-slate-800')}>
-                        {monthLabel(x.period_year, x.period_month)}
-                      </p>
-                      <p
-                        className={cn(
-                          'mt-0.5 text-xs font-medium',
-                          isSelected ? 'text-blue-100' : 'text-slate-400'
-                        )}
-                      >
-                        Net: {vnd(x.net_salary)}
-                      </p>
-                    </div>
-                    <ChevronRight
-                      className={cn(
-                        'h-4 w-4 transition-transform',
-                        isSelected ? 'text-white translate-x-0.5' : 'text-slate-400 group-hover:translate-x-0.5'
-                      )}
-                    />
-                  </button>
-                )
-              })}
-            </div>
+        <>
+          <div className="po-month-tabs" role="tablist" aria-label="Chọn tháng">
+            {list.map((x) => (
+              <button key={x.id} type="button" role="tab" aria-selected={x.id === selected}
+                className={cn('po-chip', x.id === selected && 'selected')} onClick={() => setSelected(x.id)}>
+                {monthLabel(x.period_year, x.period_month)}
+              </button>
+            ))}
           </div>
 
-          {/* Right Column: Chi tiết phiếu lương được chọn */}
           {p && (
-            <div className="space-y-6 lg:col-span-2">
-              {/* Header card of selected payslip */}
-              <div className="rounded-2xl border border-slate-100/90 bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#DCFCE7] text-[#16A34A]">
-                      <Wallet className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900">
-                        {monthLabel(p.period_year, p.period_month)}
-                      </h2>
-                      <p className="mt-0.5 text-xs font-medium text-slate-400">
-                        Ngày chi trả: {fmtDate(p.paid_at)}
-                      </p>
-                    </div>
-                  </div>
+            <article className="po-slip" aria-label={`Phiếu lương ${monthLabel(p.period_year, p.period_month).toLowerCase()}`}>
+              <header className="po-slip-head">
+                <h2>Phiếu lương {monthLabel(p.period_year, p.period_month).toLowerCase()}</h2>
+                <span>{me?.full_name ?? user.name}{me?.employee_code ? `, mã NV ${me.employee_code}` : ''}</span>
+              </header>
+              {p.standard_days != null && (
+                <p className="po-slip-meta">
+                  Công chuẩn {num(p.standard_days)} ngày, hưởng lương {num(p.paid_days)} ngày
+                  {Number(p.overtime_hours) > 0 ? `, làm thêm ${num(p.overtime_hours)} giờ` : ''}.
+                </p>
+              )}
 
-                  <button
-                    onClick={dl}
-                    disabled={busy}
-                    className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60 transition-colors self-start sm:self-auto"
-                  >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    <span>{busy ? 'Đang tải…' : 'Tải PDF'}</span>
-                  </button>
-                </div>
+              <div className="po-slip-cols">
+                <section>
+                  <h3>Thu nhập</h3>
+                  <Line label={p.standard_days != null ? 'Lương theo ngày công' : 'Lương cơ bản'} value={p.base_salary} />
+                  <Line label={p.standard_days != null ? 'Phụ cấp theo ngày công' : 'Phụ cấp'} value={p.allowance} />
+                  <Line label="Làm thêm giờ" value={p.overtime_pay} />
+                  <Line label="Thưởng" value={p.bonus} />
+                  <Line label="Tổng thu nhập" value={p.gross} strong />
+                </section>
+                <section>
+                  <h3>Khấu trừ</h3>
+                  <Line label={p.insured_salary != null ? `BHXH 8% trên ${plain(p.insured_salary)}` : 'BHXH 8%'} value={p.bhxh_employee} minus strong />
+                  <Line label="BHYT 1,5%" value={p.bhyt_employee} minus strong />
+                  <Line label="BHTN 1%" value={p.bhtn_employee} minus strong />
+                  <Line label="Thuế TNCN" value={p.personal_income_tax} minus strong />
+                </section>
+              </div>
+              {p.taxable_income != null && (
+                <p className="po-slip-note">Thu nhập tính thuế sau giảm trừ: {vnd(p.taxable_income)}.</p>
+              )}
 
-                {/* Net Income Banner matching Dashboard card style */}
-                <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-[#DCFCE7] bg-[#F2FBF7] p-6">
-                  <div>
-                    <span className="text-sm font-semibold text-slate-600">Thực nhận (Net Salary)</span>
-                    <p className="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-                      {vnd(p.net_salary)}
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">
-                      Tổng thu nhập Gross: <span className="font-semibold text-slate-700">{vnd(p.gross)}</span>
-                    </p>
-                  </div>
-                  <div className="hidden sm:flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#DCFCE7] text-[#16A34A]">
-                    <Wallet className="h-7 w-7" />
-                  </div>
-                </div>
+              <div className="po-slip-net">
+                <span>Thực nhận</span>
+                <strong>{vnd(p.net_salary)}</strong>
+              </div>
 
-                {/* 2 Breakdown Columns: Thu nhập vs Khấu trừ */}
-                <div className="mt-6 grid gap-6 sm:grid-cols-2">
-                  {/* Cột 1: Thu nhập */}
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
-                    <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3 mb-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#2563EB]">
-                        <TrendingUp className="h-4 w-4" />
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-900">Khoản thu nhập</h3>
-                    </div>
-
-                    <div className="divide-y divide-slate-100">
-                      {p.standard_days != null && (
-                        <p className="py-2 text-sm text-slate-500">
-                          Ngày công hưởng lương: <span className="font-semibold text-slate-800">{String(Number(p.paid_days)).replace('.', ',')} / {String(Number(p.standard_days)).replace('.', ',')}</span>
-                          {Number(p.overtime_hours) > 0 && <> · Làm thêm: <span className="font-semibold text-slate-800">{String(Number(p.overtime_hours)).replace('.', ',')} giờ</span></>}
-                        </p>
-                      )}
-                      <PayslipRow label={p.standard_days != null ? 'Lương cơ bản (theo ngày công)' : 'Lương cơ bản'} value={p.base_salary} />
-                      <PayslipRow label={p.standard_days != null ? 'Phụ cấp (theo ngày công)' : 'Phụ cấp'} value={p.allowance} />
-                      <PayslipRow label="Làm thêm giờ" value={p.overtime_pay} />
-                      <PayslipRow label="Thưởng" value={p.bonus} />
-                      <PayslipRow label="Tổng thu nhập (Gross)" value={p.gross} strong highlight />
-                    </div>
-                  </div>
-
-                  {/* Cột 2: Khấu trừ */}
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
-                    <div className="flex items-center gap-2.5 border-b border-slate-200/80 pb-3 mb-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
-                        <Receipt className="h-4 w-4" />
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-900">Khoản khấu trừ</h3>
-                    </div>
-
-                    <div className="divide-y divide-slate-100">
-                      <PayslipRow label="BHXH (8%)" value={p.bhxh_employee} minus />
-                      <PayslipRow label="BHYT (1,5%)" value={p.bhyt_employee} minus />
-                      <PayslipRow label="BHTN (1%)" value={p.bhtn_employee} minus />
-                      <PayslipRow label="Thuế TNCN" value={p.personal_income_tax} minus />
-                      <PayslipRow label="Thu nhập tính thuế" value={p.taxable_income} />
-                      {p.insured_salary != null && (
-                        <PayslipRow label="Mức lương đóng BH" value={p.insured_salary} />
-                      )}
-                    </div>
-                  </div>
+              <div className="po-slip-foot">
+                <button type="button" className="po-btn po-btn-primary" onClick={dl} disabled={busy}>
+                  {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
+                  {busy ? 'Đang tải phiếu…' : 'Tải phiếu lương PDF'}
+                </button>
+                <div className="po-slip-seal">
+                  <span>Xác nhận chi lương</span>
+                  {p.paid_at
+                    ? <Stamp label="Đã chi" date={fmtDate(p.paid_at)} size={116} />
+                    : <span className="po-slip-pending">Chưa chi lương kỳ này</span>}
                 </div>
               </div>
-            </div>
+            </article>
           )}
-        </div>
+        </>
       )}
     </div>
   )
