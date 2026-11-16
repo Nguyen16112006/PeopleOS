@@ -1,0 +1,90 @@
+---
+id: realtime
+title: Realtime (WebSocket & NATS)
+description: Nhận thông báo đẩy qua WebSocket và theo dõi sự kiện nghiệp vụ trên NATS.
+---
+
+Mỗi khi BFF tạo thông báo (đơn chờ duyệt, lương đã chi…), thông báo được lưu vào bảng `notifications`, phát lên NATS rồi BFF đẩy xuống mọi kết nối WebSocket của người nhận.
+
+## WebSocket
+
+<Endpoint method="WS" path="ws://localhost:9080/ws?token=<access_token>" roles={['any']} />
+
+Trình duyệt không gửi được header `Authorization` khi mở WebSocket, nên token truyền qua query `token`. BFF kiểm chữ ký JWT.
+
+```js title="Ví dụ: nhận thông báo"
+const ws = new WebSocket(`ws://localhost:9080/ws?token=${encodeURIComponent(token)}`);
+
+ws.onmessage = (e) => {
+  if (e.data === 'pong') return;
+  const msg = JSON.parse(e.data);
+  if (msg.type === 'connected') console.log('Đã kết nối:', msg.user);
+  if (msg.type === 'notification') toast(msg.data.title, msg.data.message);
+};
+
+// Giữ kết nối qua proxy
+const keepAlive = setInterval(() => ws.readyState === 1 && ws.send('ping'), 25_000);
+ws.onclose = (e) => {
+  clearInterval(keepAlive);
+  if (e.code === 4401) refreshTokenThenReconnect();
+};
+```
+
+### Thông điệp từ server
+
+| Thông điệp | Khi nào |
+|---|---|
+| `{"type":"connected","user":"manager"}` | Ngay sau khi xác thực thành công |
+| `{"type":"notification","data":{…}}` | Có thông báo mới cho người dùng |
+| `pong` (chuỗi thuần) | Trả lời `ping` |
+
+Trường `data` của thông báo:
+
+| Trường | Kiểu | Mô tả |
+|---|---|---|
+| `id` | string | ID bản ghi `notifications` |
+| `title`, `message` | string | Nội dung hiển thị |
+| `ref_type`, `ref_id` | string | Bản ghi liên quan, ví dụ `leave_request` + ID |
+| `kind` | string | Loại sự kiện, ví dụ `leave.pending` |
+| `created_at` | string | Thời điểm tạo |
+
+### Mã đóng kết nối
+
+| Mã | Ý nghĩa |
+|---|---|
+| `4401` | Token sai hoặc hết hạn - lấy token mới rồi kết nối lại |
+
+Đánh dấu đã đọc bằng GraphQL:
+
+```graphql
+mutation { update_notifications_by_pk(pk_columns: {id: "…"}, _set: {is_read: true}) { id } }
+```
+
+## Sự kiện NATS
+
+Dành cho dịch vụ nội bộ muốn phản ứng với nghiệp vụ (đồng bộ hệ thống khác, phân tích…). Developer bên ngoài nên dùng [webhook](./platform/webhooks.mdx).
+
+| Subject | Payload |
+|---|---|
+| `peopleos.notify.<user_id>` | Bản ghi thông báo (kèm `kind`) - BFF chuyển xuống WebSocket |
+| `peopleos.events.<kind>` | Cùng payload, theo loại sự kiện |
+
+Các `kind` thường gặp, theo nhóm:
+
+| Nhóm | `kind` |
+|---|---|
+| Nghỉ phép | `leave.pending`, `leave.recorded`, `leave.adjust_timesheet` |
+| Bảng công | `timesheet.submitted`, `timesheet.confirmed`, `timesheet.returned` |
+| Kỳ lương | `payroll.timesheet_closed`, `payroll.calculated`, `payroll.hr_reviewed`, `payroll.approved`, `payroll.returned`, `payroll.paid` |
+| Khiếu nại | `payslip.complaint`, `payslip.adjusting`, `payslip.adjusted`, `payslip.rejected` |
+| Đề xuất lương | `proposal.pending_hr`, … |
+| Tạm ứng | `advance.pending`, `advance.paid`, `advance.rejected`, `advance.settlement_submitted`, `advance.settled` |
+| KPI | `kpi.cycle_open`, `kpi.goal_assigned`, `kpi.review`, `kpi.approved`, `kpi.returned`, `kpi.result`, `kpi.feedback` |
+| Thuế năm | `tax.hr_confirmed`, `tax.certificate_issued`, `report.submitted`, `report.approved`, `report.returned`, `budget.proposed`, `budget.approved` |
+| Onboarding / nghỉ việc | `onboarding.started`, `onboarding.welcome`, `onboarding.manager`, `onboarding.accountant`, `offboarding.pending`, `offboarding.rejected` |
+| Quyền tạm thời | `temp_access.pending`, `temp_access.granted`, `temp_access.rejected` |
+
+```bash title="Theo dõi mọi sự kiện"
+docker run --rm --network peopleos_default natsio/nats-box \
+  nats sub -s nats://nats:4222 'peopleos.>'
+```

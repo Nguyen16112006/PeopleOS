@@ -1,0 +1,109 @@
+---
+id: payroll-runs
+title: Kỳ lương
+description: Chốt công, tính lương, rà soát, duyệt và chi trả lương hằng tháng.
+---
+
+Một **kỳ lương** (`payroll_run`) ứng với một tháng và đi qua 5 bước, mỗi bước do đúng một vai trò thực hiện:
+
+| Bước | Ai | Endpoint | Trạng thái sau |
+|---|---|---|---|
+| 1. Chốt công, tạo kỳ lương | <Role id="hr" /> | `POST /api/payroll-runs` | `timesheet_closed` |
+| 2. Tính lương | <Role id="accountant" /> | `POST /{id}/calculate` | `calculated` |
+| 3. Rà soát (hợp đồng, phụ cấp) | <Role id="hr" /> | `POST /{id}/hr-review` | `hr_reviewed` |
+| 4. Duyệt | <Role id="director" /> | `POST /{id}/decision` | `approved` |
+| 5. Chi trả, phát hành phiếu lương | <Role id="accountant" /> | `POST /{id}/pay` | `paid` |
+
+Bị trả lại ở bước 3 hoặc 4 → kỳ lương quay về `timesheet_closed` để Kế toán tính lại.
+
+Lương được tính theo **bảng công đã chốt** (công hưởng lương / công chuẩn), BHXH 8%, BHYT 1,5%, BHTN 1% trên lương đóng bảo hiểm, và thuế TNCN lũy tiến sau giảm trừ gia cảnh.
+
+## Ví dụ: chạy trọn một kỳ lương
+
+```bash
+H='Content-Type: application/json'
+# 1. HR chốt công tháng 10/2026
+RUN=$(curl -s -X POST http://localhost:9080/api/payroll-runs -H "Authorization: Bearer $HR" -H "$H" \
+  -d '{"year":2026,"month":10}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+# 2. Kế toán tính lương, cộng thưởng cho 1 người
+curl -s -X POST http://localhost:9080/api/payroll-runs/$RUN/calculate -H "Authorization: Bearer $ACC" -H "$H" \
+  -d '{"adjustments":[{"employee_id":"4c2f…","bonus":2000000}]}'
+# 3. HR rà soát   4. Giám đốc duyệt
+curl -s -X POST http://localhost:9080/api/payroll-runs/$RUN/hr-review -H "Authorization: Bearer $HR"  -H "$H" -d '{"decision":"approve"}'
+curl -s -X POST http://localhost:9080/api/payroll-runs/$RUN/decision  -H "Authorization: Bearer $DIR" -H "$H" -d '{"decision":"approve"}'
+# 5. Kế toán chi trả
+curl -s -X POST http://localhost:9080/api/payroll-runs/$RUN/pay -H "Authorization: Bearer $ACC"
+```
+
+Mọi bước trả về cùng một dạng:
+
+```json
+{"id": "31de4d…", "status": "calculated", "count": 12}
+```
+
+`count` là số bảng công đã chốt (bước 1), số phiếu lương đã tính (bước 2) hoặc đã chi (bước 5); các bước khác là `0`.
+
+---
+
+## Tham chiếu
+
+### Chốt công và tạo kỳ lương
+
+<Endpoint method="POST" path="/api/payroll-runs" roles={['hr']} />
+
+Khóa bảng công cả tháng (`closed`) và tạo kỳ lương.
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `year` | int | Có | 2020 - 2100 |
+| `month` | int | Có | 1 - 12, tháng **đã kết thúc** |
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Tháng 11/2026 chưa kết thúc, chưa thể chốt công` |
+| 409 | `Kỳ lương 10/2026 đã được tạo` · `Tháng … đã có phiếu lương đã chi trả` |
+
+### Tính lương
+
+<Endpoint method="POST" path="/api/payroll-runs/{id}/calculate" roles={['accountant']} />
+
+Body không bắt buộc.
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `adjustments` | array | Không | Điều chỉnh theo từng người |
+| `adjustments[].employee_id` | string | Có | Nhân viên thuộc kỳ lương |
+| `adjustments[].overtime_pay` | int (VND) | Không | Tiền làm thêm. Bỏ trống = tự tính từ giờ OT (150% / 200% / 300%) |
+| `adjustments[].bonus` | int (VND) | Không | Thưởng |
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Nhân viên không thuộc kỳ lương này: …` |
+| 409 | `Kỳ lương chưa ở bước chờ Kế toán tính lương (hiện: …)` |
+| 409 | `Không có nhân viên nào đủ điều kiện tính lương tháng …` |
+
+### HR rà soát
+
+<Endpoint method="POST" path="/api/payroll-runs/{id}/hr-review" roles={['hr']} />
+
+### Giám đốc duyệt
+
+<Endpoint method="POST" path="/api/payroll-runs/{id}/decision" roles={['director']} />
+
+Hai endpoint dùng chung body:
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `approve` \| `reject` (`reject` → về `timesheet_closed`) |
+| `comment` | string | Không | ≤ 1000 ký tự |
+
+### Chi trả lương
+
+<Endpoint method="POST" path="/api/payroll-runs/{id}/pay" roles={['accountant']} />
+
+Không cần body. Đánh dấu phiếu lương `paid`, ghi bản ghi BHXH/BHYT/BHTN của kỳ, gửi thông báo cho từng nhân viên. Phiếu lương PDF tải qua [`/api/payslips/{id}/download`](./documents.mdx).
+
+| Mã | `detail` |
+|---|---|
+| 409 | `Kỳ lương chưa được Giám đốc duyệt (hiện: …)` |
+| 409 | `Không có phiếu lương nào để chi trả` |

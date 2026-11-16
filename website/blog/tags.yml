@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 PeopleOS contributors
+
+release:
+  label: Phát hành
+  description: Thông báo phiên bản mới
+paas:
+  label: PaaS
+  description: Nền tảng cho developer
+security:
+  label: Bảo mật
+  description: Cô lập dữ liệu và bảo mật
+docs:
+  label: Tài liệu
+  description: Tin về tài liệu

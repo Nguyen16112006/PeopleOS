@@ -1,0 +1,33 @@
+---
+id: users
+title: Người dùng cuối
+description: Tạo tài khoản đăng nhập cho người dùng của ứng dụng developer, gắn sẵn tenant.
+---
+
+Ứng dụng của bạn có thể có màn hình đăng nhập riêng cho nhân viên. Endpoint này tạo tài khoản trong realm `peopleos` với thuộc tính **`tenant_id`** của project (chỉ admin Keycloak sửa được), nên token của họ tự mang claim `tenant_id` và chỉ thấy dữ liệu tenant của bạn.
+
+Người dùng đăng nhập qua client OIDC `app-<short_id>` được tạo cùng project (Authorization Code + PKCE, redirect URI khai báo lúc tạo project).
+
+---
+
+## Tham chiếu
+
+### Tạo người dùng
+
+<Endpoint method="POST" path="/platform/v1/projects/{pid}/users" roles={['developer']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `username` | string | Có | `^[a-z][a-z0-9._-]{2,30}$` |
+| `email` | string | Có | Email |
+| `password` | string | Có | ≥ 10 ký tự |
+
+Tên đăng nhập thực tế được thêm tiền tố project để không trùng giữa các tenant:
+
+```json title="201 Created"
+{"id": "b31c…", "username": "pk3x9q2m.lan.vu"}
+```
+
+:::note
+Hiện chưa hỗ trợ role tùy biến cho end-user; tài khoản tạo ra mang các role mặc định của realm.
+:::

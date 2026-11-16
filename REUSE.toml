@@ -40,3 +40,10 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 PeopleOS contributors"
 SPDX-License-Identifier = "Apache-2.0"
+
+# Trang tài liệu Docusaurus (website/): MDX, JS, CSS, SVG, YAML không gắn header từng tệp
+[[annotations]]
+path = "website/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 PeopleOS contributors"
+SPDX-License-Identifier = "Apache-2.0"

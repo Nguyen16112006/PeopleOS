@@ -1,0 +1,75 @@
+---
+id: ai-assistant
+title: Trợ lý AI
+description: Chatbot RAG trả lời về Luật Lao động, BHXH, thuế TNCN, chính sách nội bộ và tra cứu dữ liệu cá nhân.
+---
+
+Dịch vụ `rag-service` (FastAPI) chạy **cục bộ** với Ollama + Qdrant; không gửi dữ liệu ra ngoài. Câu hỏi được phân loại `intent` trước:
+
+| `intent` | Xử lý | Cần đăng nhập |
+|---|---|---|
+| `net_calc` | Máy tính lương Gross → Net (BHXH, BHYT, BHTN, thuế TNCN) | Không |
+| `leave_status` | Tra trạng thái đơn nghỉ phép của bạn | Có |
+| `leave_balance` | Tra số ngày phép còn lại | Có |
+| `payslip` | Tra phiếu lương gần nhất | Có |
+| `rag` | Truy hồi trong kho tri thức `ai/knowledge` rồi sinh câu trả lời | Không |
+
+Tra cứu cá nhân dùng **chính token của người hỏi** để gọi Hasura, nên chỉ thấy dữ liệu người đó được phép xem.
+
+## Ví dụ
+
+```bash
+curl -s http://localhost:9080/ai/chat -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"message":"Lương Gross 30 triệu thì thực nhận là bao nhiêu?"}'
+```
+
+```json title="200 OK"
+{
+  "intent": "net_calc",
+  "answer": "Với lương Gross 30.000.000 đ, 0 người phụ thuộc: …",
+  "sources": [],
+  "mode": "calculator"
+}
+```
+
+---
+
+## Tham chiếu
+
+### Hỏi trợ lý
+
+<Endpoint method="POST" path="/ai/chat" roles={['any']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `message` | string | Có | 1 - 2000 ký tự |
+| `history` | array | Không | Lượt hội thoại trước: `[{"role": "user"\|"assistant", "content": "…"}]` |
+
+| Trường phản hồi | Mô tả |
+|---|---|
+| `intent` | Một trong các giá trị ở bảng trên |
+| `answer` | Câu trả lời (Markdown) |
+| `sources` | `[{source, heading}]` - đoạn tri thức đã dùng |
+| `mode` | `calculator` · `tool` · `llm+vector` · `llm+lexical` · `extractive+…` (LLM chưa sẵn sàng, trả đoạn trích) · `error` |
+
+### Trạng thái
+
+<Endpoint method="GET" path="/ai/health" roles={['any']} />
+
+Qua gateway, mọi `/ai/*` cần JWT.
+
+```json title="200 OK"
+{"status": "ok", "chunks": 128, "vector_ready": true, "ollama": true, "qdrant": true}
+```
+
+### Nạp lại kho tri thức
+
+<Endpoint method="POST" path="/ai/reindex" roles={['any']} />
+
+Đọc lại `ai/knowledge/*.md` (`luat_lao_dong.md`, `bao_hiem_xa_hoi.md`, `thue_tncn.md`, `chinh_sach_noi_bo.md`) và ghi lại vector vào Qdrant.
+
+```json title="200 OK"
+{"status": "ok", "chunks": 131, "vector_ready": true}
+```
+
+Nếu Ollama/Qdrant lỗi: `{"status": "degraded", "chunks": …, "vector_ready": false, "detail": "…"}` và dịch vụ tự thử nạp lại nền.

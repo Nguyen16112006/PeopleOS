@@ -1,0 +1,184 @@
+---
+id: webhooks
+title: Webhook
+description: Nhận sự kiện thay đổi dữ liệu có chữ ký HMAC, tự thử lại và phát lại từ dead-letter.
+---
+
+Khi dữ liệu lõi của tenant thay đổi, Hasura Event Trigger báo cho platform-api; sự kiện được xếp hàng trong PostgreSQL và **worker** gửi `POST` có chữ ký tới URL của bạn.
+
+## Loại sự kiện
+
+| Bảng | Sự kiện |
+|---|---|
+| `employees` | `employee.created` · `employee.updated` · `employee.deleted` |
+| `contracts` | `contract.created` · `contract.updated` · `contract.deleted` |
+| `leave_requests` | `leave_request.created` · `leave_request.updated` · `leave_request.deleted` |
+| `payrolls` | `payroll.created` · `payroll.updated` · `payroll.deleted` |
+| - | `ping` (chỉ khi bạn gọi gửi thử) |
+
+Đăng ký `"*"` để nhận mọi loại.
+
+## Request bạn nhận được
+
+```http
+POST /hooks/peopleos HTTP/1.1
+Content-Type: application/json
+User-Agent: PeopleOS-Webhooks/1
+X-PeopleOS-Event: leave_request.updated
+X-PeopleOS-Delivery: 9b2e7c1a-…
+X-PeopleOS-Signature: t=1763280000,v1=5f2b0c…e91a
+```
+
+```json
+{
+  "id": "e0a1…",
+  "type": "leave_request.updated",
+  "tenant_id": "1c7e0a3b-…",
+  "created_at": "2026-11-16T08:20:00Z",
+  "data": {
+    "object":   {"id": "6f1c…", "status": "approved", "stage": "manager", "days": 2, "…": "…"},
+    "previous": {"id": "6f1c…", "status": "pending",  "stage": "manager", "days": 2, "…": "…"}
+  }
+}
+```
+
+`data.previous` chỉ có với `*.updated`; với `*.deleted`, `data.object` là dòng cũ.
+
+Trả về **2xx trong 10 giây** để báo đã nhận. Không theo redirect.
+
+## Xác minh chữ ký
+
+`X-PeopleOS-Signature = t=<epoch>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>`. Luôn kiểm trên **body thô** (chưa parse) và từ chối khi `t` lệch quá 5 phút để chống phát lại.
+
+<Tabs groupId="lang">
+<TabItem value="js" label="Node.js" default>
+
+```js title="server.js (Express)"
+import crypto from 'node:crypto';
+import express from 'express';
+
+const SECRET = process.env.PEOPLEOS_WEBHOOK_SECRET; // whsec_…
+const app = express();
+
+app.post('/hooks/peopleos', express.raw({type: 'application/json'}), (req, res) => {
+  const header = req.get('X-PeopleOS-Signature') ?? '';
+  const {t, v1} = Object.fromEntries(header.split(',').map((p) => p.split('=')));
+  const expected = crypto.createHmac('sha256', SECRET).update(`${t}.${req.body}`).digest('hex');
+
+  const fresh = Math.abs(Date.now() / 1000 - Number(t)) < 300;
+  const valid = v1 && v1.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(v1), Buffer.from(expected));
+  if (!fresh || !valid) return res.sendStatus(401);
+
+  const event = JSON.parse(req.body);
+  console.log(event.type, event.data.object.id);
+  res.sendStatus(204);
+});
+```
+
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python title="app.py (FastAPI)"
+import hashlib, hmac, json, os, time
+from fastapi import FastAPI, Header, HTTPException, Request
+
+SECRET = os.environ["PEOPLEOS_WEBHOOK_SECRET"].encode()
+app = FastAPI()
+
+@app.post("/hooks/peopleos", status_code=204)
+async def hook(request: Request, x_peopleos_signature: str = Header("")):
+    raw = await request.body()
+    parts = dict(p.split("=", 1) for p in x_peopleos_signature.split(",") if "=" in p)
+    t, v1 = parts.get("t", "0"), parts.get("v1", "")
+    expected = hmac.new(SECRET, f"{t}.".encode() + raw, hashlib.sha256).hexdigest()
+    if abs(time.time() - int(t)) > 300 or not hmac.compare_digest(v1, expected):
+        raise HTTPException(401)
+    event = json.loads(raw)
+    print(event["type"], event["data"]["object"]["id"])
+```
+
+</TabItem>
+</Tabs>
+
+## Thử lại và dead-letter
+
+| Lần | Thời điểm gửi |
+|---|---|
+| 1 | Ngay khi có sự kiện |
+| 2 | +1 phút |
+| 3 | +5 phút |
+| 4 | +30 phút |
+| 5 | +2 giờ |
+| 6 | +6 giờ |
+
+Sau 6 lần thất bại (không phải 2xx, lỗi mạng, timeout) lượt giao chuyển sang `dead`. Bạn xem lại và **phát lại** từ portal hoặc API. Worker dùng `FOR UPDATE SKIP LOCKED`, chạy nhiều bản song song không gửi trùng; tuy vậy hãy xử lý **idempotent** theo `id` sự kiện.
+
+---
+
+## Tham chiếu
+
+### Đăng ký webhook
+
+<Endpoint method="POST" path="/platform/v1/projects/{pid}/webhooks" roles={['developer']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `url` | string | Có | Phải là `https`, tên miền công khai (chặn IP nội bộ / SSRF) |
+| `events` | string[] | Có | Danh sách loại sự kiện ở trên, hoặc `["*"]` |
+
+```json title="201 Created"
+{
+  "id": "e4d…",
+  "url": "https://app.acme.vn/hooks/peopleos",
+  "events": ["leave_request.updated", "payroll.created"],
+  "active": true,
+  "created_at": "2026-11-16T08:10:00Z",
+  "secret": "whsec_Q3p…"
+}
+```
+
+`secret` **chỉ hiện một lần** - lưu vào biến môi trường của server.
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Đã đạt giới hạn webhook của gói` |
+| 422 | `Sự kiện không hợp lệ: …` |
+| 422 | `URL webhook phải dùng https` · `URL webhook không được trỏ vào mạng nội bộ` · `Không phân giải được tên miền của URL webhook` |
+
+### Liệt kê webhook
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}/webhooks" roles={['developer']} />
+
+Trả mảng `id, url, events, active, created_at` (không có `secret`).
+
+### Xóa webhook
+
+<Endpoint method="DELETE" path="/platform/v1/projects/{pid}/webhooks/{wid}" roles={['developer']} />
+
+→ `204`. **404** `Không có webhook này`.
+
+### Gửi thử
+
+<Endpoint method="POST" path="/platform/v1/projects/{pid}/webhooks/{wid}/test" roles={['developer']} />
+
+Xếp hàng một sự kiện `ping` (`data: {}`) → `202 {"queued": "ping_1763280000000"}`.
+
+### Lịch sử giao
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}/webhook-deliveries" roles={['developer']} />
+
+50 lượt gần nhất: `id, endpoint_id, event_id, event_type, status, attempts, next_attempt_at, last_status, last_error, created_at, delivered_at`.
+
+| `status` | Ý nghĩa |
+|---|---|
+| `pending` | Chờ gửi |
+| `failed` | Lần gần nhất lỗi, sẽ thử lại lúc `next_attempt_at` |
+| `delivered` | Đã nhận 2xx |
+| `dead` | Hết lượt thử, hoặc endpoint đã tắt |
+
+### Phát lại
+
+<Endpoint method="POST" path="/platform/v1/projects/{pid}/webhook-deliveries/{did}/replay" roles={['developer']} />
+
+Đặt lại lượt giao `dead` / `failed` / `delivered` về `pending` với `attempts = 0` → `202 {"status": "pending"}`. **404** `Không có lượt giao này`.

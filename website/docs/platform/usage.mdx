@@ -1,0 +1,45 @@
+---
+id: usage
+title: Mức sử dụng
+description: Theo dõi số request Data API theo ngày so với hạn mức của gói.
+---
+
+APISIX gửi log theo lô (không chứa nội dung request) tới platform-api; số liệu được cộng dồn vào `platform.usage_daily` theo tenant và ngày (UTC).
+
+---
+
+## Tham chiếu
+
+### Xem mức sử dụng
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}/usage?days=14" roles={['developer']} />
+
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `days` | int | Không | 1 - 90, mặc định 14 |
+
+```json title="200 OK"
+{
+  "plan": "free",
+  "daily_quota": 10000,
+  "today": {"requests": 1240, "remaining": 8760},
+  "days": [
+    {"day": "2026-11-16", "requests": 1240, "errors_4xx": 12, "errors_5xx": 0, "bytes_out": 3489211},
+    {"day": "2026-11-15", "requests": 5310, "errors_4xx": 40, "errors_5xx": 1, "bytes_out": 15022873}
+  ]
+}
+```
+
+**422** `days phải từ 1 đến 90`.
+
+## Khi vượt hạn mức
+
+Gateway trả `429 Too Many Requests` khi vượt **tốc độ** (req/giây) hoặc **hạn mức ngày**. Phản hồi của Data API có header cho biết còn bao nhiêu:
+
+| Header | Ý nghĩa |
+|---|---|
+| `X-RateLimit-Limit` | Hạn mức ngày |
+| `X-RateLimit-Remaining` | Số request còn lại |
+| `X-RateLimit-Reset` | Số giây tới khi cửa sổ đếm được làm mới |
+
+Ứng dụng nên lùi lại (exponential backoff) khi gặp `429`.

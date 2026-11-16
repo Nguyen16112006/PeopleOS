@@ -1,0 +1,91 @@
+---
+id: graphql
+title: GraphQL (Hasura)
+description: Đọc dữ liệu nhân sự bằng GraphQL, đã lọc theo vai trò và tenant.
+---
+
+Hasura sinh GraphQL API trực tiếp từ schema PostgreSQL. Mọi permission được khai báo theo **vai trò** và luôn kèm điều kiện `tenant_id = X-Hasura-Tenant-Id`, nên mỗi người chỉ thấy đúng phần dữ liệu được phép.
+
+<Endpoint method="POST" path="/graphql" roles={['any']} />
+
+| Header | Bắt buộc | Mô tả |
+|---|---|---|
+| `Authorization: Bearer <JWT>` | Có | Token realm `peopleos` (phải có claim `tenant_id`) |
+| `x-hasura-role` | Không | Chọn vai trò trong `realm_access.roles` để truy vấn. Mặc định `employee`. **`admin` bị gateway chặn (403)** |
+| `Content-Type: application/json` | Có | |
+
+:::tip Đọc bằng GraphQL, ghi bằng REST
+People Workspace chỉ **đọc** qua GraphQL (ngoại lệ: đánh dấu thông báo đã đọc). Mọi thao tác ghi nghiệp vụ đi qua [HR Workspace API](./workspace/overview.mdx) để có kiểm tra quy trình, audit log và thông báo.
+:::
+
+## Ví dụ
+
+<Tabs groupId="lang">
+<TabItem value="bash" label="cURL" default>
+
+```bash
+curl -s http://localhost:9080/graphql \
+  -H "Authorization: Bearer $TOKEN" -H "x-hasura-role: manager" -H 'Content-Type: application/json' \
+  -d '{"query":"{ leave_requests(where:{status:{_eq:\"pending\"}}) { id days employee { full_name } } }"}'
+```
+
+</TabItem>
+<TabItem value="js" label="JavaScript">
+
+```js
+async function gql(query, variables, {token, role = 'employee'}) {
+  const res = await fetch('http://localhost:9080/graphql', {
+    method: 'POST',
+    headers: {Authorization: `Bearer ${token}`, 'x-hasura-role': role, 'Content-Type': 'application/json'},
+    body: JSON.stringify({query, variables}),
+  });
+  const {data, errors} = await res.json();
+  if (errors) throw new Error(errors[0].message);
+  return data;
+}
+
+const {payrolls} = await gql(
+  `query PhieuLuong($y: Int!) {
+     payrolls(where: {period_year: {_eq: $y}}, order_by: {period_month: desc}) {
+       id period_month gross net_salary status
+     }
+   }`,
+  {y: 2026},
+  {token},
+);
+```
+
+</TabItem>
+</Tabs>
+
+Lỗi GraphQL trả HTTP 200 với mảng `errors` (ví dụ trường không tồn tại với vai trò hiện tại sẽ báo `field '…' not found in type`).
+
+## Bảng và view
+
+| Nhóm | Bảng |
+|---|---|
+| Nhân sự | `users`, `employees`, `contracts`, `onboarding_tasks`, `offboarding_cases` |
+| Chấm công & lương | `attendance_records`, `timesheets`, `payroll_runs`, `payrolls`, `payslip_complaints`, `insurance_records` |
+| Nghỉ phép | `leave_balances`, `leave_requests` |
+| Phê duyệt | `salary_proposals`, `approval_steps`, `approval_events`, `advance_requests` |
+| KPI | `kpi_cycles`, `kpi_goals`, `kpi_evaluations` |
+| Thuế & năm tài chính | `tax_year_closings`, `tax_certificates`, `annual_reports`, `hr_budgets` |
+| Hệ thống | `notifications`, `temp_access_requests`, `app_settings`, `audit_logs`, `data_assets`, `data_lineage` |
+| View báo cáo | `v_kpi_summary`, `v_headcount_by_department`, `v_payroll_monthly`, `v_leave_summary`, `v_contracts_expiring` |
+
+Xem đầy đủ cột và quan hệ trong Hasura Console (`http://localhost:8081`, chỉ môi trường dev) hoặc bằng introspection.
+
+## Lọc theo vai trò - ví dụ
+
+| Truy vấn `payrolls` với vai trò | Thấy gì |
+|---|---|
+| `employee`, `manager`, `director`, `sysadmin` | Chỉ phiếu lương **đã chi trả của chính mình** |
+| `hr`, `accountant` | Mọi phiếu lương của tenant, kể cả bản nháp |
+
+| Truy vấn `employees` với vai trò | Thấy gì |
+|---|---|
+| `employee`, `sysadmin` | Chỉ hồ sơ của chính mình |
+| `manager` | Hồ sơ của mình và nhân viên trong nhóm |
+| `hr`, `director`, `accountant` | Mọi nhân viên của tenant |
+
+Chi tiết từng bảng nằm trong `core/data/structured/hasura/metadata/databases/default/tables/*.yaml`.

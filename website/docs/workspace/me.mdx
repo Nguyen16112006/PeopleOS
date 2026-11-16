@@ -1,0 +1,56 @@
+---
+id: me
+title: Người dùng hiện tại
+description: Kiểm tra trạng thái BFF và lấy thông tin người dùng, vai trò, hồ sơ nhân sự.
+---
+
+Hai endpoint đơn giản nhất, thường dùng để kiểm tra kết nối và dựng giao diện theo vai trò.
+
+```js title="Ví dụ: hiển thị menu theo vai trò"
+const me = await api('/me', {token});
+if (me.roles.includes('hr')) showMenu('Kỳ lương');
+```
+
+---
+
+## Tham chiếu
+
+### Kiểm tra trạng thái
+
+<Endpoint method="GET" path="/api/health" roles={['any']} />
+
+Trả trạng thái BFF và kết nối NATS. BFF không đòi token cho endpoint này, nhưng **qua gateway** thì mọi `/api/*` đều cần JWT; khi kiểm tra sức khỏe không token, gọi thẳng BFF (`http://localhost:8000/api/health`, chỉ môi trường dev).
+
+```json title="200 OK"
+{"status": "ok", "nats": true}
+```
+
+### Lấy thông tin người dùng
+
+<Endpoint method="GET" path="/api/me" roles={['any']} />
+
+```json title="200 OK"
+{
+  "sub": "0b5a9c1e-…",
+  "username": "manager",
+  "name": "Trần Minh Quân",
+  "email": "manager@peopleos.local",
+  "roles": ["manager", "employee"],
+  "role": "manager",
+  "employee": {
+    "id": "4c2f…",
+    "user_id": "0b5a9c1e-…",
+    "full_name": "Trần Minh Quân",
+    "job_title": "Trưởng phòng",
+    "manager_id": "9e1d…",
+    "manager": {"id": "9e1d…", "user_id": "…", "full_name": "Hoàng Quốc Hùng"}
+  }
+}
+```
+
+| Trường | Kiểu | Mô tả |
+|---|---|---|
+| `sub` | string | ID Keycloak của người dùng |
+| `roles` | string[] | Mọi vai trò trong token |
+| `role` | string | Vai trò chính (ưu tiên: `sysadmin` → `director` → `accountant` → `hr` → `manager` → `employee`) |
+| `employee` | object \| null | Hồ sơ nhân sự gắn với tài khoản, kèm quản lý trực tiếp; `null` nếu tài khoản chưa có hồ sơ |

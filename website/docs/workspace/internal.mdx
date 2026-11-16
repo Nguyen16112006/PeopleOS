@@ -1,0 +1,53 @@
+---
+id: internal
+title: API nội bộ
+description: Endpoint chỉ dành cho Flowable và job định kỳ, xác thực bằng x-internal-key.
+---
+
+:::danger Không công khai
+Gateway trả **404** cho mọi request `/api/internal/*` từ bên ngoài. Các endpoint này chỉ được Flowable (quy trình BPMN, timer job) gọi trực tiếp tới BFF trong mạng nội bộ.
+:::
+
+| Header | Bắt buộc | Mô tả |
+|---|---|---|
+| `x-internal-key` | Có | Bằng biến môi trường `INTERNAL_API_KEY` của BFF; sai → `403 Sai khóa nội bộ` |
+| `x-tenant-id` | Không | Tenant cần xử lý. Bỏ trống = tenant mặc định |
+
+---
+
+## Tham chiếu
+
+### Tạo thông báo
+
+<Endpoint method="POST" path="/api/internal/notify" roles={['internal']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `user_id` | string | Một trong hai | Người nhận |
+| `role` | string | Một trong hai | Gửi cho mọi người có vai trò này |
+| `title` | string | Có | Tiêu đề |
+| `message` | string | Có | Nội dung |
+| `ref_type`, `ref_id` | string | Không | Bản ghi liên quan (để UI mở đúng trang) |
+| `kind` | string | Không | Loại sự kiện, ví dụ `leave.pending` |
+
+```json title="200 OK"
+{"delivered": 3}
+```
+
+### Khởi tạo onboarding
+
+<Endpoint method="POST" path="/api/internal/onboarding/initialize" roles={['internal']} />
+
+Body là payload onboarding (`employee_id`, `employee_name`, `job_title`, `hire_date`, …). Tạo checklist và thông báo. Trả `{"initialized": true}`.
+
+### Hết hạn quyền tạm thời
+
+<Endpoint method="POST" path="/api/internal/temp-access/expire" roles={['internal']} />
+
+Chuyển quyền quá hạn sang `expired`. Trả `{"expired": 1}`.
+
+### Khóa tài khoản đến hạn nghỉ việc
+
+<Endpoint method="POST" path="/api/internal/offboarding/lock-due" roles={['internal']} />
+
+Vô hiệu hóa tài khoản Keycloak của người đã hoàn tất nghỉ việc và qua ngày làm việc cuối. Trả `{"locked": 2}`.

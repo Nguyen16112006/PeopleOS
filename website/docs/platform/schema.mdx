@@ -1,0 +1,91 @@
+---
+id: schema
+title: Schema tự định nghĩa
+description: Thêm bảng riêng cho ứng dụng của bạn bằng spec JSON, không cần viết SQL.
+---
+
+Bạn gửi một **spec** (không phải SQL). platform-api kiểm tra spec, sinh DDL, chạy bằng role `ext_<id>_owner` (chỉ có quyền trong schema của bạn), bật RLS gắn cứng UUID tenant, rồi đăng ký bảng và permission vào Hasura.
+
+Mỗi bảng tự có 3 cột hệ thống: `id uuid` (khóa chính), `tenant_id uuid`, `created_at timestamptz`. Trên GraphQL, bảng mang tiền tố schema: bảng `shift_swaps` của project `pk3x9q2m` là `ext_pk3x9q2m_shift_swaps`.
+
+## Ví dụ: bảng đổi ca
+
+```bash
+curl -s -X POST http://localhost:9080/platform/v1/projects/$P/schema/tables \
+  -H "Authorization: Bearer $DEV_TOKEN" -H 'Content-Type: application/json' -d '{
+  "table": "shift_swaps",
+  "columns": [
+    {"name": "requester_id", "type": "uuid", "nullable": false, "references": "employees"},
+    {"name": "target_id",    "type": "uuid", "references": "employees"},
+    {"name": "shift_date",   "type": "date", "nullable": false},
+    {"name": "status",       "type": "text", "nullable": false},
+    {"name": "meta",         "type": "jsonb"}
+  ],
+  "indexes": [["shift_date"], ["requester_id", "status"]]
+}'
+```
+
+```json title="201 Created"
+{"table": "shift_swaps", "schema": "ext_pk3x9q2m", "version": 1, "graphql_prefix": "ext_pk3x9q2m_"}
+```
+
+Sau đó truy vấn qua Data API:
+
+```graphql
+query { ext_pk3x9q2m_shift_swaps(where: {status: {_eq: "pending"}}) { id shift_date requester_id } }
+```
+
+---
+
+## Tham chiếu
+
+### Tạo bảng
+
+<Endpoint method="POST" path="/platform/v1/projects/{pid}/schema/tables" roles={['developer']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `table` | string | Có | Chữ thường, số, `_`; bắt đầu bằng chữ; 2 - 41 ký tự; không trùng từ khóa SQL, không bắt đầu `pg_` |
+| `columns` | array | Có | ≥ 1 cột |
+| `columns[].name` | string | Có | Như quy tắc tên bảng; không được là `id`, `tenant_id`, `created_at` |
+| `columns[].type` | enum | Có | `text` · `int` · `bigint` · `numeric` · `boolean` · `date` · `timestamptz` · `uuid` · `jsonb` |
+| `columns[].nullable` | boolean | Không | Mặc định `true` |
+| `columns[].unique` | boolean | Không | Mặc định `false` |
+| `columns[].references` | `"employees"` | Không | Khóa ngoại **tổng hợp** `(tenant_id, cột)` → `employees(tenant_id, id)` |
+| `indexes` | string[][] | Không | Tối đa 5 index, mỗi index ≤ 4 cột |
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Gói hiện tại giới hạn 5 bảng` · `… giới hạn 20 cột/bảng` |
+| 409 | `Bảng 'shift_swaps' đã tồn tại` |
+| 422 | `Tên cột '…' không hợp lệ …` · `Cột 'id' do hệ thống quản lý` · `Tên cột bị trùng` · `Tối đa 5 index` |
+| 502 | `Hasura từ chối đăng ký bảng: …` (DDL được hoàn tác) |
+
+### Liệt kê bảng
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}/schema/tables" roles={['developer']} />
+
+```json title="200 OK"
+[{"table": "shift_swaps", "columns": [
+  {"name": "id", "type": "uuid", "nullable": false},
+  {"name": "tenant_id", "type": "uuid", "nullable": false},
+  {"name": "created_at", "type": "timestamp with time zone", "nullable": false},
+  {"name": "shift_date", "type": "date", "nullable": false}
+]}]
+```
+
+### Xóa bảng
+
+<Endpoint method="DELETE" path="/platform/v1/projects/{pid}/schema/tables/{table}" roles={['developer']} />
+
+```json title="200 OK"
+{"dropped": "shift_swaps", "version": 2}
+```
+
+**404** `Không có bảng 'shift_swaps'`.
+
+### Lịch sử phiên bản
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}/schema/versions" roles={['developer']} />
+
+Mỗi lần tạo/xóa bảng tăng `version`. Trả mảng `version, table_name, action, spec, ddl, created_at` - dùng để kiểm toán thay đổi schema.

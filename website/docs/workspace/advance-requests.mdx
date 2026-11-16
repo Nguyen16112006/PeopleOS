@@ -1,0 +1,95 @@
+---
+id: advance-requests
+title: Tạm ứng & chi phí
+description: Yêu cầu tạm ứng hoặc thanh toán chi phí, duyệt nhiều cấp, chi tiền và quyết toán hoàn ứng.
+---
+
+Một yêu cầu có `request_type` là `advance` (tạm ứng, phải hoàn ứng sau) hoặc `expense` (thanh toán chi phí đã chi). Trường `stage` cho biết ai đang xử lý:
+
+| `stage` | Người xử lý |
+|---|---|
+| `manager` | Quản lý trực tiếp (duyệt cấp 1 cho Nhân viên) |
+| `director` | Giám đốc (duyệt cấp 1 cho Quản lý, HR, Kế toán, Admin, hoặc nhân viên không có quản lý) |
+| `director_l2` | Giám đốc duyệt **cấp 2** khi số tiền **> 20.000.000 VND** (ngưỡng trong `app_settings`) |
+| `accountant` | Kế toán kiểm chứng từ, hạn mức và chi tiền |
+| `paid` | Đã chi tạm ứng, chờ nhân viên hoàn ứng |
+| `closed` | Kết thúc (đã chi chi phí, hoặc bị từ chối) |
+
+```text
+Nhân viên:   manager ──▶ [director_l2 nếu > ngưỡng] ──▶ accountant ──▶ paid ──khai hoàn ứng──▶ quyết toán (settled)
+Quản lý/HR…: director ──▶ accountant ──▶ paid | closed
+Giám đốc:    accountant ──▶ paid | closed
+```
+
+## Ví dụ
+
+```bash
+# Nhân viên xin tạm ứng 5 triệu đi công tác
+curl -s -X POST http://localhost:9080/api/advance-requests \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"request_type":"advance","amount":5000000,"reason":"Công tác Đà Nẵng 3 ngày"}'
+
+# Sau khi được chi: khai số tiền thực dùng
+curl -s -X POST http://localhost:9080/api/advance-requests/$ID/settlement \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"settled_amount":4650000}'
+```
+
+Mọi endpoint trả về:
+
+```json
+{"id": "19be4d…", "stage": "manager", "status": "pending"}
+```
+
+---
+
+## Tham chiếu
+
+### Tạo yêu cầu
+
+<Endpoint method="POST" path="/api/advance-requests" roles={['any']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `request_type` | enum | Có | `advance` \| `expense` |
+| `amount` | int (VND) | Có | > 0 |
+| `reason` | string | Có | ≥ 5 ký tự |
+| `receipt_keys` | string[] | Không | Khóa đối tượng chứng từ trong MinIO (`[A-Za-z0-9._/-]`, ≤ 200 ký tự) |
+
+### Duyệt hoặc chi tiền
+
+<Endpoint method="POST" path="/api/advance-requests/{id}/decision" roles={['manager', 'director', 'accountant']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `approve` \| `reject` |
+| `comment` | string | Không | Ghi chú |
+
+Ở `stage = accountant`, `approve` nghĩa là **đã chi tiền**: `advance` → `paid`, `expense` → `closed`. `reject` ở bất kỳ bước nào → `stage = closed`, `status = rejected`.
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Không thể tự duyệt yêu cầu của chính mình` |
+| 403 | `Giai đoạn này do quản lý trực tiếp của nhân viên duyệt` / `do Giám đốc duyệt` / `do Kế toán kiểm tra và chi tiền` |
+| 409 | `Yêu cầu đang ở giai đoạn 'paid', không còn bước duyệt` |
+
+### Khai hoàn ứng
+
+<Endpoint method="POST" path="/api/advance-requests/{id}/settlement" roles={['owner']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `settled_amount` | int (VND) | Có | Số tiền thực đã dùng, ≥ 0 |
+
+**409** `Chỉ tạm ứng đã chi tiền mới khai hoàn ứng được`.
+
+### Quyết toán hoàn ứng
+
+<Endpoint method="POST" path="/api/advance-requests/{id}/settle" roles={['accountant']} />
+
+Không cần body. Kế toán đối chiếu số khai với chứng từ và đóng khoản tạm ứng.
+
+```json title="200 OK"
+{"id": "19be4d…", "stage": "settled", "status": "approved"}
+```
+
+**409** `Chưa có khai hoàn ứng để đối chiếu`.

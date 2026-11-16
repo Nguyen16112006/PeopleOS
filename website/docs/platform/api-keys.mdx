@@ -1,0 +1,68 @@
+---
+id: api-keys
+title: API key
+description: Tạo, liệt kê và thu hồi API key của project.
+---
+
+API key cho phép **server** của bạn gọi [Data API](./data-api.mdx) mà không cần người dùng đăng nhập.
+
+```text
+pos_test_1a2b3c4d_Xy9…   ← khóa đầy đủ (chỉ hiện 1 lần)
+│   │    │
+│   │    └─ prefix 8 ký tự hex (dùng để nhận diện, hiện trong danh sách)
+│   └────── test = sandbox, live = live
+└────────── tiền tố PeopleOS
+```
+
+| Thuộc tính | Giá trị | Tác dụng |
+|---|---|---|
+| `scope` | `read` | Role Hasura `tenant_api_read`: chỉ `query` |
+| | `write` | Role `tenant_api_write`: đọc + ghi dữ liệu của tenant (trừ `users`, `audit_logs`) |
+| `env` | `sandbox` \| `live` | Nhãn môi trường (tiền tố `pos_test_` / `pos_live_`) |
+
+Hệ thống chỉ lưu **SHA-256** của khóa. Khóa được đăng ký thành *Consumer* trên APISIX ngay trong transaction: lỗi gateway thì không có khóa "ma" trong DB.
+
+:::warning Ghi trực tiếp bỏ qua quy trình duyệt
+Khóa `write` ghi thẳng vào bảng nghiệp vụ của tenant **không** qua logic phê duyệt của BFF. Ứng dụng của bạn tự chịu trách nhiệm toàn vẹn nghiệp vụ.
+:::
+
+---
+
+## Tham chiếu
+
+### Tạo API key
+
+<Endpoint method="POST" path="/platform/v1/projects/{pid}/api-keys" roles={['developer']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `name` | string | Có | 1 - 60 ký tự |
+| `scope` | enum | Có | `read` \| `write` |
+| `env` | enum | Không | `sandbox` (mặc định) \| `live` |
+
+```json title="201 Created"
+{
+  "id": "5d0f…",
+  "name": "server",
+  "prefix": "1a2b3c4d",
+  "scope": "write",
+  "env": "sandbox",
+  "created_at": "2026-11-16T08:01:44Z",
+  "key": "pos_test_1a2b3c4d_Xy9…",
+  "note": "Hãy lưu khóa ngay - hệ thống sẽ không hiển thị lại."
+}
+```
+
+**403** `Đã đạt giới hạn API key của gói`.
+
+### Liệt kê API key
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}/api-keys" roles={['developer']} />
+
+Trả mảng `id, name, prefix, scope, env, created_at, revoked_at` - **không** có khóa đầy đủ.
+
+### Thu hồi API key
+
+<Endpoint method="DELETE" path="/platform/v1/projects/{pid}/api-keys/{kid}" roles={['developer']} />
+
+Xóa Consumer trên gateway và đặt `revoked_at` → `204`. Khóa hết hiệu lực ngay. **404** `Không có API key này`.

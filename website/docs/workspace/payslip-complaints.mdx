@@ -1,0 +1,71 @@
+---
+id: payslip-complaints
+title: Khiếu nại phiếu lương
+description: Nhân viên khiếu nại phiếu lương đã phát hành; HR xử lý, Kế toán điều chỉnh.
+---
+
+```text
+open ──HR chuyển (forward)──▶ adjusting ──Kế toán điều chỉnh──▶ resolved
+  └──HR từ chối (reject)──▶ rejected
+```
+
+Mỗi phiếu lương chỉ có một khiếu nại đang xử lý. Khi Kế toán điều chỉnh, phiếu lương được **tính lại** (lương thực nhận, thuế, bảo hiểm) và nhân viên nhận thông báo.
+
+## Ví dụ
+
+```bash
+curl -s -X POST http://localhost:9080/api/payslip-complaints \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"payroll_id":"2b9e4d…","message":"Thiếu 4 giờ làm thêm ngày 12/10"}'
+```
+
+```json title="201 Created"
+{"id": "6e3e4d…", "status": "open"}
+```
+
+---
+
+## Tham chiếu
+
+### Gửi khiếu nại
+
+<Endpoint method="POST" path="/api/payslip-complaints" roles={['owner']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `payroll_id` | string | Có | Phiếu lương của chính mình, đã `paid` |
+| `message` | string | Có | 10 - 1000 ký tự |
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Chỉ được khiếu nại phiếu lương của chính mình` |
+| 409 | `Chỉ khiếu nại được phiếu lương đã phát hành` |
+| 409 | `Phiếu lương này đang có khiếu nại được xử lý` |
+
+### HR xử lý
+
+<Endpoint method="POST" path="/api/payslip-complaints/{id}/review" roles={['hr']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `forward` (chuyển Kế toán) \| `reject` |
+| `note` | string | Không | ≤ 1000 ký tự |
+
+### Kế toán điều chỉnh
+
+<Endpoint method="POST" path="/api/payslip-complaints/{id}/adjust" roles={['accountant']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `overtime_pay` | int (VND) | Một trong hai | Tiền làm thêm mới |
+| `bonus` | int (VND) | Một trong hai | Thưởng mới |
+| `note` | string | Không | ≤ 1000 ký tự |
+
+```json title="200 OK"
+{"id": "6e3e4d…", "status": "resolved"}
+```
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Cần nhập tiền làm thêm giờ và/hoặc thưởng cần điều chỉnh` |
+| 409 | `Khiếu nại chưa được HR chuyển sang bước điều chỉnh (hiện: open)` |

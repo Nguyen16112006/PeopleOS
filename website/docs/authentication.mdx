@@ -1,0 +1,86 @@
+---
+id: authentication
+title: Xác thực & vai trò
+description: Ba loại thông tin xác thực của PeopleOS, các header cần gửi và cách vai trò được xác định.
+---
+
+PeopleOS dùng **ba loại thông tin xác thực**, tùy bạn là ai và gọi vào đâu.
+
+| Bạn là | Thông tin xác thực | Realm / nơi cấp | Gọi được |
+|---|---|---|---|
+| Người dùng cuối (nhân viên, HR…) | JWT `Authorization: Bearer …` | Keycloak realm **`peopleos`**, client `people-workspace` | `/api/*`, `/graphql`, `/ws`, `/ai/*` |
+| Developer bên thứ ba | JWT `Authorization: Bearer …` | Keycloak realm **`peopleos-platform`**, client `developer-portal` | `/platform/v1/*` |
+| Ứng dụng server của developer | `X-API-Key: pos_<test\|live>_…` | Sinh trong Developer Portal | `/v1/data` |
+
+## JWT người dùng cuối
+
+Token được ký bởi Keycloak. Gateway, BFF và Hasura đều kiểm chữ ký qua JWKS của realm `peopleos`. Các claim quan trọng:
+
+| Claim | Ý nghĩa |
+|---|---|
+| `sub` | ID người dùng (Hasura nhận thành `x-hasura-user-id`) |
+| `realm_access.roles` | Danh sách vai trò, ví dụ `["manager","employee"]` |
+| `tenant_id` | Tenant mà người dùng thuộc về. **Chỉ admin Keycloak sửa được**; token thiếu claim này bị Hasura từ chối |
+| `preferred_username`, `name`, `email` | Thông tin hiển thị |
+
+```http
+GET /api/me HTTP/1.1
+Host: localhost:9080
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9…
+```
+
+:::warning Token hết hạn
+Token sống 15 phút. Khi nhận `401`, hãy làm mới bằng `refresh_token` (grant `refresh_token`) rồi gọi lại. Không lưu token trong `localStorage` ở ứng dụng thật.
+:::
+
+## Sáu vai trò
+
+Mỗi tài khoản có **đúng một vai trò chính** và luôn kèm `employee` để dùng các chức năng tự phục vụ.
+
+| Vai trò | Khóa | Ghi chú |
+|---|---|---|
+| Nhân viên | <Role id="employee" /> `employee` | Mọi tài khoản đều có |
+| Quản lý | <Role id="manager" /> `manager` | Chỉ thấy và duyệt cho **nhóm mình** |
+| HR | <Role id="hr" /> `hr` | Hồ sơ, hợp đồng, chốt công, thẩm định |
+| Giám đốc | <Role id="director" /> `director` | Duyệt cuối, chỉ xem số liệu tổng hợp |
+| Kế toán | <Role id="accountant" /> `accountant` | Tính lương, chi trả, thuế, ngân sách |
+| Admin | <Role id="sysadmin" /> `sysadmin` | Kỹ thuật, **không** đọc lương/hợp đồng/BHXH |
+
+:::danger Không dùng khóa `admin`
+Trong Hasura, vai trò tên `admin` là **siêu quyền** (bỏ qua mọi permission). Vì vậy Admin kỹ thuật dùng khóa `sysadmin`. Gateway chặn mọi request `/graphql` có `x-hasura-role: admin`.
+:::
+
+Ma trận quyền đầy đủ: [Vai trò & quyền](./roles.md).
+
+### Ký hiệu vai trò trong tài liệu
+
+Mỗi endpoint có một khối như dưới đây. Các chip bên phải cho biết **ai được gọi**:
+
+<Endpoint method="POST" path="/api/leave-requests/{id}/decision" roles={['manager', 'hr', 'director']} />
+
+Ngoài 6 vai trò, tài liệu dùng thêm: <Role id="any" /> mọi người đã đăng nhập · <Role id="owner" /> chủ bản ghi · <Role id="public" /> không cần token · <Role id="developer" /> JWT developer · <Role id="apikey" /> API key · <Role id="internal" /> chỉ gọi nội bộ.
+
+:::info Kiểm tra quyền ở hai lớp
+Gateway APISIX chặn sớm theo vai trò ở một số nhóm đường dẫn (`/api/tax-year`, `/api/temp-access-requests`, `/api/audit`, `/api/salary-proposals`, `/api/employees`, `/api/payroll-runs`). BFF luôn kiểm lại chi tiết (quản lý trực tiếp, đúng bước duyệt, không tự duyệt…) và trả `403` kèm lý do.
+:::
+
+## JWT developer
+
+Developer đăng ký tài khoản tại Developer Portal (`http://localhost:3100`, realm `peopleos-platform`, cho phép tự đăng ký). Portal dùng luồng Authorization Code + PKCE; client `developer-portal` **không** bật grant `password`.
+
+Để thử Platform API bằng curl, đăng nhập portal rồi lấy token từ phiên đăng nhập (DevTools → Network → header `Authorization` của một request `/platform/…`).
+
+## API key
+
+API key có dạng `pos_<test|live>_<prefix 8 ký tự>_<bí mật>`, gắn với một project (tenant), một **scope** (`read` hoặc `write`) và một **môi trường** (`sandbox` hoặc `live`).
+
+```bash
+curl -X POST http://localhost:9080/v1/data \
+  -H "X-API-Key: pos_test_1a2b3c4d_xxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ employees(limit: 5) { id full_name } }"}'
+```
+
+- Hệ thống chỉ lưu `sha256` của khóa; khóa đầy đủ **chỉ hiện một lần** khi tạo.
+- Gateway **xóa mọi header `x-hasura-*`** do client gửi, rồi tự gắn role (`tenant_api_read`/`tenant_api_write`) và tenant theo khóa. Bạn không thể giả mạo tenant.
+- Xem thêm: [API key](./platform/api-keys.mdx), [Data API](./platform/data-api.mdx).

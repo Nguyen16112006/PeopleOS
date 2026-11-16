@@ -1,0 +1,40 @@
+---
+id: audit
+title: Audit log
+description: Nhật ký thao tác bất biến dạng chuỗi băm và endpoint xác minh toàn vẹn.
+---
+
+Mọi thao tác nhạy cảm (duyệt, chi trả, tải lên, cấp quyền…) được ghi vào bảng `audit_logs`. Mỗi dòng lưu `prev_hash` (băm của dòng trước) và `hash` = SHA-256(seq, prev_hash, thời điểm, người thực hiện, hành động, đối tượng, chi tiết), tạo thành **chuỗi băm**: sửa hoặc xóa một dòng làm gãy chuỗi từ dòng đó trở đi. Trigger trong PostgreSQL chặn `UPDATE`/`DELETE`.
+
+Đọc log bằng GraphQL (bảng `audit_logs`, vai trò `sysadmin`, `director`, `hr`):
+
+```graphql
+query {
+  audit_logs(order_by: {seq: desc}, limit: 20) { seq action entity_type entity_id actor_name actor_role occurred_at }
+}
+```
+
+---
+
+## Tham chiếu
+
+### Xác minh toàn vẹn
+
+<Endpoint method="GET" path="/api/audit/verify" roles={['sysadmin', 'director', 'hr']} />
+
+Duyệt lại toàn bộ chuỗi băm của tenant.
+
+```json title="200 OK - chuỗi nguyên vẹn"
+{"valid": true, "checked": 1842, "first_broken_seq": null, "message": "Chuỗi nhật ký toàn vẹn: 1842 bản ghi được xác minh"}
+```
+
+```json title="200 OK - phát hiện can thiệp"
+{"valid": false, "checked": 1207, "first_broken_seq": 1207, "message": "Nội dung bản ghi seq 1207 đã bị thay đổi (hash không khớp)"}
+```
+
+| Trường | Kiểu | Mô tả |
+|---|---|---|
+| `valid` | boolean | `true` nếu mọi băm khớp |
+| `checked` | int | Số dòng đã kiểm |
+| `first_broken_seq` | int \| null | Số thứ tự dòng đầu tiên bị sai |
+| `message` | string | Mô tả kết quả: thiếu bản ghi, `prev_hash` bị phá vỡ, hoặc nội dung bị sửa |

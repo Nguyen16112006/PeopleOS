@@ -1,0 +1,73 @@
+---
+id: temp-access
+title: Quyền tạm thời
+description: Admin xin quyền truy cập tạm thời vào dữ liệu nhạy cảm khi xử lý sự cố, cần chủ dữ liệu và Giám đốc cùng duyệt.
+---
+
+Admin (`sysadmin`) bình thường **không** đọc được lương, hợp đồng, BHXH. Khi xử lý sự cố, Admin tạo yêu cầu quyền tạm thời; quyền chỉ có hiệu lực khi **cả hai** bên duyệt:
+
+1. **Chủ dữ liệu** - HR (dữ liệu hồ sơ) hoặc Kế toán (dữ liệu lương), theo `data_owner_role`.
+2. **Giám đốc**.
+
+Quyền **tự hết hạn** sau `duration_minutes` (job định kỳ gọi [`/api/internal/temp-access/expire`](./internal.mdx)). Mọi thao tác được ghi audit log, HR và Giám đốc xem lại được.
+
+```text
+pending ──(chủ dữ liệu duyệt)──┐
+        ──(Giám đốc duyệt)─────┴──▶ approved (expires_at) ──hết hạn──▶ expired
+   │                                     └──thu hồi──▶ revoked
+   └──(một bên từ chối)──▶ rejected
+```
+
+## Ví dụ
+
+```bash
+curl -s -X POST http://localhost:9080/api/temp-access-requests \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"scope":"payrolls","data_owner_role":"accountant","reason":"Sửa lỗi phiếu lương tháng 10 bị sai định dạng","duration_minutes":60}'
+```
+
+```json title="201 Created"
+{"id": "0dee4d…", "status": "pending", "expires_at": null}
+```
+
+---
+
+## Tham chiếu
+
+### Tạo yêu cầu
+
+<Endpoint method="POST" path="/api/temp-access-requests" roles={['sysadmin']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `scope` | string | Có | Phạm vi dữ liệu, chữ thường và `_` (3 - 40 ký tự), ví dụ `payrolls`, `contracts` |
+| `data_owner_role` | enum | Có | `hr` \| `accountant` |
+| `reason` | string | Có | ≥ 10 ký tự |
+| `duration_minutes` | int | Có | 5 - 1440 |
+
+### Duyệt hoặc từ chối
+
+<Endpoint method="POST" path="/api/temp-access-requests/{id}/decision" roles={['hr', 'accountant', 'director']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `approve` \| `reject` |
+| `comment` | string | Không | Ghi chú |
+
+Khi bên thứ hai duyệt, phản hồi có `status = approved` và `expires_at`. Nếu mới một bên duyệt, `status` vẫn `pending`.
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Chỉ Kế toán (chủ dữ liệu) hoặc Giám đốc được duyệt yêu cầu này` |
+| 403 | `Không thể tự duyệt yêu cầu của chính mình` |
+| 409 | `Bạn đã duyệt yêu cầu này rồi` |
+
+### Thu hồi
+
+<Endpoint method="POST" path="/api/temp-access-requests/{id}/revoke" roles={['director', 'sysadmin']} />
+
+Giám đốc hoặc chính Admin đã yêu cầu. Chỉ quyền đang `approved`.
+
+```json title="200 OK"
+{"id": "0dee4d…", "status": "revoked", "expires_at": null}
+```

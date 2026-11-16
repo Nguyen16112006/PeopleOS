@@ -1,0 +1,142 @@
+---
+id: leave-requests
+title: Nghỉ phép
+description: Tạo, duyệt và huỷ đơn nghỉ phép theo giai đoạn (Quản lý → HR → Giám đốc).
+---
+
+Đơn nghỉ phép đi qua các **giai đoạn** (`stage`) tùy vai trò của người xin nghỉ. Ngày nghỉ chỉ tính ngày làm việc; quỹ phép được trừ khi đơn được duyệt cuối.
+
+| Người xin nghỉ | Luồng duyệt |
+|---|---|
+| Nhân viên | `manager` (quản lý trực tiếp) → xong |
+| Quản lý, Kế toán, Admin | `hr` (kiểm tra quỹ phép) → `director` → xong |
+| HR | `director` → xong |
+| Giám đốc | tự ghi nhận, `approved` ngay (HR được thông báo) |
+
+## Ví dụ
+
+<Tabs groupId="lang">
+<TabItem value="bash" label="cURL" default>
+
+```bash
+# Nhân viên tạo đơn
+curl -s -X POST http://localhost:9080/api/leave-requests \
+  -H "Authorization: Bearer $EMPLOYEE_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"leave_type":"annual","start_date":"2026-12-01","end_date":"2026-12-02","reason":"Việc gia đình"}'
+
+# Quản lý trực tiếp duyệt
+curl -s -X POST http://localhost:9080/api/leave-requests/$ID/decision \
+  -H "Authorization: Bearer $MANAGER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"decision":"approve","note":"Đồng ý"}'
+```
+
+</TabItem>
+<TabItem value="js" label="JavaScript">
+
+```js
+const leave = await api('/leave-requests', {
+  method: 'POST',
+  token: employeeToken,
+  body: {leave_type: 'annual', start_date: '2026-12-01', end_date: '2026-12-02', reason: 'Việc gia đình'},
+});
+
+await api(`/leave-requests/${leave.id}/decision`, {
+  method: 'POST',
+  token: managerToken,
+  body: {decision: 'approve', note: 'Đồng ý'},
+});
+```
+
+</TabItem>
+</Tabs>
+
+Đọc danh sách đơn (của tôi, hàng chờ duyệt) bằng GraphQL:
+
+```graphql
+query HangCho {
+  leave_requests(where: {status: {_eq: "pending"}, stage: {_eq: "manager"}}, order_by: {created_at: asc}) {
+    id leave_type start_date end_date days stage
+    employee { full_name }
+  }
+}
+```
+
+---
+
+## Tham chiếu
+
+### Tạo đơn nghỉ phép
+
+<Endpoint method="POST" path="/api/leave-requests" roles={['any']} />
+
+**Body**
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `leave_type` | enum | Có | `annual` (phép năm) · `sick` (ốm) · `unpaid` (không lương) · `personal` (việc riêng) |
+| `start_date` | date | Có | Ngày bắt đầu |
+| `end_date` | date | Có | Ngày kết thúc, ≥ `start_date` |
+| `reason` | string | Không | Lý do |
+
+```json title="201 Created"
+{"id": "6f1c2a…", "status": "pending", "days": 2}
+```
+
+`days` là số ngày làm việc trong khoảng đã chọn. Giám đốc tạo đơn nhận ngay `"status": "approved"`.
+
+**Lỗi thường gặp**
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Ngày kết thúc phải sau hoặc bằng ngày bắt đầu` |
+| 400 | `Khoảng thời gian chọn không có ngày làm việc nào` |
+| 400 | `Không đủ ngày phép: còn …` |
+| 409 | `Đã có đơn nghỉ phép trùng thời gian này` |
+
+### Duyệt hoặc từ chối
+
+<Endpoint method="POST" path="/api/leave-requests/{id}/decision" roles={['manager', 'hr', 'director']} />
+
+Người duyệt phải khớp **giai đoạn hiện tại** của đơn: `manager` → quản lý trực tiếp, `hr` → HR, `director` → Giám đốc.
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `approve` \| `reject` |
+| `note` | string | Không | Ghi chú cho người xin nghỉ |
+
+```json title="200 OK"
+{"id": "6f1c2a…", "status": "approved"}
+```
+
+Khi HR duyệt ở giai đoạn `hr`, đơn **vẫn `pending`** và chuyển sang giai đoạn `director`.
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Không thể tự duyệt đơn của chính mình` |
+| 403 | `Giai đoạn này do quản lý trực tiếp của nhân viên duyệt` (hoặc `do HR…`, `do Giám đốc…`) |
+| 404 | `Không tìm thấy đơn nghỉ phép` |
+| 409 | `Đơn đã ở trạng thái 'approved'` |
+
+### Huỷ đơn
+
+<Endpoint method="POST" path="/api/leave-requests/{id}/cancel" roles={['owner']} />
+
+Chỉ chủ đơn, chỉ khi đơn còn `pending`. Không cần body.
+
+```json title="200 OK"
+{"id": "6f1c2a…", "status": "cancelled"}
+```
+
+| Mã | `detail` |
+|---|---|
+| 404 | `Không tìm thấy đơn nghỉ phép của bạn` |
+| 409 | `Chỉ huỷ được đơn đang chờ duyệt` |
+
+## Trạng thái
+
+| `status` | Ý nghĩa |
+|---|---|
+| `pending` | Đang chờ duyệt ở giai đoạn `stage` |
+| `approved` | Đã duyệt, quỹ phép đã trừ |
+| `rejected` | Bị từ chối |
+| `cancelled` | Người xin nghỉ đã huỷ |

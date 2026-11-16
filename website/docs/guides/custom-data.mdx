@@ -1,0 +1,145 @@
+---
+id: custom-data
+title: Dữ liệu riêng cho ứng dụng
+description: Từng bước thêm trường tùy chỉnh cho nhân viên và tạo bảng đổi ca riêng, rồi đọc ghi qua GraphQL.
+---
+
+Tiếp nối [Xây ứng dụng đầu tiên](./first-app.mdx), bài này thêm hai thứ mà lõi nhân sự không có:
+
+1. **Cỡ áo đồng phục** của từng nhân viên → trường tùy chỉnh.
+2. **Yêu cầu đổi ca** giữa hai nhân viên → bảng dữ liệu riêng.
+
+Khái niệm: [Mở rộng dữ liệu](../concepts/extending.md).
+
+## Phần 1 - Trường tùy chỉnh
+
+### Khai báo
+
+<Tabs groupId="tool">
+<TabItem value="portal" label="Developer Portal" default>
+
+Vào **Trường tùy chỉnh** → **Khóa** `shirt_size`, **Kiểu** *Danh sách chọn*, **Các giá trị cho phép** `S, M, L, XL` → **Thêm trường**.
+
+</TabItem>
+<TabItem value="api" label="Platform API">
+
+```bash
+curl -s -X POST http://localhost:9080/platform/v1/projects/$PROJECT_ID/custom-fields \
+  -H "Authorization: Bearer $DEV_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"key":"shirt_size","type":"enum","options":["S","M","L","XL"]}'
+```
+
+</TabItem>
+</Tabs>
+
+### Ghi và đọc
+
+```graphql
+mutation DatCoAo($id: uuid!) {
+  update_employees_by_pk(pk_columns: {id: $id}, _append: {custom: {shirt_size: "M"}}) {
+    full_name
+    custom
+  }
+}
+```
+
+`_append` gộp khóa mới vào `custom`, giữ nguyên các trường tùy chỉnh khác. Đọc lại hoặc lọc theo trường:
+
+```graphql
+query CanDatAo {
+  employees(where: {custom: {_contains: {shirt_size: "M"}}}) { full_name custom }
+}
+```
+
+Thử ghi `"XXL"`: GraphQL trả về `errors` (`Giá trị của trường "shirt_size" không đúng kiểu enum`). Khóa chưa khai báo cũng bị chặn (`Trường tùy chỉnh "…" chưa được khai báo`), nên `custom` không thành nơi chứa dữ liệu tùy tiện.
+
+:::warning Trường bắt buộc
+Nếu tích **Bắt buộc**, mọi lần **thêm nhân viên** và mọi lần **sửa cột `custom`** sau đó đều phải có khóa này, kể cả từ ứng dụng khác dùng chung dự án. Hãy cập nhật dữ liệu cũ trước khi bật.
+:::
+
+## Phần 2 - Bảng dữ liệu riêng
+
+### Tạo bảng
+
+<Tabs groupId="tool">
+<TabItem value="portal" label="Developer Portal" default>
+
+Vào **Bảng dữ liệu riêng** → **Tên bảng** `shift_swaps`, thêm các cột:
+
+| Tên cột | Kiểu | Tùy chọn |
+|---|---|---|
+| `requester_id` | uuid | **Bắt buộc**, **Liên kết nhân viên** |
+| `target_id` | uuid | **Liên kết nhân viên** |
+| `shift_date` | date | **Bắt buộc** |
+| `status` | text | **Bắt buộc** |
+| `note` | text | |
+
+Bấm **Tạo bảng**.
+
+</TabItem>
+<TabItem value="api" label="Platform API">
+
+```bash
+curl -s -X POST http://localhost:9080/platform/v1/projects/$PROJECT_ID/schema/tables \
+  -H "Authorization: Bearer $DEV_TOKEN" -H 'Content-Type: application/json' -d '{
+  "table": "shift_swaps",
+  "columns": [
+    {"name": "requester_id", "type": "uuid", "nullable": false, "references": "employees"},
+    {"name": "target_id", "type": "uuid", "references": "employees"},
+    {"name": "shift_date", "type": "date", "nullable": false},
+    {"name": "status", "type": "text", "nullable": false},
+    {"name": "note", "type": "text"}
+  ],
+  "indexes": [["shift_date"]]
+}'
+```
+
+</TabItem>
+</Tabs>
+
+Bảng có tên GraphQL `ext_<mã dự án>_shift_swaps`. Các ví dụ dưới dùng mã `pk3x9q2m`; thay bằng mã dự án của bạn (xem ở **Tổng quan**).
+
+### Ghi dữ liệu
+
+```graphql
+mutation XinDoiCa($req: uuid!, $target: uuid!) {
+  insert_ext_pk3x9q2m_shift_swaps_one(object: {
+    requester_id: $req, target_id: $target, shift_date: "2026-12-20", status: "pending", note: "Về quê"
+  }) { id created_at }
+}
+```
+
+Bạn không gửi `id`, `tenant_id`, `created_at`: hệ thống tự điền.
+
+### Đọc dữ liệu
+
+```graphql
+query DoiCaChoDuyet {
+  ext_pk3x9q2m_shift_swaps(where: {status: {_eq: "pending"}}, order_by: {shift_date: asc}) {
+    id shift_date status note requester_id target_id
+  }
+}
+```
+
+Bảng riêng chưa có quan hệ GraphQL tới `employees`. Để hiện tên người, lấy danh sách ID rồi truy vấn thêm:
+
+```js
+const {ext_pk3x9q2m_shift_swaps: swaps} = await gql(`{ ext_pk3x9q2m_shift_swaps { id requester_id target_id shift_date } }`);
+const ids = [...new Set(swaps.flatMap((s) => [s.requester_id, s.target_id]).filter(Boolean))];
+const {employees} = await gql(`query($ids: [uuid!]!) { employees(where: {id: {_in: $ids}}) { id full_name } }`, {ids});
+const name = Object.fromEntries(employees.map((e) => [e.id, e.full_name]));
+```
+
+### Thử ràng buộc
+
+Gửi `requester_id` là một UUID ngẫu nhiên (hoặc ID nhân viên của dự án khác): request bị từ chối vì **khóa ngoại tổng hợp** `(tenant_id, requester_id)` không khớp nhân viên nào của dự án bạn.
+
+## Thay đổi cấu trúc bảng
+
+Chưa hỗ trợ sửa cột trên bảng đã có. Cách làm:
+
+1. Tạo bảng mới (ví dụ `shift_swaps_v2`) với cấu trúc mới.
+2. Chép dữ liệu bằng một script đọc bảng cũ và `insert` vào bảng mới.
+3. Chuyển ứng dụng sang bảng mới, rồi **Xóa bảng** cũ.
+
+Mục **Bảng dữ liệu riêng** và API [`schema/versions`](../platform/schema.mdx#lịch-sử-phiên-bản) lưu lại từng lần thay đổi.
