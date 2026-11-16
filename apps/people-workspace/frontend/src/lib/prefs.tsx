@@ -9,14 +9,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useAuth } from '@/auth/AuthProvider'
 
 export type Salutation = 'ten' | 'anh' | 'chi' | 'full'
-export type Accent = 'muc' | 'cham' | 'than' | 'caphe'
 export type TextSize = 'md' | 'lg' | 'xl'
 export type Density = 'comfy' | 'compact'
 export type Theme = 'light' | 'dark' | 'system'
 
 export interface Prefs {
   salutation: Salutation
-  accent: Accent
   size: TextSize
   density: Density
   theme: Theme
@@ -33,15 +31,8 @@ export const DEFAULT_PINS: Record<string, string[]> = {
   sysadmin: ['/audit', '/temp-access', '/lineage'],
 }
 
-export const ACCENTS: { key: Accent; label: string; swatch: string }[] = [
-  { key: 'muc', label: 'Mực', swatch: '#2f5d9a' },
-  { key: 'cham', label: 'Chàm', swatch: '#4b4fa8' },
-  { key: 'than', label: 'Than', swatch: '#3a4048' },
-  { key: 'caphe', label: 'Cà phê', swatch: '#7a4b2a' },
-]
-
 const defaults = (role: string): Prefs => ({
-  salutation: 'ten', accent: 'muc', size: 'md', density: 'comfy', theme: 'light',
+  salutation: 'ten', size: 'md', density: 'comfy', theme: 'light',
   pins: DEFAULT_PINS[role] ?? DEFAULT_PINS.employee,
 })
 
@@ -81,7 +72,6 @@ function applyToDocument(p: Prefs) {
   const root = document.documentElement
   const dark = p.theme === 'dark' || (p.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   root.classList.toggle('dark', dark)
-  root.dataset.accent = p.accent
   root.dataset.size = p.size
   root.dataset.density = p.density
   try { localStorage.setItem('peopleos-theme', dark ? 'dark' : 'light') } catch { /* như trên */ }
