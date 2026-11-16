@@ -4,13 +4,13 @@
 import { useAuth } from '@/auth/AuthProvider'
 import { PageHeader } from '@/components/common'
 import { ALL_NAV } from '@/lib/nav'
-import { ACCENTS, callName, DEFAULT_PINS, usePrefs, type Density, type Prefs, type Salutation, type TextSize, type Theme } from '@/lib/prefs'
+import { callName, DEFAULT_PINS, usePrefs, type Density, type Prefs, type Salutation, type TextSize, type Theme } from '@/lib/prefs'
 import { cn } from '@/lib/utils'
 
 function Choice<T extends string>({ label, value, options, onChange }: {
   label: string
   value: T
-  options: { key: T; label: string; swatch?: string }[]
+  options: { key: T; label: string }[]
   onChange: (v: T) => void
 }) {
   return (
@@ -18,7 +18,6 @@ function Choice<T extends string>({ label, value, options, onChange }: {
       {options.map((o) => (
         <button key={o.key} type="button" role="radio" aria-checked={value === o.key}
           className={cn('po-chip', value === o.key && 'selected')} onClick={() => onChange(o.key)}>
-          {o.swatch && <span className="po-swatch" style={{ background: o.swatch }} aria-hidden="true" />}
           {o.label}
         </button>
       ))}
@@ -47,13 +46,6 @@ export default function Settings() {
           { key: 'chi', label: callName(user.name, 'chi') },
           { key: 'full', label: callName(user.name, 'full') },
         ]} />
-      </section>
-
-      <section className="po-panel po-settings-block">
-        <h2>Màu nhấn</h2>
-        <p>Màu của nút chính, đường dẫn và mục đang chọn. Màu đỏ của con dấu và màu vàng báo việc cần xử lý giữ nguyên để không bị nhầm.</p>
-        <Choice label="Màu nhấn" value={prefs.accent} onChange={set('accent')}
-          options={ACCENTS.map((a) => ({ key: a.key, label: a.label, swatch: a.swatch }))} />
       </section>
 
       <section className="po-panel po-settings-block po-settings-row">
