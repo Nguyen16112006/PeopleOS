@@ -1,0 +1,79 @@
+---
+id: documents
+title: Tài liệu PDF
+description: Tải phiếu lương, hợp đồng dạng PDF và tải lên bản hợp đồng đã ký (có quét mã độc ClamAV).
+---
+
+PDF được sinh lần đầu khi có người tải, sau đó lưu trong MinIO để các lần sau trả nhanh. Hợp đồng ưu tiên trả **bản đã ký** nếu HR đã tải lên.
+
+## Ví dụ
+
+<Tabs groupId="lang">
+<TabItem value="bash" label="cURL" default>
+
+```bash
+# Tải phiếu lương về file
+curl -s -o phieu-luong.pdf http://localhost:9080/api/payslips/$PAYROLL_ID/download -H "Authorization: Bearer $TOKEN"
+
+# HR tải lên hợp đồng đã ký
+curl -s -X POST http://localhost:9080/api/contracts/$CONTRACT_ID/upload \
+  -H "Authorization: Bearer $HR_TOKEN" -F "file=@hop-dong-da-ky.pdf"
+```
+
+</TabItem>
+<TabItem value="js" label="JavaScript">
+
+```js
+const res = await fetch(`http://localhost:9080/api/payslips/${payrollId}/download`, {
+  headers: {Authorization: `Bearer ${token}`},
+});
+const url = URL.createObjectURL(await res.blob());
+window.open(url);
+
+// Tải lên
+const form = new FormData();
+form.append('file', fileInput.files[0]);
+await fetch(`http://localhost:9080/api/contracts/${contractId}/upload`, {
+  method: 'POST',
+  headers: {Authorization: `Bearer ${hrToken}`},   // không đặt Content-Type, trình duyệt tự thêm boundary
+  body: form,
+});
+```
+
+</TabItem>
+</Tabs>
+
+---
+
+## Tham chiếu
+
+### Tải phiếu lương
+
+<Endpoint method="GET" path="/api/payslips/{id}/download" roles={['owner', 'hr', 'accountant']} />
+
+Trả `application/pdf`. `id` là ID bản ghi `payrolls`. **404** `Không tìm thấy phiếu lương` cả khi không tồn tại lẫn khi không có quyền.
+
+### Tải hợp đồng
+
+<Endpoint method="GET" path="/api/contracts/{id}/download" roles={['owner', 'hr', 'accountant']} />
+
+Trả `application/pdf`. **404** `Không tìm thấy hợp đồng`.
+
+### Tải lên hợp đồng đã ký
+
+<Endpoint method="POST" path="/api/contracts/{id}/upload" roles={['hr']} />
+
+`multipart/form-data`, trường **`file`** (PDF, ≤ 10 MB). Tệp được **quét ClamAV trước** khi lưu vào MinIO.
+
+```json title="200 OK"
+{"id": "4a1e4d…", "file_key": "contracts/e81b…/HD-2026-0042-signed.pdf", "size": 284113}
+```
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Tệp rỗng` · `Không đọc được tệp tải lên` |
+| 403 | `Chỉ HR được tải lên bản hợp đồng đã ký` |
+| 413 | `Tệp quá lớn (tối đa 10 MB)` |
+| 415 | `Chỉ chấp nhận tệp PDF hợp lệ` |
+| 422 | `Tệp bị từ chối: phát hiện mã độc (Eicar-Test-Signature)` |
+| 503 | ClamAV hoặc MinIO chưa sẵn sàng |

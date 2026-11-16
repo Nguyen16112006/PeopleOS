@@ -1,0 +1,71 @@
+---
+id: projects
+title: Project
+description: Tạo, liệt kê, xem và xóa project (tenant) của developer.
+---
+
+Mỗi project là một **tenant**. Tạo project chạy một **saga 3 bước** (trả về khi project đã `active`); bước nào lỗi thì các bước trước được bù trừ ngược:
+
+1. Tạo schema `ext_<short_id>` và role owner riêng.
+2. Kế thừa `app_settings` mặc định (ngưỡng duyệt, tham số lương…).
+3. Tạo client OIDC `app-<short_id>` trong realm `peopleos` cho end-user của ứng dụng.
+
+| `status` | Ý nghĩa |
+|---|---|
+| `provisioning` | Đang cấp phát |
+| `active` | Sẵn sàng |
+| `failed` | Cấp phát lỗi (tên được nhả để tạo lại) |
+| `suspended` | Tạm ngưng |
+| `deleting` / `deleted` | Đang xóa / đã xóa mềm |
+
+---
+
+## Tham chiếu
+
+### Tạo project
+
+<Endpoint method="POST" path="/platform/v1/projects" roles={['developer']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `name` | string | Có | 3 - 60 ký tự, không trùng với project khác của bạn |
+| `redirect_uris` | string[] | Không | Redirect URI cho client OIDC của ứng dụng |
+
+```json title="201 Created"
+{
+  "id": "1c7e0a3b-…",
+  "short_id": "pk3x9q2m",
+  "name": "App chấm công ACME",
+  "plan": "free",
+  "tier": "pool",
+  "status": "active",
+  "created_at": "2026-11-16T07:55:02Z"
+}
+```
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Gói free giới hạn 3 project` |
+| 409 | `Bạn đã có project trùng tên` |
+| 422 | `Tên project phải dài 3-60 ký tự` |
+| 502 | `Cấp phát thất bại ở bước …` |
+
+### Liệt kê project
+
+<Endpoint method="GET" path="/platform/v1/projects" roles={['developer']} />
+
+Trả mảng project chưa xóa của bạn (`id, short_id, name, plan, tier, status, created_at`), cũ nhất trước.
+
+### Xem project
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}" roles={['developer']} />
+
+Xem được cả project chưa `active`.
+
+### Xóa project
+
+<Endpoint method="DELETE" path="/platform/v1/projects/{pid}" roles={['developer']} />
+
+**Xóa mềm** → `204`. Hệ thống xóa Consumer của mọi API key trên gateway, gỡ các bảng `ext_*` khỏi Hasura, xóa client OIDC `app-<short_id>`, tắt webhook. Dữ liệu lõi (`public.*`) và `audit_logs` (bất biến) được giữ lại.
+
+**502** `Thu hồi chưa xong (…); gọi lại DELETE để thử tiếp` - endpoint idempotent, gọi lại an toàn.

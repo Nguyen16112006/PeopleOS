@@ -1,0 +1,92 @@
+---
+id: tax-year
+title: Thuế & báo cáo năm
+description: Xác nhận dữ liệu thuế, quyết toán TNCN, chứng từ khấu trừ, báo cáo tài chính năm và ngân sách năm sau.
+---
+
+Các endpoint cuối năm đều có dạng `/api/tax-year/{year}/…` và trả về:
+
+```json
+{"year": 2026, "status": "settled", "count": 42}
+```
+
+| Bước | Ai | Endpoint | Điều kiện |
+|---|---|---|---|
+| 1. Xác nhận người phụ thuộc, MST | <Role id="hr" /> | `POST /hr-confirm` | Mọi người có lương trong năm phải có mã số thuế |
+| 2. Quyết toán TNCN | <Role id="accountant" /> | `POST /settle` | Đã `hr_confirmed`. Tự phát hành **chứng từ khấu trừ thuế** cho từng người và gửi thông báo |
+| 3. Lập báo cáo tài chính năm | <Role id="accountant" /> | `POST /report/submit` | Đã `settled`. Số liệu tính từ bảng lương và bảo hiểm |
+| 4. Duyệt / trả lại báo cáo | <Role id="director" /> | `POST /report/approve`, `/report/return` | Báo cáo `submitted` |
+| 5. Đề xuất ngân sách nhân sự, quỹ lương | <Role id="accountant" /> | `POST /budget` | - |
+| 6. Duyệt ngân sách | <Role id="director" /> | `POST /budget/approve` | Báo cáo của **năm trước** đã được duyệt |
+
+:::note
+Kê khai, nộp thuế và BHXH hằng tháng/quý với cơ quan nhà nước làm bên ngoài hệ thống; PeopleOS lưu số liệu và chứng từ.
+:::
+
+Chứng từ khấu trừ thuế đọc bằng GraphQL bảng `tax_certificates` (mỗi người chỉ thấy của mình; HR và Kế toán thấy tất cả).
+
+---
+
+## Tham chiếu
+
+### Xác nhận dữ liệu thuế
+
+<Endpoint method="POST" path="/api/tax-year/{year}/hr-confirm" roles={['hr']} />
+
+Không cần body. `count` = số nhân viên được xác nhận.
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Năm không hợp lệ: …` |
+| 409 | `Còn 2 nhân viên chưa có mã số thuế: …` · `Năm 2026 đã quyết toán thuế` |
+
+### Quyết toán thuế TNCN
+
+<Endpoint method="POST" path="/api/tax-year/{year}/settle" roles={['accountant']} />
+
+`count` = số chứng từ đã phát hành.
+
+| Mã | `detail` |
+|---|---|
+| 409 | `HR chưa xác nhận người phụ thuộc và mã số thuế` |
+| 409 | `Chưa có bảng lương đã chi trả cho năm 2026` |
+
+### Nộp báo cáo tài chính năm
+
+<Endpoint method="POST" path="/api/tax-year/{year}/report/submit" roles={['accountant']} />
+
+| Mã | `detail` |
+|---|---|
+| 409 | `Cần quyết toán thuế TNCN năm 2026 trước khi lập báo cáo tài chính năm` |
+| 409 | `Báo cáo năm 2026 đã được Giám đốc duyệt` |
+
+### Duyệt báo cáo
+
+<Endpoint method="POST" path="/api/tax-year/{year}/report/approve" roles={['director']} />
+
+### Trả lại báo cáo
+
+<Endpoint method="POST" path="/api/tax-year/{year}/report/return" roles={['director']} />
+
+Body tùy chọn `{"comment": "…"}`. Cả hai trả **409** nếu báo cáo chưa `submitted`.
+
+### Đề xuất ngân sách năm
+
+<Endpoint method="POST" path="/api/tax-year/{year}/budget" roles={['accountant']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `payroll_fund` | int (VND) | Có | Quỹ lương, > 0 |
+| `headcount_plan` | int | Không | Định biên nhân sự |
+| `note` | string | Không | ≤ 1000 ký tự |
+
+**409** `Ngân sách năm 2027 đã được duyệt`.
+
+### Duyệt ngân sách
+
+<Endpoint method="POST" path="/api/tax-year/{year}/budget/approve" roles={['director']} />
+
+| Mã | `detail` |
+|---|---|
+| 409 | `Chưa có đề xuất ngân sách năm 2027 chờ duyệt` |
+| 409 | `Báo cáo tài chính năm 2026 cần được duyệt trước khi duyệt ngân sách năm 2027` |

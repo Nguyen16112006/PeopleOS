@@ -1,0 +1,148 @@
+---
+id: attendance
+title: Chấm công & bảng công
+description: Chấm công vào/ra, khai công theo ngày, xem, gửi và xác nhận bảng công tháng.
+---
+
+Cả 6 vai trò đều chấm công. Bảng công tháng được **tính trực tiếp** từ bản ghi chấm công và đơn nghỉ phép đã duyệt, rồi đi qua vòng đời:
+
+```text
+open ──(nhân viên gửi)──▶ submitted ──(QL/HR xác nhận)──▶ confirmed ──(HR chốt công khi tạo kỳ lương)──▶ closed
+  ▲                            │
+  └───────(trả lại, có lý do)──┘
+```
+
+Người xác nhận: **quản lý trực tiếp** hoặc **HR**; người không có quản lý (ví dụ HR, Kế toán) được Giám đốc xác nhận. Không ai tự xác nhận bảng công của mình.
+
+## Ví dụ
+
+```bash
+# Chấm công vào / ra hôm nay (giờ Việt Nam)
+curl -s -X POST http://localhost:9080/api/attendance/check-in  -H "Authorization: Bearer $TOKEN"
+curl -s -X POST http://localhost:9080/api/attendance/check-out -H "Authorization: Bearer $TOKEN"
+
+# Xem bảng công tháng 11/2026 của chính mình
+curl -s "http://localhost:9080/api/timesheets?year=2026&month=11" -H "Authorization: Bearer $TOKEN"
+
+# Gửi bảng công để xác nhận
+curl -s -X POST http://localhost:9080/api/timesheets/submit \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"year":2026,"month":11}'
+```
+
+---
+
+## Tham chiếu
+
+### Chấm công vào
+
+<Endpoint method="POST" path="/api/attendance/check-in" roles={['any']} />
+
+Không cần body. Tạo bản ghi ngày hôm nay với `status = present`, `work_days = 1`.
+
+```json title="200 OK"
+{"id": "a71e…", "work_date": "2026-11-16", "check_in": "2026-11-16T08:02:11+07:00", "check_out": null, "status": "present"}
+```
+
+| Mã | `detail` |
+|---|---|
+| 409 | `Hôm nay bạn đã chấm công vào rồi` |
+| 409 | `Tháng … đã chốt công` / bảng công tháng đã gửi |
+
+### Chấm công ra
+
+<Endpoint method="POST" path="/api/attendance/check-out" roles={['any']} />
+
+| Mã | `detail` |
+|---|---|
+| 409 | `Bạn chưa chấm công vào hôm nay` |
+| 409 | `Hôm nay bạn đã chấm công ra rồi` |
+
+### Khai hoặc sửa công một ngày
+
+<Endpoint method="PUT" path="/api/attendance/days" roles={['any', 'hr']} />
+
+Tự khai cho bản thân, hoặc HR sửa cho người khác (gửi kèm `employee_id`).
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `work_date` | date | Có | Ngày công. Tự khai: không được là ngày chưa đến |
+| `status` | enum | Có | Tự khai: `present` · `remote` · `business_trip`. HR thêm: `holiday` · `paid_leave` · `unpaid_leave` · `absent` |
+| `work_days` | number | Không | `0`, `0.5` hoặc `1` |
+| `overtime_hours` | number | Không | 0 - 12 giờ |
+| `overtime_type` | enum | Không | `weekday` · `weekend` · `holiday` (mặc định suy ra từ ngày) |
+| `note` | string | Không | ≤ 500 ký tự |
+| `employee_id` | string | Không | Chỉ HR dùng, để sửa công của nhân viên khác |
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Không khai công cho ngày chưa đến` · `Ngày công trước ngày vào làm` · `Số công trong ngày phải là 0, 0,5 hoặc 1` |
+| 403 | `Chỉ HR được sửa công của người khác` |
+| 403 | `Loại ngày này do HR ghi nhận (nghỉ phép hãy tạo đơn ở mục Nghỉ phép)` |
+| 403 | `Ngày này đã được HR ghi nhận; liên hệ HR nếu cần điều chỉnh` |
+| 409 | `Tháng này đã chốt công, không sửa được nữa` |
+
+### Xem bảng công tháng
+
+<Endpoint method="GET" path="/api/timesheets?year=&month=&employee_id=" roles={['owner', 'manager', 'hr', 'accountant', 'director']} />
+
+| Tham số query | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `year` | int | Có | 2020 - 2100 |
+| `month` | int | Có | 1 - 12 |
+| `employee_id` | string | Không | Bỏ trống = của chính mình. Quản lý chỉ xem được nhân viên trong nhóm |
+
+```json title="200 OK"
+{
+  "id": "9c1e4d…",
+  "employee_id": "4c2f…",
+  "year": 2026, "month": 11,
+  "status": "open",
+  "review_note": null,
+  "editable": true,
+  "standard_days": 21,
+  "work_days": 10,
+  "paid_leave_days": 1,
+  "holiday_days": 0,
+  "unpaid_leave_days": 0,
+  "absent_days": 0,
+  "paid_days": 11,
+  "ot_weekday_hours": 2.5,
+  "ot_weekend_hours": 0,
+  "ot_holiday_hours": 0,
+  "missing_dates": ["2026-11-13"]
+}
+```
+
+| Trường | Mô tả |
+|---|---|
+| `standard_days` | Công chuẩn của tháng |
+| `paid_days` | Công hưởng lương = `work_days + paid_leave_days + holiday_days` |
+| `missing_dates` | Ngày làm việc đã qua nhưng chưa có công |
+| `editable` | Người gọi có sửa được không (chủ bảng công khi `open`; HR khi chưa `closed`) |
+
+### Gửi bảng công
+
+<Endpoint method="POST" path="/api/timesheets/submit" roles={['any']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `year` | int | Có | Năm |
+| `month` | int | Có | Tháng (không được là tháng tương lai) |
+
+Trả về bảng công (như trên) với `status = submitted`. **409** nếu bảng công không ở trạng thái `open`.
+
+### Xác nhận hoặc trả lại
+
+<Endpoint method="POST" path="/api/timesheets/{id}/decision" roles={['manager', 'hr', 'director']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `approve` \| `reject` |
+| `note` | string | Khi `reject` | Lý do trả lại (≤ 1000 ký tự) |
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Cần nêu lý do khi trả lại bảng công` |
+| 403 | `Không thể tự xác nhận bảng công của chính mình` |
+| 403 | `Bảng công do quản lý trực tiếp hoặc HR xác nhận` |
+| 409 | `Bảng công đang ở trạng thái '…', không chờ xác nhận` |

@@ -1,0 +1,135 @@
+---
+id: kpi
+title: KPI theo quý
+description: Mở chu kỳ đánh giá, giao mục tiêu, chấm điểm, tổng hợp, duyệt và phản hồi kết quả KPI.
+---
+
+Đánh giá hiệu suất chạy **theo quý**, không có bước nhân viên tự đánh giá.
+
+```text
+HR mở chu kỳ (open) ─▶ QL giao mục tiêu (tổng trọng số = 100) ─▶ QL chấm điểm từng mục tiêu
+   ─▶ HR tổng hợp (review) ─▶ Giám đốc duyệt (approved) ─▶ nhân viên xem kết quả & phản hồi
+                                   └─ trả lại ─▶ open
+```
+
+Giám đốc giao và đánh giá KPI cho Quản lý; Quản lý giao và đánh giá cho nhân viên trong nhóm. Kết quả là đầu vào cho [đề xuất lương](./salary-proposals.mdx).
+
+**Điểm** = trung bình có trọng số của mức hoàn thành (0 - 100) từng mục tiêu. **Xếp loại**:
+
+| Điểm | `rating` |
+|---|---|
+| ≥ 90 | `excellent` |
+| ≥ 75 | `good` |
+| ≥ 60 | `meets` |
+| < 60 | `needs_improvement` |
+
+## Ví dụ
+
+```bash
+H='Content-Type: application/json'
+# HR mở chu kỳ Q4/2026
+curl -s -X POST http://localhost:9080/api/kpi/cycles -H "Authorization: Bearer $HR" -H "$H" -d '{"year":2026,"quarter":4}'
+# Quản lý giao 2 mục tiêu (60 + 40)
+curl -s -X POST http://localhost:9080/api/kpi/goals -H "Authorization: Bearer $MGR" -H "$H" \
+  -d '{"cycle_id":"'$CYCLE'","employee_id":"'$EMP'","title":"Doanh số quý","target":"3 tỷ","weight":60}'
+curl -s -X POST http://localhost:9080/api/kpi/goals -H "Authorization: Bearer $MGR" -H "$H" \
+  -d '{"cycle_id":"'$CYCLE'","employee_id":"'$EMP'","title":"Khách hàng mới","target":"10","weight":40}'
+# Chấm điểm
+curl -s -X POST http://localhost:9080/api/kpi/evaluations -H "Authorization: Bearer $MGR" -H "$H" \
+  -d '{"cycle_id":"'$CYCLE'","employee_id":"'$EMP'","scores":[{"goal_id":"'$G1'","achievement":95},{"goal_id":"'$G2'","achievement":80}]}'
+```
+
+```json title="201 Created (chấm điểm)"
+{"id": "8f2e4d…", "status": "submitted", "score": 89.0, "rating": "good"}
+```
+
+Các endpoint khác trả `{"id", "status", "score": null, "rating": null}`.
+
+---
+
+## Tham chiếu
+
+### Mở chu kỳ
+
+<Endpoint method="POST" path="/api/kpi/cycles" roles={['hr']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `year` | int | Có | 2020 - 2100 |
+| `quarter` | int | Có | 1 - 4 |
+
+**409** `Chu kỳ Q4/2026 đã tồn tại`.
+
+### Giao mục tiêu
+
+<Endpoint method="POST" path="/api/kpi/goals" roles={['manager', 'director']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `cycle_id` | string | Có | Chu kỳ đang `open` |
+| `employee_id` | string | Có | Người được giao (cấp dưới trực tiếp) |
+| `title` | string | Có | ≤ 200 ký tự |
+| `description` | string | Không | ≤ 1000 ký tự |
+| `target` | string | Không | Chỉ tiêu, ≤ 300 ký tự |
+| `weight` | int | Có | 1 - 100; tổng của một người không vượt 100 |
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Không thể giao hay đánh giá KPI cho chính mình` |
+| 403 | `Chỉ quản lý trực tiếp của nhân viên được giao và đánh giá KPI` |
+| 409 | `Tổng trọng số vượt 100 (hiện 60, thêm 50)` |
+| 409 | `Chu kỳ không còn mở (trạng thái 'review')` |
+
+### Xóa mục tiêu
+
+<Endpoint method="DELETE" path="/api/kpi/goals/{id}" roles={['manager', 'director']} />
+
+Chỉ khi chu kỳ còn `open`, chỉ quản lý trực tiếp. Trả `{"id", "status": "removed"}`.
+
+### Chấm điểm
+
+<Endpoint method="POST" path="/api/kpi/evaluations" roles={['manager', 'director']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `cycle_id` | string | Có | Chu kỳ đang `open` |
+| `employee_id` | string | Có | Người được đánh giá |
+| `scores` | array | Có | Đủ mọi mục tiêu, không trùng |
+| `scores[].goal_id` | string | Có | ID mục tiêu |
+| `scores[].achievement` | int | Có | 0 - 100 |
+| `comment` | string | Không | ≤ 2000 ký tự |
+
+Gọi lại sẽ ghi đè đánh giá cũ khi chu kỳ còn `open`.
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Cần chấm đủ 2 mục tiêu` · `Mục tiêu bị chấm trùng: …` |
+| 409 | `Tổng trọng số mục tiêu phải bằng 100 trước khi đánh giá (hiện 60)` |
+
+### Tổng hợp
+
+<Endpoint method="POST" path="/api/kpi/cycles/{id}/consolidate" roles={['hr']} />
+
+Yêu cầu mọi nhân viên đang làm việc có quản lý đều đã được đánh giá. Chu kỳ → `review`.
+
+**409** `Còn 3 người chưa được đánh giá: …`.
+
+### Duyệt kết quả
+
+<Endpoint method="POST" path="/api/kpi/cycles/{id}/approve" roles={['director']} />
+
+### Trả lại
+
+<Endpoint method="POST" path="/api/kpi/cycles/{id}/return" roles={['director']} />
+
+Body tùy chọn `{"comment": "…"}` (≤ 1000 ký tự). Chu kỳ → `open`. Cả hai endpoint trả **409** `Chu kỳ chưa ở bước chờ Giám đốc duyệt` nếu chưa `review`.
+
+### Phản hồi kết quả
+
+<Endpoint method="POST" path="/api/kpi/evaluations/{id}/feedback" roles={['owner']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `feedback` | string | Có | ≤ 2000 ký tự |
+
+**409** `Chỉ phản hồi được sau khi kết quả được duyệt`.

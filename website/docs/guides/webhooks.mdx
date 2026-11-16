@@ -1,0 +1,152 @@
+---
+id: webhooks
+title: Nhận webhook
+description: Từng bước dựng endpoint nhận webhook an toàn - xác minh chữ ký, chống trùng, trả lời nhanh và phát lại khi lỗi.
+---
+
+Khái niệm: [Sự kiện & webhook](../concepts/events.md). Tham chiếu đầy đủ header, payload, lịch thử lại: [Webhook API](../platform/webhooks.mdx).
+
+## Năm quy tắc cho một endpoint tốt
+
+1. **Xác minh chữ ký trên body thô** trước khi làm gì khác.
+2. **Từ chối chữ ký cũ** (lệch hơn 5 phút) để chống phát lại.
+3. **Chống trùng** theo `id` sự kiện - mỗi sự kiện có thể đến hơn một lần.
+4. **Trả `2xx` trong 10 giây**; việc nặng đẩy vào hàng đợi nền.
+5. **Không theo thứ tự**: khi cần trạng thái mới nhất, đọc lại bản ghi qua Data API.
+
+## 1. Đăng ký webhook
+
+<Tabs groupId="tool">
+<TabItem value="portal" label="Developer Portal" default>
+
+**Webhook** → **Thêm webhook** → nhập **URL**, tích sự kiện → bấm **Thêm webhook**. Sao chép **secret** `whsec_…` hiện ra (chỉ một lần).
+
+</TabItem>
+<TabItem value="api" label="Platform API">
+
+```bash
+curl -s -X POST http://localhost:9080/platform/v1/projects/$PROJECT_ID/webhooks \
+  -H "Authorization: Bearer $DEV_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"url":"https://app.acme.vn/hooks/peopleos","events":["employee.created","leave_request.updated"]}'
+```
+
+Trường `secret` trong phản hồi chỉ xuất hiện lần này.
+
+</TabItem>
+</Tabs>
+
+## 2. Viết endpoint
+
+<Tabs groupId="lang">
+<TabItem value="js" label="Node.js (Express)" default>
+
+```js title="webhook.js"
+import crypto from 'node:crypto';
+import express from 'express';
+
+const SECRET = process.env.PEOPLEOS_WEBHOOK_SECRET;
+const app = express();
+
+function verify(header, raw) {
+  const parts = Object.fromEntries((header ?? '').split(',').map((p) => p.split('=')));
+  const expected = crypto.createHmac('sha256', SECRET).update(`${parts.t}.${raw}`).digest('hex');
+  const fresh = Math.abs(Date.now() / 1000 - Number(parts.t)) < 300;
+  return fresh && parts.v1?.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(parts.v1), Buffer.from(expected));
+}
+
+app.post('/hooks/peopleos', express.raw({type: 'application/json'}), async (req, res) => {
+  if (!verify(req.get('X-PeopleOS-Signature'), req.body)) return res.sendStatus(401);
+  const event = JSON.parse(req.body);
+
+  // Chống trùng: INSERT … ON CONFLICT DO NOTHING trên bảng processed_events(id)
+  if (await alreadyProcessed(event.id)) return res.sendStatus(204);
+
+  await queue.add(event.type, event);   // xử lý nền, trả lời ngay
+  res.sendStatus(204);
+});
+
+app.listen(4000);
+```
+
+</TabItem>
+<TabItem value="py" label="Python (FastAPI)">
+
+```python title="webhook.py"
+import hashlib, hmac, json, os, time
+from fastapi import FastAPI, Header, HTTPException, Request, BackgroundTasks
+
+SECRET = os.environ["PEOPLEOS_WEBHOOK_SECRET"].encode()
+app = FastAPI()
+
+def verify(header: str, raw: bytes) -> bool:
+    parts = dict(p.split("=", 1) for p in header.split(",") if "=" in p)
+    t, v1 = parts.get("t", "0"), parts.get("v1", "")
+    expected = hmac.new(SECRET, f"{t}.".encode() + raw, hashlib.sha256).hexdigest()
+    return abs(time.time() - int(t)) <= 300 and hmac.compare_digest(v1, expected)
+
+@app.post("/hooks/peopleos", status_code=204)
+async def hook(request: Request, tasks: BackgroundTasks,
+               x_peopleos_signature: str = Header("")):
+    raw = await request.body()
+    if not verify(x_peopleos_signature, raw):
+        raise HTTPException(401)
+    event = json.loads(raw)
+    if already_processed(event["id"]):
+        return
+    tasks.add_task(handle, event)        # xử lý sau khi đã trả 204
+```
+
+</TabItem>
+<TabItem value="java" label="Java (Spring)">
+
+```java title="WebhookController.java"
+@RestController
+class WebhookController {
+  @Value("${peopleos.webhook-secret}") String secret;
+
+  @PostMapping("/hooks/peopleos")
+  ResponseEntity<Void> hook(@RequestHeader("X-PeopleOS-Signature") String sig,
+                            @RequestBody byte[] raw) throws Exception {
+    Map<String, String> p = Arrays.stream(sig.split(","))
+        .map(s -> s.split("=", 2)).collect(Collectors.toMap(a -> a[0], a -> a[1]));
+    Mac mac = Mac.getInstance("HmacSHA256");
+    mac.init(new SecretKeySpec(secret.getBytes(UTF_8), "HmacSHA256"));
+    mac.update((p.get("t") + ".").getBytes(UTF_8));
+    String expected = HexFormat.of().formatHex(mac.doFinal(raw));
+    boolean fresh = Math.abs(Instant.now().getEpochSecond() - Long.parseLong(p.get("t"))) <= 300;
+    if (!fresh || !MessageDigest.isEqual(expected.getBytes(UTF_8), p.getOrDefault("v1", "").getBytes(UTF_8)))
+      return ResponseEntity.status(401).build();
+    // parse JSON, chống trùng theo id, đẩy vào hàng đợi…
+    return ResponseEntity.noContent().build();
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+
+:::danger Lỗi hay gặp
+Framework parse JSON rồi `JSON.stringify` lại sẽ đổi khoảng trắng, thứ tự khóa → chữ ký **không bao giờ khớp**. Luôn lấy **byte thô** của body để tính HMAC.
+:::
+
+## 3. Thử nghiệm
+
+1. Bấm **Gửi thử** trên portal → endpoint nhận sự kiện `ping` với `data: {}`.
+2. Tạo hoặc sửa một nhân viên qua Data API → nhận `employee.created` / `employee.updated`.
+3. Xem **Nhật ký gửi sự kiện**: cột **Mã phản hồi** là mã endpoint của bạn trả về.
+
+Khi phát triển trên máy, xem cách cho worker gọi về `localhost` ở [Xây ứng dụng đầu tiên - bước 5](./first-app.mdx#5-nhận-webhook).
+
+## 4. Khi endpoint lỗi
+
+Nếu endpoint sập hoặc trả lỗi, PeopleOS thử lại sau 1 phút, 5 phút, 30 phút, 2 giờ, 6 giờ. Hết lượt, lượt giao chuyển **dead**. Sau khi sửa lỗi:
+
+- Trên portal: bấm **Gửi lại** ở dòng tương ứng; hoặc
+- API: [`POST …/webhook-deliveries/{did}/replay`](../platform/webhooks.mdx#phát-lại).
+
+Nếu lỡ nhiều sự kiện, đối soát bằng cách truy vấn Data API các bản ghi có `updated_at` sau thời điểm sự cố.
+
+## 5. Xoay vòng secret
+
+Secret không đổi được tại chỗ. Tạo webhook mới cùng URL (secret mới), cập nhật endpoint chấp nhận **cả hai** secret trong thời gian chuyển, rồi **Gỡ** webhook cũ.

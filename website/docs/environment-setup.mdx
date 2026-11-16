@@ -1,0 +1,119 @@
+---
+id: environment-setup
+title: Cài đặt môi trường
+description: Tự chạy toàn bộ PeopleOS PaaS trên máy bằng Docker Compose để phát triển và thử nghiệm.
+---
+
+PeopleOS là phần mềm tự triển khai: bạn chạy toàn bộ nền tảng (cổng API, xác thực, cơ sở dữ liệu, Developer Portal) trên máy của mình bằng Docker Compose.
+
+## Yêu cầu
+
+| Thành phần | Phiên bản |
+|---|---|
+| Docker Engine + Compose v2 | 24+ |
+| RAM trống | khoảng 8 GB (nhiều dịch vụ Java và Keycloak) |
+| Python | 3.10+ (chạy script khởi tạo) |
+| Git | bất kỳ |
+
+<Tabs groupId="os">
+<TabItem value="win" label="Windows" default>
+
+Cài **Docker Desktop** (bật WSL 2) và **Python 3** từ python.org. Chạy các lệnh bên dưới trong **PowerShell** hoặc **Git Bash**. Trong Docker Desktop → *Settings → Resources*, cấp cho Docker ít nhất 8 GB RAM.
+
+</TabItem>
+<TabItem value="mac" label="macOS">
+
+```bash
+brew install --cask docker
+brew install python git
+```
+
+Mở Docker Desktop một lần để khởi động engine.
+
+</TabItem>
+<TabItem value="linux" label="Linux">
+
+Cài Docker Engine theo hướng dẫn chính thức của bản phân phối, thêm user vào nhóm `docker`, rồi:
+
+```bash
+sudo apt install -y python3 python3-pip git   # Debian/Ubuntu
+```
+
+</TabItem>
+</Tabs>
+
+## 1. Lấy mã nguồn
+
+```bash
+git clone https://github.com/Nguyen16112006/PeopleOS.git
+cd PeopleOS/infrastructure
+```
+
+## 2. Cấu hình biến môi trường
+
+```bash
+cp .env.example .env
+cat .env.paas.example >> .env
+```
+
+Mở `.env` và điền **`PLATFORM_SECRET_KEY`** (bắt buộc, dùng để mã hóa secret webhook):
+
+```bash
+pip install cryptography
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+| Biến | Ý nghĩa |
+|---|---|
+| `PLATFORM_SECRET_KEY` | Khóa Fernet mã hóa secret webhook trong DB |
+| `APISIX_ADMIN_KEY` | Khóa admin API của gateway |
+| `EVENT_DISPATCHER_SECRET` | Bí mật giữa Hasura Event Trigger và platform-api |
+| `PORTAL_ORIGIN` | Địa chỉ Developer Portal (CORS), mặc định `http://localhost:3100` |
+| `ALLOW_HTTP_WEBHOOKS`, `ALLOW_PRIVATE_WEBHOOKS` | Cho phép webhook `http://` và IP nội bộ - **chỉ bật khi phát triển** để nhận webhook trên máy mình |
+
+:::warning
+Mọi giá trị `change_me…` trong file mẫu chỉ dùng cho máy cá nhân. Đổi toàn bộ trước khi đưa lên máy chủ thật.
+:::
+
+## 3. Khởi động
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.paas.yml up -d --build
+```
+
+Lần đầu mất 5 - 15 phút để build image. Migration cơ sở dữ liệu chạy tự động. Khi Keycloak đã lên (`docker compose ps` báo `healthy`), chạy script khởi tạo **một lần**:
+
+```bash
+cd ..
+python scripts/keycloak-paas-bootstrap.py
+```
+
+Script này khai báo thuộc tính `tenant_id`, mapper đưa nó vào token và tạo realm `peopleos-platform` cho developer. Chạy lại nhiều lần vẫn an toàn.
+
+## 4. Kiểm tra
+
+| Dịch vụ | Địa chỉ | Kỳ vọng |
+|---|---|---|
+| Developer Portal | http://localhost:3100 | Chuyển sang trang đăng nhập |
+| BFF (trực tiếp, chỉ máy dev) | http://localhost:8000/api/health | `{"status":"ok", …}` |
+| API Gateway | http://localhost:9080/v1/data | `401` khi chưa gửi API key - gateway đang chạy |
+| Swagger control plane | http://localhost:8090/docs | Trang Swagger UI |
+| Keycloak | http://localhost:8080 | Trang chào Keycloak |
+| People Workspace (HR) | http://localhost:3000 | Ứng dụng HR first-party |
+
+Muốn kiểm tra đầu-cuối cả luồng (đăng ký → dự án → API key → dữ liệu → webhook):
+
+```bash
+python scripts/preflight.py --paas --check-images
+python scripts/smoke-paas.py
+```
+
+## Dừng và dọn dẹp
+
+```bash
+cd infrastructure
+docker compose -f docker-compose.yml -f docker-compose.paas.yml down      # giữ dữ liệu
+docker compose -f docker-compose.yml -f docker-compose.paas.yml down -v   # xóa sạch dữ liệu
+```
+
+Gặp lỗi? Xem [Khắc phục sự cố](./guides/troubleshooting.md). Xong rồi thì quay lại [Bắt đầu nhanh](./getting-started.mdx).

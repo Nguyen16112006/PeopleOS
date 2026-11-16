@@ -1,0 +1,72 @@
+---
+id: overview
+title: Tổng quan Platform API
+sidebar_label: Tổng quan
+description: PeopleOS như một HR-PaaS - developer tạo project, lấy API key và xây ứng dụng nhân sự riêng.
+---
+
+PeopleOS cho phép **developer bên thứ ba** dùng lõi nhân sự như một dịch vụ: mỗi **project** là một **tenant** cô lập, có dữ liệu nhân sự lõi (`employees`, `contracts`, `leave_requests`, `payrolls`…), bảng tự định nghĩa và webhook riêng.
+
+| Lớp | Thành phần | Bạn dùng để |
+|---|---|---|
+| **Control plane** | `platform-api` (FastAPI), qua gateway `/platform/*` | Quản lý project, API key, schema, trường tùy biến, webhook, xem mức sử dụng |
+| **Data plane** | Hasura + PostgreSQL, qua gateway `/v1/data` | Ứng dụng của bạn đọc/ghi dữ liệu bằng GraphQL |
+
+```text
+Control plane:  http://localhost:9080/platform/v1/...    Authorization: Bearer <JWT developer>
+Data plane:     http://localhost:9080/v1/data            X-API-Key: pos_test_...
+Swagger:        http://localhost:8090/docs
+```
+
+## Bắt đầu trong 4 bước
+
+1. **Đăng ký** tài khoản developer tại Developer Portal (`http://localhost:3100`).
+2. **Tạo project** - [`POST /v1/projects`](./projects.mdx). Hệ thống cấp phát schema `ext_<id>`, client OIDC và kế thừa cấu hình mặc định.
+3. **Tạo API key** - [`POST /v1/projects/{pid}/api-keys`](./api-keys.mdx). Lưu khóa ngay, nó chỉ hiện một lần.
+4. **Gọi dữ liệu** - [`POST /v1/data`](./data-api.mdx) với header `X-API-Key`.
+
+```bash
+DEV="Authorization: Bearer $DEV_TOKEN"
+P=$(curl -s -X POST http://localhost:9080/platform/v1/projects -H "$DEV" -H 'Content-Type: application/json' \
+  -d '{"name":"App chấm công ACME"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+
+KEY=$(curl -s -X POST http://localhost:9080/platform/v1/projects/$P/api-keys -H "$DEV" -H 'Content-Type: application/json' \
+  -d '{"name":"server","scope":"write","env":"sandbox"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["key"])')
+
+curl -s -X POST http://localhost:9080/v1/data -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+  -d '{"query":"{ employees(limit: 5) { id full_name } }"}'
+```
+
+## Gói dịch vụ và hạn mức
+
+| Hạn mức | `free` | `pro` |
+|---|---|---|
+| Request Data API / ngày | 10.000 | 1.000.000 |
+| Tốc độ (req/giây, burst) | 10 / 20 | 100 / 200 |
+| Số project mỗi developer | 3 | 3 (dự án mới luôn tạo ở gói `free`) |
+| API key đang hoạt động / project | 5 | 50 |
+| Bảng tự định nghĩa | 5 | 100 |
+| Cột / bảng | 20 | 60 |
+| Webhook đang hoạt động | 3 | 20 |
+| Trường tùy biến | 10 | 50 |
+
+Project mới mặc định gói `free`. Vượt hạn mức control plane → `403`; vượt hạn mức Data API → `429`.
+
+## Ba lớp chống rò dữ liệu giữa tenant
+
+1. **Hasura permission** - mọi permission có `tenant_id = X-Hasura-Tenant-Id`; tenant lấy từ API key (gateway gắn), không từ client.
+2. **Row-Level Security PostgreSQL** - fail-closed: không có tenant thì 0 dòng.
+3. **Khóa ngoại tổng hợp `(tenant_id, id)`** - không thể tạo bản ghi trỏ sang dòng của tenant khác.
+
+:::caution Giới hạn đã biết
+Hasura v2 dùng chung một GraphQL schema trong một cell, nên **tên** bảng `ext_*` của tenant khác có thể hiện trong introspection (dữ liệu vẫn được RLS bảo vệ). Xem mục *Giới hạn đã biết* trong [`docs/paas/README.md`](https://github.com/Nguyen16112006/PeopleOS/blob/main/docs/paas/README.md).
+:::
+
+## Lỗi chung của control plane
+
+| Mã | Khi nào |
+|---|---|
+| 401 | Thiếu / sai JWT developer |
+| 404 | `Không tìm thấy project` - không tồn tại **hoặc** thuộc developer khác |
+| 409 | `Project đang ở trạng thái …` (chưa `active`) |
+| 502 | Cấp phát thất bại ở một bước (Keycloak/Hasura/APISIX); đã bù trừ ngược |

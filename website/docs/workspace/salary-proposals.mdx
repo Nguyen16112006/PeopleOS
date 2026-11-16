@@ -1,0 +1,73 @@
+---
+id: salary-proposals
+title: Đề xuất lương
+description: Quản lý đề xuất tăng lương hoặc phụ cấp; duyệt qua chuỗi HR → Kế toán → Giám đốc.
+---
+
+Chỉ **Quản lý** được tạo đề xuất, và chỉ cho nhân viên trong nhóm mình. Đề xuất đi qua 3 bước cố định:
+
+```text
+pending_hr ──HR thẩm định──▶ pending_accountant ──Kế toán kiểm ngân sách──▶ pending_director ──Giám đốc duyệt──▶ approved
+      │                              │                                           │
+      └──────────────────────────────┴────────────── reject ─────────────────────┴──▶ rejected (về Quản lý, kèm lý do)
+```
+
+Khi được duyệt cuối, hợp đồng hiện hành được cập nhật mức lương/phụ cấp mới từ `effective_date`, và nhân viên nhận thông báo. Admin **không** có quyền duyệt bất kỳ bước nào.
+
+## Ví dụ
+
+```bash
+curl -s -X POST http://localhost:9080/api/salary-proposals \
+  -H "Authorization: Bearer $MANAGER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"employee_id":"4c2f…","proposal_type":"raise","proposed_amount":22000000,
+       "reason":"Hoàn thành xuất sắc KPI quý 3","effective_date":"2027-01-01"}'
+```
+
+```json title="201 Created"
+{"id": "7a0e4d…", "status": "pending_hr"}
+```
+
+---
+
+## Tham chiếu
+
+### Tạo đề xuất
+
+<Endpoint method="POST" path="/api/salary-proposals" roles={['manager']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `employee_id` | string | Có | Nhân viên trong nhóm của Quản lý |
+| `proposal_type` | enum | Có | `raise` (lương cơ bản) \| `allowance` (phụ cấp) |
+| `proposed_amount` | int (VND) | Có | Mức mới, phải **lớn hơn** mức hiện tại |
+| `reason` | string | Có | ≥ 5 ký tự |
+| `effective_date` | date | Không | Ngày hiệu lực |
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Nhân viên chưa có hợp đồng đang hiệu lực` |
+| 400 | `Mức đề xuất phải lớn hơn mức hiện tại (…)` |
+| 403 | `Chỉ Quản lý được đề xuất tăng lương cho nhân viên trong nhóm` |
+| 403 | `Quản lý chỉ được đề xuất cho nhân viên thuộc nhóm của mình` |
+| 404 | `Không tìm thấy nhân viên` |
+
+### Duyệt một bước
+
+<Endpoint method="POST" path="/api/salary-proposals/{id}/decision" roles={['hr', 'accountant', 'director']} />
+
+Người gọi phải có đúng vai trò của **bước đang chờ**.
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `approve` \| `reject` |
+| `comment` | string | Không | Nhận xét / lý do từ chối |
+
+```json title="200 OK"
+{"id": "7a0e4d…", "status": "pending_accountant"}
+```
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Bước hiện tại cần vai trò 'accountant' duyệt` |
+| 403 | `Không thể tự duyệt đề xuất liên quan đến chính mình` |
+| 409 | `Đề xuất đã ở trạng thái 'approved'` |

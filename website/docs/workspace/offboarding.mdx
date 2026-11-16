@@ -1,0 +1,94 @@
+---
+id: offboarding
+title: Offboarding (nghỉ việc)
+sidebar_label: Offboarding
+description: Đơn xin nghỉ việc, đề xuất chấm dứt hợp đồng và các bước xử lý tới khi khóa tài khoản.
+---
+
+Một **hồ sơ nghỉ việc** (`offboarding_case`) có `kind` là `resignation` (nhân viên xin nghỉ) hoặc `termination` (công ty chấm dứt). Mỗi nhân viên chỉ có **một hồ sơ đang mở**. Tài khoản SSO **tự khóa** vào ngày làm việc cuối (job định kỳ gọi [`/api/internal/offboarding/lock-due`](./internal.mdx)); dữ liệu được giữ lại, không xóa.
+
+| `stage` | Người xử lý | Việc |
+|---|---|---|
+| `manager` | Quản lý trực tiếp | Xác nhận, chốt ngày làm việc cuối |
+| `director_confirm` | Giám đốc | Xác nhận đơn của Quản lý/HR/Kế toán/Admin hoặc người không có quản lý |
+| `hr_review` | HR | Kiểm tra hợp đồng, thời hạn báo trước |
+| `director_decision` | Giám đốc | Chỉ với `termination`: duyệt chấm dứt |
+| `handover` | HR | Bàn giao công việc, tài sản |
+| `timesheet` | HR | Chốt công |
+| `final_payroll` | Kế toán | Tính lương cuối, phụ cấp, BHXH, thuế |
+| `director_payroll` | Giám đốc | Duyệt lương cuối (từ chối → về `final_payroll`) |
+| `payment` | Kế toán | Chi trả |
+| `terminate` | HR | Chấm dứt hợp đồng → `done` / `completed` |
+
+Giai đoạn đầu của đơn xin nghỉ: Nhân viên có quản lý → `manager`; Giám đốc → `hr_review`; còn lại → `director_confirm`. Đề xuất chấm dứt bắt đầu ở `hr_review`.
+
+Từ chối chỉ được ở `manager`, `director_confirm`, `hr_review`, `director_decision` → hồ sơ `closed` / `rejected`.
+
+## Ví dụ
+
+```bash
+# Nhân viên nộp đơn
+curl -s -X POST http://localhost:9080/api/offboarding/resignations \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"reason":"Chuyển công tác về quê","last_working_day":"2027-01-15"}'
+
+# Kế toán nhập lương cuối ở giai đoạn final_payroll
+curl -s -X POST http://localhost:9080/api/offboarding/$ID/action \
+  -H "Authorization: Bearer $ACC_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"decision":"approve","final_pay_amount":18350000}'
+```
+
+Mọi endpoint trả về:
+
+```json
+{"id": "c21e4d…", "stage": "manager", "status": "open"}
+```
+
+---
+
+## Tham chiếu
+
+### Nộp đơn xin nghỉ việc
+
+<Endpoint method="POST" path="/api/offboarding/resignations" roles={['any']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `reason` | string | Có | ≥ 5 ký tự |
+| `last_working_day` | date | Có | Ngày làm việc cuối đề xuất |
+
+**409** `Nhân viên đã có hồ sơ nghỉ việc đang mở`.
+
+### Đề xuất chấm dứt hợp đồng
+
+<Endpoint method="POST" path="/api/offboarding/terminations" roles={['manager']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `employee_id` | string | Có | Nhân viên trong nhóm |
+| `reason` | string | Có | ≥ 5 ký tự |
+| `last_working_day` | date | Có | Ngày làm việc cuối |
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Chỉ đề xuất cho nhân viên trong nhóm của bạn` |
+| 409 | `Nhân viên đã nghỉ việc` |
+
+### Xử lý một giai đoạn
+
+<Endpoint method="POST" path="/api/offboarding/{id}/action" roles={['manager', 'hr', 'director', 'accountant']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `decision` | enum | Có | `approve` \| `reject` |
+| `comment` | string | Không | Ghi chú |
+| `last_working_day` | date | Ở `manager` / `director_confirm` | Ngày làm việc cuối chốt (mặc định lấy ngày đề xuất) |
+| `final_pay_amount` | int (VND) | Ở `final_payroll` | Tổng tiền lương cuối kỳ |
+
+| Mã | `detail` |
+|---|---|
+| 400 | `Giai đoạn 'handover' không có thao tác từ chối` |
+| 400 | `Cần chốt ngày làm việc cuối` · `Kế toán cần nhập số tiền lương cuối kỳ` |
+| 403 | `Không thể tự xử lý hồ sơ nghỉ việc của chính mình` |
+| 403 | `Giai đoạn 'payment' do Kế toán xử lý` |
+| 409 | `Hồ sơ đã ở trạng thái 'completed'` |

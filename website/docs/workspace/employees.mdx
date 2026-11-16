@@ -1,0 +1,90 @@
+---
+id: employees
+title: Onboarding nhân viên mới
+sidebar_label: Onboarding
+description: HR tạo hồ sơ, hợp đồng, quỹ phép và tài khoản SSO cho nhân viên mới; các bên hoàn thành checklist.
+---
+
+`POST /api/employees` tạo trong một lần: **hồ sơ nhân sự**, **hợp đồng**, **quỹ phép**, (tùy chọn) **tài khoản Keycloak**, rồi khởi chạy quy trình onboarding sinh checklist cho từng bên:
+
+| Việc | Người phụ trách | Hạn |
+|---|---|---|
+| Ký hợp đồng và nộp hồ sơ cá nhân | HR | ngày vào làm |
+| Tạo tài khoản email và SSO | Admin | +1 ngày |
+| Cấp laptop và thiết bị làm việc | HR | +3 ngày |
+| Phân công mentor và giới thiệu nhóm | Quản lý | +3 ngày |
+| Nhận thông tin lương, BHXH, thuế để đưa vào kỳ lương | Kế toán | +7 ngày |
+| Đăng ký BHXH, BHYT và mã số thuế | HR | +14 ngày |
+| Hoàn thành khóa nội quy và an toàn thông tin | Nhân viên mới | +14 ngày |
+
+## Ví dụ
+
+```bash
+curl -s -X POST http://localhost:9080/api/employees \
+  -H "Authorization: Bearer $HR_TOKEN" -H 'Content-Type: application/json' \
+  -d '{
+    "full_name": "Lê Thị Mai",
+    "email": "mai.le@congty.vn",
+    "department": "Kinh doanh",
+    "job_title": "Chuyên viên kinh doanh",
+    "manager_id": "4c2f…",
+    "hire_date": "2026-12-01",
+    "base_salary": 15000000,
+    "allowance": 1000000,
+    "dependents": 0,
+    "contract_type": "probation",
+    "create_account": true
+  }'
+```
+
+```json title="201 Created"
+{
+  "employee_id": "e81b…",
+  "employee_code": "NV0042",
+  "account": {"username": "mai.le", "temporary_password": "Xk7#…"}
+}
+```
+
+:::caution Mật khẩu tạm chỉ trả về một lần
+Hãy chuyển `temporary_password` cho nhân viên qua kênh an toàn. Keycloak bắt đổi mật khẩu ở lần đăng nhập đầu. Nếu Keycloak lỗi, `account` có dạng `{"error": "Chưa tạo được tài khoản SSO - hãy tạo thủ công trong Keycloak"}` nhưng hồ sơ vẫn được tạo.
+:::
+
+---
+
+## Tham chiếu
+
+### Tạo nhân viên mới
+
+<Endpoint method="POST" path="/api/employees" roles={['hr']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `full_name` | string | Có | ≥ 2 ký tự |
+| `email` | string | Có | Email hợp lệ |
+| `phone` | string | Không | Số điện thoại |
+| `department` | string | Có | Phòng ban |
+| `job_title` | string | Có | Chức danh |
+| `manager_id` | string | Không | ID hồ sơ quản lý trực tiếp |
+| `hire_date` | date | Có | Ngày vào làm |
+| `base_salary` | int (VND) | Có | Lương cơ bản, > 0 |
+| `allowance` | int (VND) | Không | Phụ cấp |
+| `dependents` | int | Không | Số người phụ thuộc (giảm trừ gia cảnh) |
+| `contract_type` | enum | Không | `probation` · `fixed_term` · `indefinite` |
+| `create_account` | boolean | Không | Tạo tài khoản SSO |
+
+**403** `Chỉ HR được tạo hồ sơ nhân viên mới`.
+
+### Hoàn thành một việc onboarding
+
+<Endpoint method="POST" path="/api/onboarding-tasks/{id}/complete" roles={['hr', 'owner', 'manager', 'sysadmin', 'accountant']} />
+
+Người được gọi: HR (mọi việc), người có vai trò khớp `assignee_role` của việc, quản lý trực tiếp (việc `manager`), hoặc chính nhân viên mới (việc `employee`). Không cần body.
+
+```json title="200 OK"
+{"id": "55ce4d…", "status": "done"}
+```
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Bạn không phải người phụ trách công việc này` |
+| 404 | `Không tìm thấy công việc` |

@@ -1,0 +1,60 @@
+---
+id: custom-fields
+title: Trường tùy biến
+description: Thêm thuộc tính riêng cho hồ sơ nhân viên mà không cần thay đổi schema.
+---
+
+Khi chỉ cần thêm vài thuộc tính cho nhân viên (size áo, mã chấm công máy vân tay…), dùng **trường tùy biến** thay vì tạo bảng. Giá trị lưu trong cột `employees.custom` (`jsonb`); một trigger trong PostgreSQL **kiểm kiểu** theo khai báo của tenant. Không chạy DDL, không reload metadata Hasura.
+
+## Ví dụ
+
+```bash
+# Khai báo trường
+curl -s -X POST http://localhost:9080/platform/v1/projects/$P/custom-fields \
+  -H "Authorization: Bearer $DEV_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"key":"shirt_size","type":"enum","options":["S","M","L","XL"],"required":false}'
+
+# Ghi giá trị bằng Data API (khóa scope write)
+curl -s -X POST http://localhost:9080/v1/data -H "X-API-Key: $KEY" -H 'Content-Type: application/json' -d '{
+  "query": "mutation($id: uuid!) { update_employees_by_pk(pk_columns: {id: $id}, _append: {custom: {shirt_size: \"M\"}}) { id custom } }",
+  "variables": {"id": "4c2f…"}
+}'
+```
+
+Giá trị sai kiểu (ví dụ `"shirt_size": "XXL"`) bị trigger từ chối, Data API trả lỗi trong mảng `errors`.
+
+---
+
+## Tham chiếu
+
+### Thêm trường
+
+<Endpoint method="POST" path="/platform/v1/projects/{pid}/custom-fields" roles={['developer']} />
+
+| Trường | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `entity` | `"employee"` | Không | Hiện chỉ hỗ trợ nhân viên (mặc định) |
+| `key` | string | Có | `^[a-z][a-z0-9_]{1,40}$` |
+| `type` | enum | Có | `string` · `number` · `boolean` · `date` · `enum` |
+| `required` | boolean | Không | Mặc định `false` |
+| `options` | string[] | Khi `type = enum` | Danh sách giá trị hợp lệ; chỉ dùng cho `enum` |
+
+```json title="201 Created"
+{"entity": "employee", "key": "shirt_size", "type": "enum", "required": false, "options": ["S", "M", "L", "XL"]}
+```
+
+| Mã | `detail` |
+|---|---|
+| 403 | `Đã đạt giới hạn trường tùy chỉnh của gói` |
+| 409 | `Trường 'shirt_size' đã tồn tại` |
+| 422 | `key không hợp lệ` · `Trường enum cần danh sách options` · `options chỉ dùng cho kiểu enum` |
+
+### Liệt kê trường
+
+<Endpoint method="GET" path="/platform/v1/projects/{pid}/custom-fields" roles={['developer']} />
+
+### Xóa trường
+
+<Endpoint method="DELETE" path="/platform/v1/projects/{pid}/custom-fields/{entity}/{key}" roles={['developer']} />
+
+Xóa khai báo **và** dọn khóa đó khỏi `custom` của mọi nhân viên trong tenant → `204`. **404** `Không có trường này`.

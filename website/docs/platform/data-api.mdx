@@ -1,0 +1,96 @@
+---
+id: data-api
+title: Data API
+description: Đọc và ghi dữ liệu của tenant bằng GraphQL với API key.
+---
+
+Data API là cổng GraphQL dành cho **server của developer**. Gateway kiểm API key, đếm hạn mức, **xóa mọi header `x-hasura-*` của client**, rồi gắn role và tenant theo khóa trước khi chuyển tới Hasura.
+
+<Endpoint method="POST" path="/v1/data" roles={['apikey']} />
+
+| Header | Bắt buộc | Mô tả |
+|---|---|---|
+| `X-API-Key` | Có | `pos_test_…` hoặc `pos_live_…` |
+| `Content-Type: application/json` | Có | |
+
+| Body | Kiểu | Bắt buộc | Mô tả |
+|---|---|---|---|
+| `query` | string | Có | Câu GraphQL |
+| `variables` | object | Không | Biến |
+| `operationName` | string | Không | Tên operation |
+
+| Scope khóa | Role Hasura | Được làm |
+|---|---|---|
+| `read` | `tenant_api_read` | `query` mọi bảng lõi và bảng `ext_*` của tenant |
+| `write` | `tenant_api_write` | `query` + `insert` / `update` / `delete` (trừ `users`, `audit_logs`) |
+
+## Ví dụ
+
+<Tabs groupId="lang">
+<TabItem value="bash" label="cURL" default>
+
+```bash
+curl -s -X POST http://localhost:9080/v1/data \
+  -H "X-API-Key: $KEY" -H 'Content-Type: application/json' \
+  -d '{"query":"query($d: String!) { employees(where: {department: {_eq: $d}}) { id full_name job_title } }",
+       "variables": {"d": "Kinh doanh"}}'
+```
+
+</TabItem>
+<TabItem value="js" label="Node.js">
+
+```js title="peopleos.js"
+const PEOPLEOS_URL = 'http://localhost:9080/v1/data';
+
+export async function peopleos(query, variables = {}) {
+  const res = await fetch(PEOPLEOS_URL, {
+    method: 'POST',
+    headers: {'X-API-Key': process.env.PEOPLEOS_API_KEY, 'Content-Type': 'application/json'},
+    body: JSON.stringify({query, variables}),
+  });
+  if (res.status === 429) throw new Error('Vượt hạn mức, thử lại sau');
+  const {data, errors} = await res.json();
+  if (errors) throw new Error(errors.map((e) => e.message).join('; '));
+  return data;
+}
+
+// Danh sách đơn nghỉ đang chờ
+const {leave_requests} = await peopleos(`{
+  leave_requests(where: {status: {_eq: "pending"}}) { id start_date end_date employee { full_name } }
+}`);
+```
+
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python
+import os, requests
+
+def peopleos(query: str, variables: dict | None = None) -> dict:
+    r = requests.post("http://localhost:9080/v1/data",
+                      headers={"X-API-Key": os.environ["PEOPLEOS_API_KEY"]},
+                      json={"query": query, "variables": variables or {}}, timeout=30)
+    r.raise_for_status()
+    body = r.json()
+    if "errors" in body:
+        raise RuntimeError(body["errors"])
+    return body["data"]
+
+print(peopleos("{ employees(limit: 3) { id full_name } }"))
+```
+
+</TabItem>
+</Tabs>
+
+:::danger Giữ API key ở server
+Không nhúng API key vào ứng dụng web/mobile. Ứng dụng phía client nên đăng nhập người dùng qua client OIDC của project ([Người dùng cuối](./users.mdx)) và gọi qua backend của bạn.
+:::
+
+## Lỗi
+
+| Mã | Khi nào |
+|---|---|
+| 401 | Thiếu hoặc sai `X-API-Key`, hoặc khóa đã thu hồi |
+| 403 | `API key chưa gắn tenant` |
+| 429 | Vượt tốc độ hoặc hạn mức ngày - xem [Mức sử dụng](./usage.mdx) |
+| 200 + `errors` | Lỗi GraphQL (trường không tồn tại, vi phạm ràng buộc, khóa `read` gọi mutation…) |

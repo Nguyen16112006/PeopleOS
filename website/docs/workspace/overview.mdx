@@ -1,0 +1,107 @@
+---
+id: overview
+title: Tổng quan HR Workspace API
+sidebar_label: Tổng quan
+description: Danh sách toàn bộ endpoint REST của BFF People Workspace.
+---
+
+HR Workspace API là REST API của **BFF** (Spring Boot, `apps/people-workspace/bff`). Đây là nơi duy nhất thực hiện **thao tác ghi** nghiệp vụ: mọi bước duyệt, kiểm tra quyền, ghi audit log và gửi thông báo đều diễn ra ở đây. Để **đọc** danh sách (đơn của tôi, hàng chờ duyệt…), dùng [GraphQL](../graphql.mdx).
+
+```text
+Base URL:  http://localhost:9080/api
+Header:    Authorization: Bearer <JWT realm peopleos>
+           Content-Type: application/json
+```
+
+:::info Khi nào dùng API này?
+Đây là API của **ứng dụng HR first-party** (People Workspace) với quy trình duyệt 6 vai trò đầy đủ. Nếu bạn là developer xây ứng dụng riêng bằng API key, hãy bắt đầu từ [Platform API](../platform/overview.mdx) và [Bắt đầu nhanh](../getting-started.mdx).
+:::
+
+## Lấy token để thử
+
+Tài khoản demo dùng chung mật khẩu `Peopleos@123` (**chỉ để demo**): `admin`, `hr`, `manager`, `director`, `accountant`, `employee`, `employee2`.
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/realms/peopleos/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=people-workspace \
+  -d username=employee -d password='Peopleos@123' \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+
+curl -s http://localhost:9080/api/me -H "Authorization: Bearer $TOKEN"
+```
+
+Token sống **15 phút**. Grant `password` chỉ để thử; ứng dụng thật dùng Authorization Code + PKCE như People Workspace.
+
+## Toàn bộ endpoint
+
+| Nhóm | Endpoint | Trang |
+|---|---|---|
+| Hệ thống | `GET /api/health`, `GET /api/me` | [Người dùng hiện tại](./me.mdx) |
+| Nhân viên mới | `POST /api/employees`, `POST /api/onboarding-tasks/{id}/complete` | [Onboarding](./employees.mdx) |
+| Nghỉ việc | `POST /api/offboarding/resignations`, `/terminations`, `/{id}/action` | [Offboarding](./offboarding.mdx) |
+| Tài liệu | `GET /api/payslips/{id}/download`, `GET /api/contracts/{id}/download`, `POST /api/contracts/{id}/upload` | [Tài liệu PDF](./documents.mdx) |
+| Chấm công | `POST /api/attendance/check-in`, `/check-out`, `PUT /api/attendance/days`, `GET /api/timesheets`, `POST /api/timesheets/submit`, `/{id}/decision` | [Chấm công & bảng công](./attendance.mdx) |
+| Kỳ lương | `POST /api/payroll-runs`, `/{id}/calculate`, `/hr-review`, `/decision`, `/pay` | [Kỳ lương](./payroll-runs.mdx) |
+| Khiếu nại | `POST /api/payslip-complaints`, `/{id}/review`, `/{id}/adjust` | [Khiếu nại phiếu lương](./payslip-complaints.mdx) |
+| Thuế năm | `POST /api/tax-year/{year}/hr-confirm`, `/settle`, `/report/*`, `/budget*` | [Thuế & báo cáo năm](./tax-year.mdx) |
+| Nghỉ phép | `POST /api/leave-requests`, `/{id}/decision`, `/{id}/cancel` | [Nghỉ phép](./leave-requests.mdx) |
+| Đề xuất lương | `POST /api/salary-proposals`, `/{id}/decision` | [Đề xuất lương](./salary-proposals.mdx) |
+| Tạm ứng | `POST /api/advance-requests`, `/{id}/decision`, `/settlement`, `/settle` | [Tạm ứng & chi phí](./advance-requests.mdx) |
+| KPI | `POST /api/kpi/cycles`, `/goals`, `DELETE /api/kpi/goals/{id}`, `/evaluations`, `/cycles/{id}/*`, `/evaluations/{id}/feedback` | [KPI theo quý](./kpi.mdx) |
+| Quyền tạm thời | `POST /api/temp-access-requests`, `/{id}/decision`, `/{id}/revoke` | [Quyền tạm thời](./temp-access.mdx) |
+| Audit | `GET /api/audit/verify` | [Audit log](./audit.mdx) |
+| Nội bộ | `POST /api/internal/*` | [API nội bộ](./internal.mdx) |
+
+## Mẫu gọi chung
+
+<Tabs groupId="lang">
+<TabItem value="bash" label="cURL" default>
+
+```bash
+curl -s -X POST http://localhost:9080/api/<đường-dẫn> \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{ ... }'
+```
+
+</TabItem>
+<TabItem value="js" label="JavaScript">
+
+```js title="lib/api.js"
+export async function api(path, {method = 'GET', body, token} = {}) {
+  const res = await fetch(`http://localhost:9080/api${path}`, {
+    method,
+    headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = res.status === 204 ? null : await res.json();
+  if (!res.ok) throw new Error(data?.detail ?? res.statusText);
+  return data;
+}
+```
+
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python
+import requests
+
+def api(path, token, method="GET", body=None):
+    r = requests.request(method, f"http://localhost:9080/api{path}", json=body,
+                         headers={"Authorization": f"Bearer {token}"})
+    if not r.ok:
+        raise RuntimeError(r.json().get("detail", r.reason))
+    return r.json() if r.content else None
+```
+
+</TabItem>
+</Tabs>
+
+## Hiệu ứng phụ của mỗi thao tác ghi
+
+Khi một thao tác ghi thành công, BFF thường:
+
+1. Ghi **audit log** (ví dụ `LEAVE.APPROVED`) vào chuỗi băm bất biến.
+2. Tạo **thông báo** cho người liên quan và đẩy qua [WebSocket](../realtime.mdx).
+3. Phát sự kiện **NATS** `peopleos.events.<kind>`.
+4. Với PaaS: thay đổi ở bảng `employees`, `contracts`, `leave_requests`, `payrolls` sinh [webhook](../platform/webhooks.mdx) cho developer.
