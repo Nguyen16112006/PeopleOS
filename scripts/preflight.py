@@ -157,7 +157,8 @@ def main() -> int:
 
     if args.check_images:
         print("\n5. Image có tồn tại trên registry không (docker manifest inspect)")
-        images = sorted({i for t in texts for i in extract_images(t)})
+        # peopleos/* là image build tại chỗ (docker compose build), không có trên registry công khai
+        images = sorted({i for t in texts for i in extract_images(t) if not i.startswith("peopleos/")})
         for img in images:
             code, out = run(["docker", "manifest", "inspect", img], timeout=60)
             (r.ok if code == 0 else r.err)(img + ("" if code == 0 else "  <- KHÔNG TÌM THẤY tag (đặt biến *_IMAGE trong .env để dùng tag khác)"))

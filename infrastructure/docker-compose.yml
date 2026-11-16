@@ -11,6 +11,14 @@
 # =====================================================================
 name: peopleos
 
+# MinIO server + mc build từ mã nguồn chính thức (upstream ngừng phát hành image cộng đồng từ 10/2025).
+# Ba dịch vụ minio, minio-init, backup-minio dùng chung image này.
+x-minio-build: &minio-build
+  context: ../core/data/unstructured/minio
+  args:
+    MINIO_TAG: RELEASE.2025-10-15T17-29-55Z
+    MC_TAG: RELEASE.2025-08-13T08-35-41Z
+
 services:
   # ===================== TẦNG 1 - OPEN-CORE =========================
   postgres:
@@ -62,7 +70,7 @@ services:
       start_period: 40s
 
   hasura:
-    image: hasura/graphql-engine:v2.40.0.cli-migrations-v3
+    image: hasura/graphql-engine:v2.40.0-ce.cli-migrations-v3   # bản -ce: chỉ phần Community (Apache-2.0), không kèm thành phần Enterprise
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8080/healthz || exit 1"]
@@ -88,7 +96,9 @@ services:
         condition: service_healthy
 
   minio:
-    image: ${MINIO_IMAGE:-scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z}
+    # Build từ mã nguồn chính thức của MinIO (tag RELEASE.2025-10-15T17-29-55Z), xem core/data/unstructured/minio/Dockerfile
+    image: ${MINIO_IMAGE:-peopleos/minio:RELEASE.2025-10-15T17-29-55Z}
+    build: *minio-build
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -103,7 +113,8 @@ services:
       disable: true
 
   minio-init:
-    image: ${MINIO_IMAGE:-scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z}
+    image: ${MINIO_IMAGE:-peopleos/minio:RELEASE.2025-10-15T17-29-55Z}
+    build: *minio-build
     depends_on:
       - minio
     environment:
@@ -350,7 +361,8 @@ services:
 
   # Sao lưu các bucket MinIO (contracts, payslips, documents) sang BACKUP_DIR/minio.
   backup-minio:
-    image: ${MINIO_IMAGE:-scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z}
+    image: ${MINIO_IMAGE:-peopleos/minio:RELEASE.2025-10-15T17-29-55Z}
+    build: *minio-build
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/minio-backup-loop.sh"]
     environment:

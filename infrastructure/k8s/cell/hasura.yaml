@@ -18,7 +18,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: hasura
-          image: hasura/graphql-engine:v2.40.0       # image thường (không cli-migrations): migration/metadata áp bằng bước riêng
+          image: hasura/graphql-engine:v2.40.0-ce       # image thường (không cli-migrations): migration/metadata áp bằng bước riêng
           ports:
             - containerPort: 8080
           env:

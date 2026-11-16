@@ -13,22 +13,18 @@ Nguyên tắc: **ưu tiên thành phần có giấy phép OSI-approved**. Kết 
 | `ollama/ollama:latest` không ghim | Ghim `0.32.6`, ghi đè bằng `OLLAMA_IMAGE`; `scripts/preflight.py --check-images` kiểm tra tag có tồn tại |
 | Thiếu header giấy phép | Header SPDX + copyright cho mọi tệp mã; CI chặn tệp mới thiếu header |
 | n8n theo Sustainable Use License (không thuộc OSI) | Thay bằng Flowable 7.1.0 (Apache-2.0); sáu quy trình đã chuyển thành BPMN trong `core/workflow/engine` |
+| MinIO: upstream ngừng phát hành image cộng đồng từ 10/2025; repo từng dùng image mirror bên thứ ba `scnd/minio-mirror` (không rõ nguồn build) | Build MinIO + mc từ tag phát hành chính thức trên github.com/minio bằng [`core/data/unstructured/minio/Dockerfile`](../core/data/unstructured/minio/Dockerfile) (không sửa mã); image kèm văn bản AGPL-3.0 và link mã nguồn tương ứng tại `/licenses`. CI build image này ở mỗi lần chạy |
+| Image `hasura/graphql-engine` thường (từ v2.12.0) chứa thêm thành phần Enterprise độc quyền | Dùng tag Community `v2.40.0-ce` / `v2.40.0-ce.cli-migrations-v3` (chỉ phần mã nguồn mở) ở compose, `Dockerfile.metadata` và manifest Kubernetes |
 
-## Còn lại - cần quyết định
-
-### MinIO (Dữ liệu phi cấu trúc) - mã nguồn AGPL-3.0 nhưng **rủi ro chuỗi cung ứng**
-Mã MinIO vẫn theo AGPL-3.0 (thuộc OSI). Nhưng từ 10/2025 upstream **ngừng phát hành image Docker và binary** cho bản cộng đồng, sau đó vào chế độ bảo trì
-(chỉ vá lỗi bảo mật). Repo đang dùng bản **mirror bên thứ ba** `scnd/minio-mirror:RELEASE.2025-09-07T16-13-09Z` (ghim phiên bản):
-không rõ nguồn build, khó kiểm chứng nguồn gốc. Cách giảm thiểu:
-- Biến `MINIO_IMAGE` cho phép thay bằng image tự build từ mã nguồn upstream (đã ghim phiên bản) và đẩy lên registry của dự án.
-- Phương án dài hạn: chuyển sang kho S3-tương thích còn hoạt động - **SeaweedFS** (Apache-2.0) hoặc Garage (AGPL-3.0). BFF dùng SDK S3 (`io.minio:minio`)
-  qua biến môi trường endpoint/khóa, nên chuyển đổi chủ yếu là cấu hình + script khởi tạo bucket.
+## Còn lại - cần để ý
 
 ### Thành phần khác cần để ý
 - **ClamAV (GPL-2.0)** chạy như dịch vụ riêng, giao tiếp qua giao thức INSTREAM - không liên kết mã với PeopleOS.
 - **psycopg (LGPL-3.0)** trong `platform-api`: dùng như thư viện ngoài, không sửa đổi; bản phân phối container giữ nguyên gói gốc.
 - **OpenPDF** (BFF): song giấy phép LGPL-2.1/MPL-2.0 - xác minh phiên bản cụ thể khi phát hành.
-- **Hasura**: chỉ dùng bản community Apache-2.0; tính năng Enterprise/Cloud (rate-limit, read replica...) **không** dùng.
+- **MinIO (AGPL-3.0)** chạy như dịch vụ riêng, BFF truy cập qua API S3 (`io.minio:minio`, Apache-2.0). Upstream đang ở chế độ bảo trì; nếu cần kho S3
+  còn phát triển tích cực, có thể chuyển sang **SeaweedFS** (Apache-2.0) - chủ yếu là đổi cấu hình endpoint/khóa và script khởi tạo bucket.
+- **Hasura**: chỉ dùng bản Community (`-ce`); tính năng Enterprise/Cloud (rate-limit, read replica...) **không** dùng.
 
 ## Quy trình khi thêm phụ thuộc mới
 1. Kiểm tra giấy phép (SPDX id) và ghi vào `THIRD_PARTY_LICENSES.md` kèm cột "Xác minh".

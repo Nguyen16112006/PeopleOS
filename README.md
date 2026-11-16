@@ -59,7 +59,7 @@ Sơ đồ chi tiết, luồng xác thực, realtime và ma trận phân quyền:
 | Định danh / SSO | Keycloak 26 (OIDC, PKCE) |
 | API Gateway | Apache APISIX 3.9 (standalone; chế độ etcd cho PaaS; plugin `openid-connect`, `key-auth`) |
 | Dữ liệu cấu trúc | PostgreSQL 16 + Hasura 2.40 (GraphQL, phân quyền hàng/cột) |
-| Dữ liệu phi cấu trúc | MinIO (AGPL-3.0; upstream ngừng phát hành image - xem [docs/LICENSING.md](docs/LICENSING.md)) |
+| Dữ liệu phi cấu trúc | MinIO (AGPL-3.0; build từ mã nguồn chính thức - xem [docs/LICENSING.md](docs/LICENSING.md)) |
 | Workflow | Flowable 7.1.0 (BPMN, Apache-2.0, dịch vụ headless) |
 | Event Bus | NATS 2.10 |
 | Điều phối | Docker Compose (healthcheck, autoheal) |
@@ -182,7 +182,7 @@ Dùng khi muốn build/chạy riêng từng thành phần hoặc đóng góp mã
 
 **Cấu hình trước khi build/chạy:** chỉ bằng biến môi trường (`infrastructure/.env`, `application.yml`), không phải sửa tệp mã hay header. Nạp biến vào shell: `set -a; . infrastructure/.env; set +a`. Các script Python (`scripts/*.py`) cũng đọc mật khẩu từ biến môi trường này. Khi chạy ngoài Docker, trỏ `POSTGRES_*`, `HASURA_ADMIN_SECRET`, `KEYCLOAK_*`, `MINIO_*` tới dịch vụ tương ứng.
 
-**Thư viện phụ thuộc:** khai báo trong `pom.xml`, `package-lock.json`, `requirements.txt` và được tải về từ kho chính thức (Maven Central, npm, PyPI); kho này **không đính kèm hay chỉnh sửa mã nguồn** của thư viện bên thứ ba. Danh sách và giấy phép: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Các dịch vụ hạ tầng (Keycloak, Hasura, APISIX...) dùng image đã ghim phiên bản trong `docker-compose.yml`.
+**Thư viện phụ thuộc:** khai báo trong `pom.xml`, `package-lock.json`, `requirements.txt` và được tải về từ kho chính thức (Maven Central, npm, PyPI); kho này **không đính kèm hay chỉnh sửa mã nguồn** của thư viện bên thứ ba (ngoại lệ: vài thành phần giao diện trong `apps/people-workspace/frontend/src/components/ui/` phỏng theo shadcn/ui, giấy phép MIT, có ghi công trong header từng tệp). Danh sách và giấy phép: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Các dịch vụ hạ tầng (Keycloak, Hasura, APISIX...) dùng image đã ghim phiên bản trong `docker-compose.yml`.
 
 **Kiểm tra bản build:** chạy các lệnh ở mục 7; kiểm tra giấy phép từng tệp bằng `python scripts/spdx-headers.py --check` và toàn kho theo chuẩn REUSE bằng `pipx run reuse lint`.
 
@@ -235,12 +235,12 @@ Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 
 - Kubernetes + Helm + Argo CD/Flux; Prometheus/Grafana/Loki; HA cho Keycloak và PostgreSQL
 - Neo chuỗi kiểm toán ra kho WORM bên ngoài; role CSDL tách quyền; sao lưu off-site có mã hóa
 - Đa ngôn ngữ, ứng dụng di động; thanh toán/billing cho HR-PaaS (đo đếm sử dụng đã có)
-- Thay MinIO bằng kho S3 tương thích có nguồn phát hành đang hoạt động (xem [docs/LICENSING.md](docs/LICENSING.md))
+- Cân nhắc chuyển MinIO sang kho S3 tương thích còn phát triển tích cực như SeaweedFS (xem [docs/LICENSING.md](docs/LICENSING.md))
 - Đánh giá chất lượng RAG (bộ câu hỏi chuẩn) và hỗ trợ mô hình lớn hơn
 
 ## 10. Đóng góp & Giấy phép
 
 Xem [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md).
 Mã nguồn PeopleOS phát hành theo **Apache-2.0** ([LICENSE](LICENSE), [NOTICE](NOTICE)); mỗi tệp mã có header SPDX.
-Giấy phép phần mềm bên thứ ba: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). **MinIO** có mã nguồn AGPL-3.0 thuộc OSI nhưng upstream đã ngừng phát hành image cộng đồng; xem [docs/LICENSING.md](docs/LICENSING.md).
+Giấy phép phần mềm bên thứ ba: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) - liệt kê từng thành phần, dùng ở tệp nào và có tương thích với Apache-2.0 hay không. Chính sách và các thay đổi đã thực hiện: [docs/LICENSING.md](docs/LICENSING.md).
 Nội dung pháp luật trong `ai/knowledge` chỉ mang tính tham khảo, không thay thế tư vấn pháp lý/kế toán.
