@@ -6,6 +6,14 @@ Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 th
 lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
 
 ## [Unreleased]
+### Changed
+- **Giao diện mới cho People Workspace và Developer Portal** (cùng một bộ nhận diện): menu bên trái xanh dương mực, nền xám lạnh, phông Be Vietnam Pro
+  (hiển thị đúng dấu tiếng Việt), cỡ chữ lớn hơn, số tiền và ngày tháng thẳng cột; có chế độ nền tối (nút trên thanh trên cùng, ghi nhớ lựa chọn).
+- People Workspace: menu chia nhóm *Của tôi / Công việc quản lý / Hệ thống*; ô tìm trang ở thanh trên cùng (`Ctrl K` / `⌘ K`, tìm được khi gõ không dấu);
+  trang **Tổng quan** có dải số liệu (phép năm còn lại, lương thực nhận, việc chờ duyệt) và danh sách **Việc cần làm** dẫn thẳng tới trang xử lý;
+  nút đăng xuất hiện sẵn ở cuối menu. Bảng màu `slate`/`blue`/`indigo` của Tailwind được ánh xạ sang biến CSS nên các trang cũ đổi màu theo, không cần sửa từng trang.
+- Developer Portal: menu bên trái liệt kê dự án và các mục của dự án đang mở (thay cho hàng tab); trạng thái, quyền khóa, môi trường, kiểu trường hiển thị bằng
+  tiếng Việt; khối mã `curl` có nút sao chép; khung **Xóa dự án** tách riêng; tạo dự án xong thì mở luôn dự án đó.
 
 ## [2.3.0] - 2026-11-15
 ### Added

@@ -7,10 +7,10 @@ import { LEAVE_STATUS, PROPOSAL_STATUS, STEP_STATUS } from '@/lib/format'
 
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
-    <div className="page-heading mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div className="page-heading flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p>}
+        <h1>{title}</h1>
+        {description && <p className="mt-1.5 max-w-[68ch] leading-6 text-muted-foreground">{description}</p>}
       </div>
       {actions}
     </div>
@@ -18,10 +18,10 @@ export function PageHeader({ title, description, actions }: { title: string; des
 }
 
 export const Loading = () => (
-  <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Đang tải…</div>
+  <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Đang tải dữ liệu…</div>
 )
 export const ErrorBox = ({ message }: { message: string }) => (
-  <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+  <div className="flex items-start gap-2 rounded-lg border border-[#ecc8c3] bg-[#fbeeec] p-3 text-sm text-[#9c3a32] dark:border-[#e2847b]/40 dark:bg-[#e2847b]/10 dark:text-[#f0aaa2]">
     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> <span>{message}</span>
   </div>
 )
