@@ -341,41 +341,6 @@
 }
 
 /* ───────────── Tùy chỉnh theo người dùng (lib/prefs.tsx) ───────────── */
-/* Màu nhấn: Mực là mặc định (:root); các màu khác ghi đè thang blue-* và màu chính. */
-html[data-accent="cham"] {
-  --blue-50: 241 241 248;  --blue-100: 226 227 241;  --blue-200: 197 199 227;  --blue-300: 165 167 212;  --blue-400: 129 132 194;  --blue-500: 100 104 180;  --blue-600: 75 79 168;  --blue-700: 62 66 139;  --blue-800: 50 53 113;  --blue-900: 39 41 87;
-  --primary: 237 38% 48%; --ring: 237 38% 48%; --accent: 240 33% 96%; --accent-foreground: 237 38% 39%;
-  --po-primary: #4b4fa8; --po-primary-dark: #3e428b;
-}
-html.dark[data-accent="cham"] {
-  --blue-50: 31 36 65;  --blue-100: 37 41 79;  --blue-200: 48 53 106;
-  --blue-600: 156 158 207;  --blue-700: 183 185 220;  --blue-800: 205 206 231;
-  --primary: 238 35% 71%; --ring: 238 35% 71%; --accent-foreground: 237 35% 79%;
-  --po-primary: #9c9ecf; --po-primary-dark: #b7b9dc;
-}
-html[data-accent="than"] {
-  --blue-50: 239 240 240;  --blue-100: 223 224 226;  --blue-200: 192 194 196;  --blue-300: 156 160 164;  --blue-400: 117 121 127;  --blue-500: 86 91 98;  --blue-600: 58 64 72;  --blue-700: 48 53 60;  --blue-800: 39 43 48;  --blue-900: 30 33 37;
-  --primary: 214 11% 25%; --ring: 214 11% 25%; --accent: 180 3% 94%; --accent-foreground: 215 11% 21%;
-  --po-primary: #3a4048; --po-primary-dark: #30353c;
-}
-html.dark[data-accent="than"] {
-  --blue-50: 26 32 41;  --blue-100: 31 36 45;  --blue-200: 39 45 54;
-  --blue-600: 147 150 154;  --blue-700: 176 179 182;  --blue-800: 200 202 204;
-  --primary: 214 3% 59%; --ring: 214 3% 59%; --accent-foreground: 210 4% 70%;
-  --po-primary: #93969a; --po-primary-dark: #b0b3b6;
-}
-html[data-accent="caphe"] {
-  --blue-50: 244 241 238;  --blue-100: 234 226 221;  --blue-200: 212 197 187;  --blue-300: 188 165 148;  --blue-400: 162 129 106;  --blue-500: 141 100 72;  --blue-600: 122 75 42;  --blue-700: 101 62 35;  --blue-800: 82 50 28;  --blue-900: 63 39 22;
-  --primary: 25 49% 32%; --ring: 25 49% 32%; --accent: 30 21% 95%; --accent-foreground: 25 49% 27%;
-  --po-primary: #7a4b2a; --po-primary-dark: #653e23;
-}
-html.dark[data-accent="caphe"] {
-  --blue-50: 42 34 34;  --blue-100: 53 40 35;  --blue-200: 74 51 37;
-  --blue-600: 182 156 138;  --blue-700: 202 183 170;  --blue-800: 218 205 195;
-  --primary: 25 23% 63%; --ring: 25 23% 63%; --accent-foreground: 24 23% 73%;
-  --po-primary: #b69c8a; --po-primary-dark: #cab7aa;
-}
-
 /* Cỡ chữ: phóng to vùng nội dung, giữ nguyên menu */
 html[data-size="lg"] .po-content { zoom: 1.1; }
 html[data-size="xl"] .po-content { zoom: 1.22; }
@@ -398,7 +363,6 @@ html[data-density="compact"] .po-nav-link { min-height: 34px; padding-top: 5px; 
 }
 .po-chip:hover { border-color: var(--po-muted); }
 .po-chip.selected { border: 2px solid var(--po-ink); padding: 0 14px; background: rgb(var(--blue-50)); font-weight: 600; }
-.po-swatch { width: 18px; height: 18px; border-radius: 50%; }
 .po-choices { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* Trang Tùy chỉnh */

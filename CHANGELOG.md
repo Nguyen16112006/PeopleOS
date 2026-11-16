@@ -6,6 +6,9 @@ Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 th
 lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
 
 ## [Unreleased]
+### Removed
+- People Workspace: bỏ tùy chọn **Màu nhấn** ở trang Tùy chỉnh giao diện vì gần như không có tác dụng (#36); toàn hệ thống dùng một màu nhận diện
+  xanh mực, thống nhất với Developer Portal và trang tài liệu. Giá trị `accent` cũ trong localStorage được bỏ qua.
 ### Fixed
 - **Giấy phép - Hasura:** đổi sang tag Community `hasura/graphql-engine:v2.40.0-ce` / `v2.40.0-ce.cli-migrations-v3` (compose, `Dockerfile.metadata`,
   `k8s/cell/hasura.yaml`); image thường từ v2.12.0 chứa thêm thành phần Enterprise độc quyền.
@@ -20,7 +23,7 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
   trang **Tổng quan** có dải số liệu (phép năm còn lại, lương thực nhận, việc chờ duyệt) và danh sách **Việc cần làm** dẫn thẳng tới trang xử lý;
   nút đăng xuất hiện sẵn ở cuối menu. Bảng màu `slate`/`blue`/`indigo` của Tailwind được ánh xạ sang biến CSS nên các trang cũ đổi màu theo, không cần sửa từng trang.
 - People Workspace cá nhân hóa: trang **Tùy chỉnh giao diện** (`/settings`) cho từng người chọn cách gọi trong lời chào (tên, anh/chị + tên, họ tên),
-  màu nhấn (Mực, Chàm, Than, Cà phê), cỡ chữ, khoảng cách, nền sáng/tối/theo máy và các trang ghim lên đầu menu (gợi ý sẵn theo vai trò);
+  cỡ chữ, khoảng cách, nền sáng/tối/theo máy và các trang ghim lên đầu menu (gợi ý sẵn theo vai trò);
   trang Tổng quan có mục **Bạn hay mở** (số ngày mở mỗi trang trong 30 ngày). Cài đặt và lượt mở lưu theo tài khoản trên trình duyệt đang dùng (localStorage), chưa đồng bộ giữa các máy.
 - Phiếu lương trình bày như tờ phiếu giấy, có con dấu đỏ "Đã chi" kèm ngày chi khi kỳ lương đã chi (`components/Stamp.tsx`; con dấu chỉ dùng cho việc đã hoàn tất).
 - Developer Portal: menu bên trái liệt kê dự án và các mục của dự án đang mở (thay cho hàng tab); trạng thái, quyền khóa, môi trường, kiểu trường hiển thị bằng
