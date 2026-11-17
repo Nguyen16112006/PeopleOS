@@ -27,17 +27,27 @@ class Keycloak:
         _check(r, "Keycloak token")
         return {"Authorization": "Bearer " + r.json()["access_token"]}
 
-    def create_client(self, realm: str, client_id: str, redirect_uris: list[str]) -> None:
-        """Client OIDC công khai (PKCE) cho ứng dụng của tenant; token mang claim tenant_id từ thuộc tính user."""
+    def create_client(self, realm: str, client_id: str, redirect_uris: list[str], tenant_id: str = "") -> None:
+        """Client OIDC công khai (PKCE) cho ứng dụng của tenant; token mang claim tenant_id từ thuộc tính user.
+
+        Bảo mật: client nằm chung realm với nhân viên first-party nên (1) bắt buộc màn hình đồng ý (không cấp token im lặng
+        từ phiên SSO sẵn có), (2) gắn cứng claim client_tenant_id = tenant sở hữu project; BFF/gateway từ chối token khi
+        client_tenant_id khác tenant_id của user (nhân viên tenant A đăng nhập vào app của tenant B)."""
+        mappers = [{
+            "name": "tenant_id", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+            "config": {"user.attribute": "tenant_id", "claim.name": "tenant_id", "jsonType.label": "String",
+                       "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "true"}}]
+        if tenant_id:
+            mappers.append({
+                "name": "client_tenant_id", "protocol": "openid-connect", "protocolMapper": "oidc-hardcoded-claim-mapper",
+                "config": {"claim.name": "client_tenant_id", "claim.value": tenant_id, "jsonType.label": "String",
+                           "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false"}})
         body = {
             "clientId": client_id, "enabled": True, "publicClient": True, "protocol": "openid-connect",
-            "standardFlowEnabled": True, "directAccessGrantsEnabled": False,
+            "standardFlowEnabled": True, "directAccessGrantsEnabled": False, "consentRequired": True,
             "redirectUris": redirect_uris, "webOrigins": ["+"] if redirect_uris else [],
             "attributes": {"pkce.code.challenge.method": "S256"},
-            "protocolMappers": [{
-                "name": "tenant_id", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
-                "config": {"user.attribute": "tenant_id", "claim.name": "tenant_id", "jsonType.label": "String",
-                           "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "true"}}],
+            "protocolMappers": mappers,
         }
         _check(self.http.post(f"{self.base}/admin/realms/{realm}/clients", json=body, headers=self._headers()),
                "Keycloak create client", ok=(201, 409))      # 409 = đã tồn tại (chạy lại an toàn)

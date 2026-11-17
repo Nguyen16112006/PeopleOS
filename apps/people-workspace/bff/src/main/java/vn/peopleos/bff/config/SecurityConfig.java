@@ -48,7 +48,7 @@ public class SecurityConfig {
     JwtDecoder jwtDecoder(AppProperties props) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(props.jwt().jwksUrl()).build();
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(props.jwt().issuer());
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer));
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, new ClientBindingValidator()));
         return decoder;
     }
 

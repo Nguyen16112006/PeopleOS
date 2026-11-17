@@ -8,7 +8,8 @@ Nạp cấu hình APISIX (chế độ etcd) qua Admin API. Idempotent (PUT). Ch�
   2. consumer_groups theo gói (plan-free, plan-pro): giới hạn tốc độ + hạn mức ngày (Redis dùng chung).
   3. Route PaaS:
        POST /v1/data      : API key -> Hasura (Lua gắn tenant/role từ Consumer)
-       ANY  /platform/*   : platform-api (Developer Portal gọi; JWT do chính service kiểm tra)
+       ANY  /platform/v1/*, /platform/healthz : platform-api (Developer Portal gọi; JWT do chính service kiểm tra)
+       /platform/internal/* KHÔNG được công khai (chỉ gọi trong mạng nội bộ)
   4. global_rule: metric Prometheus theo consumer; http-logger -> platform-api (đo đếm) nếu có EVENT_DISPATCHER_SECRET;
      clickhouse-logger nếu có CLICKHOUSE_ENDPOINT.
 
@@ -73,8 +74,10 @@ def paas_resources() -> None:
             "proxy-rewrite": {"uri": "/v1/graphql"},
             "serverless-post-function": {"phase": "access", "functions": [LUA]}},
         "upstream": {"type": "roundrobin", "nodes": {HASURA_UP: 1}, "timeout": {"connect": 5, "send": 30, "read": 30}}})
+    # CHỈ công khai API dành cho Developer Portal (/v1/*) và healthz. /internal/* (Hasura Event Trigger, đo đếm sử dụng)
+    # KHÔNG bao giờ đi qua gateway: dùng allowlist thay vì "/platform/*" để không lọt bằng biến thể đường dẫn (//, %2F, ./).
     put("routes", "paas-platform-api", {
-        "uri": "/platform/*", "priority": 20,
+        "uris": ["/platform/v1/*", "/platform/healthz"], "priority": 20,
         "plugins": {"proxy-rewrite": {"regex_uri": ["^/platform/(.*)", "/$1"]},
                     "cors": {"allow_origins": os.environ.get("PORTAL_ORIGIN", "http://localhost:3100"),
                              "allow_methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS", "allow_headers": "Authorization,Content-Type"}},
@@ -85,7 +88,9 @@ def paas_resources() -> None:
             "endpoint_addr": os.environ["CLICKHOUSE_ENDPOINT"], "user": os.environ.get("CLICKHOUSE_USER", "default"),
             "password": os.environ.get("CLICKHOUSE_PASSWORD", ""), "database": os.environ.get("CLICKHOUSE_DB", "default"),
             "logtable": os.environ.get("CLICKHOUSE_TABLE", "gateway_logs"), "batch_max_size": 100}
-    secret = os.environ.get("EVENT_DISPATCHER_SECRET")
+    secret = os.environ.get("EVENT_DISPATCHER_SECRET", "")
+    if secret and (len(secret) < 32 or "change_me" in secret):
+        sys.exit("EVENT_DISPATCHER_SECRET quá yếu hoặc còn giá trị mẫu: sinh bằng `openssl rand -hex 32`")
     if secret:     # đo đếm sử dụng: log theo lô (không chứa nội dung request) -> platform-api -> platform.usage_daily
         plugins["http-logger"] = {
             "uri": os.environ.get("USAGE_INGEST_URL", f"http://{PLATFORM_UP}/internal/usage"),

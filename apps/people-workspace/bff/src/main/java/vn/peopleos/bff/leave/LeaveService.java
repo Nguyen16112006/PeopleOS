@@ -81,8 +81,7 @@ public class LeaveService {
                 "start_date", req.startDate().toString(), "end_date", req.endDate().toString(),
                 "days", days, "reason", req.reason(), "status", status, "stage", stage))).get("insert_leave_requests_one");
         String requestId = created.get("id").asText();
-        if ("approved".equals(status)) {   // Giám đốc tự ghi nhận: trừ phép và báo HR lưu lại
-            useBalance(req.leaveType(), employeeId, req.startDate().getYear(), days);
+        if ("approved".equals(status)) {   // Giám đốc tự ghi nhận (trigger CSDL đã trừ phép khi INSERT) và báo HR lưu lại
             notifications.notify(Target.role("hr"), "Giám đốc ghi nhận nghỉ phép",
                     emp.get("full_name").asText() + " nghỉ " + days + " ngày (" + req.startDate() + " → " + req.endDate() + ").",
                     "leave_request", requestId, "leave.recorded");
@@ -154,7 +153,9 @@ public class LeaveService {
 
         // HR kiểm tra ngày phép xong thì chuyển lên Giám đốc (đơn vẫn pending)
         if ("hr".equals(stage) && approve) {
-            hasura.query(LeaveQueries.STAGE, Params.of("id", requestId, "stage", "director"));
+            int moved = hasura.query(LeaveQueries.STAGE, Params.of("id", requestId, "from", "hr", "stage", "director"))
+                    .path("update_leave_requests").path("affected_rows").asInt(0);
+            if (moved != 1) throw ApiException.conflict("Đơn đã được xử lý bởi người khác, vui lòng tải lại");
             notifications.notify(Target.role("director"), "Đơn nghỉ phép chờ Giám đốc duyệt",
                     emp.get("full_name").asText() + " xin nghỉ " + fmt(req.get("days").asDouble()) + " ngày (HR đã kiểm tra ngày phép).",
                     "leave_request", requestId, "leave.pending");
@@ -164,12 +165,20 @@ public class LeaveService {
         }
 
         String status = approve ? "approved" : "rejected";
-        hasura.query(LeaveQueries.DECIDE, Params.of("id", requestId, "status", status,
-                "approver", approverId, "note", body.note()));
+        int updated;
+        try {
+            updated = hasura.query(LeaveQueries.DECIDE, Params.of("id", requestId, "stage", stage, "status", status,
+                    "approver", approverId, "note", body.note())).path("update_leave_requests").path("affected_rows").asInt(0);
+        } catch (RuntimeException e) {   // trigger/ràng buộc CSDL: duyệt đơn này sẽ làm số ngày đã dùng vượt quỹ phép
+            if (String.valueOf(e.getMessage()).contains("leave_balances_used_within_entitled")
+                    || String.valueOf(e.getMessage()).contains("Không đủ ngày phép")) {
+                throw ApiException.conflict("Không đủ ngày phép để duyệt đơn này (quỹ phép đã được dùng bởi đơn khác)");
+            }
+            throw e;
+        }
+        if (updated != 1) throw ApiException.conflict("Đơn đã được xử lý bởi người khác, vui lòng tải lại");
 
-        if ("approved".equals(status)) {
-            useBalance(req.get("leave_type").asText(), req.get("employee_id").asText(),
-                    Integer.parseInt(req.get("start_date").asText().substring(0, 4)), req.get("days").asDouble());
+        if ("approved".equals(status)) {   // quỹ phép đã được trừ bởi trigger trong cùng giao dịch
             // Báo HR chỉnh công / lưu lại
             notifications.notify(Target.role("hr"), "Đơn nghỉ phép đã duyệt - cần chỉnh công",
                     emp.get("full_name").asText() + " nghỉ " + fmt(req.get("days").asDouble()) + " ngày ("
@@ -189,13 +198,6 @@ public class LeaveService {
         return LeaveResult.of(requestId, status);
     }
 
-    /** Trừ quỹ phép năm / nghỉ ốm khi đơn được duyệt xong. */
-    private void useBalance(String type, String employeeId, int year, double days) {
-        if (!"annual".equals(type) && !"sick".equals(type)) return;
-        String column = "annual".equals(type) ? "used_days" : "sick_days_used";
-        hasura.query(LeaveQueries.USE_BALANCE.formatted(column), Params.of("eid", employeeId, "year", year, "d", days));
-    }
-
     private void notifyDecisionFallback(Map<String, Object> p) {
         Object employeeUser = p.get("employee_user_id");
         if (employeeUser == null) return;
@@ -213,7 +215,8 @@ public class LeaveService {
             throw ApiException.notFound("Không tìm thấy đơn nghỉ phép của bạn");
         }
         if (!"pending".equals(req.get("status").asText())) throw ApiException.conflict("Chỉ huỷ được đơn đang chờ duyệt");
-        hasura.query(LeaveQueries.CANCEL, Params.of("id", requestId));
+        int n = hasura.query(LeaveQueries.CANCEL, Params.of("id", requestId)).path("update_leave_requests").path("affected_rows").asInt(0);
+        if (n != 1) throw ApiException.conflict("Đơn vừa được xử lý, không còn ở trạng thái chờ duyệt");
         return LeaveResult.of(requestId, "cancelled");
     }
 

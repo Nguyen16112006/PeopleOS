@@ -13,6 +13,15 @@ DEFAULT_PLANS = {
 }
 
 
+WEAK_SECRET_MARKERS = ("change_me", "changeme", "secret", "password")
+
+
+def _require_strong_secret(name: str, value: str) -> None:
+    """Từ chối khởi động khi bí mật để trống, quá ngắn hoặc còn giá trị mẫu trong repo (vd event_secret_change_me)."""
+    if len(value) < 32 or any(m in value.lower() for m in WEAK_SECRET_MARKERS):
+        raise RuntimeError(f"{name} phải là chuỗi ngẫu nhiên >= 32 ký tự (vd `openssl rand -hex 32`), không dùng giá trị mẫu")
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -36,6 +45,7 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         e = os.environ
+        _require_strong_secret("EVENT_DISPATCHER_SECRET", e.get("EVENT_DISPATCHER_SECRET", ""))
         return cls(
             database_url=e["DATABASE_URL"],
             keycloak_url=e.get("KEYCLOAK_URL", "http://keycloak:8080"),
