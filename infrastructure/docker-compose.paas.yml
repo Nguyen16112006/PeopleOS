@@ -50,7 +50,7 @@ services:
       APISIX_ADMIN_KEY: ${APISIX_ADMIN_KEY:-change_me_admin_key}
       REDIS_HOST: valkey
       PORTAL_ORIGIN: ${PORTAL_ORIGIN:-http://localhost:3100}
-      EVENT_DISPATCHER_SECRET: ${EVENT_DISPATCHER_SECRET:?Đặt EVENT_DISPATCHER_SECRET trong .env (openssl rand -hex 32)}   # bật đo đếm sử dụng (http-logger)
+      EVENT_DISPATCHER_SECRET: ${EVENT_DISPATCHER_SECRET:-}   # bật đo đếm sử dụng (http-logger)
       PLATFORM_API_UPSTREAM: platform-api:8090
     command: ["sh", "-c", "pip install -q pyyaml && until python scripts/apisix-paas-bootstrap.py; do echo 'APISIX chưa sẵn sàng, thử lại...'; sleep 3; done"]
     depends_on:
@@ -74,7 +74,7 @@ services:
       HASURA_URL: http://hasura:8080
       HASURA_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-hasura_admin_secret_change_me}
       PLATFORM_SECRET_KEY: ${PLATFORM_SECRET_KEY:?Đặt PLATFORM_SECRET_KEY (python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())")}
-      EVENT_DISPATCHER_SECRET: ${EVENT_DISPATCHER_SECRET:?Đặt EVENT_DISPATCHER_SECRET trong .env (openssl rand -hex 32)}
+      EVENT_DISPATCHER_SECRET: ${EVENT_DISPATCHER_SECRET:-}
       # CHỈ bật khi chạy smoke test/dev (cho phép webhook tới máy host). Production: để false (chống SSRF)
       ALLOW_PRIVATE_WEBHOOKS: ${ALLOW_PRIVATE_WEBHOOKS:-false}
       ALLOW_HTTP_WEBHOOKS: ${ALLOW_HTTP_WEBHOOKS:-false}
@@ -104,7 +104,7 @@ services:
   hasura:
     environment:
       EVENT_DISPATCHER_URL: http://platform-api:8090/internal/hasura-events
-      EVENT_DISPATCHER_SECRET: ${EVENT_DISPATCHER_SECRET:?Đặt EVENT_DISPATCHER_SECRET trong .env (openssl rand -hex 32)}
+      EVENT_DISPATCHER_SECRET: ${EVENT_DISPATCHER_SECRET:-}
 
   hasura-event-triggers-init:
     image: python:3.12-alpine
