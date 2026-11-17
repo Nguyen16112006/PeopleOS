@@ -75,10 +75,12 @@ public class PayrollRunService {
         // Khóa bảng công của tháng: từ đây nhân viên và HR không sửa công được nữa, Kế toán tính lương theo đúng số liệu này
         TimesheetService.CloseResult closed = timesheets.closeMonth(req.year(), req.month());
         notifications.notify(Target.role("accountant"), "HR đã chốt công tháng " + req.month() + "/" + req.year(),
-                "Đã chốt " + closed.total() + " bảng công (" + closed.confirmed() + " bảng đã được xác nhận trước khi chốt). Kế toán có thể tính lương.",
+                "Đã chốt " + closed.total() + " bảng công (" + closed.confirmed() + " bảng đã được xác nhận trước khi chốt"
+                        + (closed.unconfirmed() > 0 ? "; " + closed.unconfirmed() + " bảng chưa xác nhận chỉ tính công do HR ghi nhận" : "")
+                        + "). Kế toán có thể tính lương.",
                 "payroll_run", id, "payroll.timesheet_closed");
         audit.record(user, "PAYROLL.TIMESHEET_CLOSED", "payroll_run", id, Params.of("year", req.year(), "month", req.month(),
-                "timesheets", closed.total(), "confirmed", closed.confirmed()));
+                "timesheets", closed.total(), "confirmed", closed.confirmed(), "unconfirmed", closed.unconfirmed()));
         return new PayrollRunResult(id, "timesheet_closed", closed.total());
     }
 

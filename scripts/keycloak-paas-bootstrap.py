@@ -96,6 +96,22 @@ def ensure_mapper(token, client_id):
     actions.append(f"client {client_id}: thêm mapper tenant_id")
 
 
+def ensure_audience_mapper(token, client_id="people-workspace"):
+    """Token của People Workspace mang aud=people-workspace; Hasura/BFF chỉ nhận token có audience này
+    (client app-* của project PaaS nằm cùng realm không được dùng token của mình gọi thẳng Hasura)."""
+    _, found = call("GET", f"/admin/realms/{REALM}/clients?clientId={urllib.parse.quote(client_id)}", token)
+    if not found:
+        return
+    uuid = found[0]["id"]
+    _, mappers = call("GET", f"/admin/realms/{REALM}/clients/{uuid}/protocol-mappers/models", token)
+    if any(m.get("name") == "aud-people-workspace" for m in (mappers or [])):
+        return
+    call("POST", f"/admin/realms/{REALM}/clients/{uuid}/protocol-mappers/models", token, body={
+        "name": "aud-people-workspace", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": {"included.client.audience": client_id, "access.token.claim": "true", "id.token.claim": "false"}})
+    actions.append(f"client {client_id}: thêm mapper audience")
+
+
 def backfill_users(token):
     first, updated = 0, 0
     while True:
@@ -129,6 +145,7 @@ def main():
     ensure_user_profile(token)
     for c in CLIENTS:
         ensure_mapper(token, c)
+    ensure_audience_mapper(token)
     backfill_users(token)
     ensure_platform_realm(token)
     print("\n".join("ĐÃ LÀM: " + a for a in actions) if actions else "Không có thay đổi (đã cấu hình đủ).")
