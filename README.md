@@ -40,9 +40,9 @@ PeopleOS là nền tảng **mã nguồn mở** gồm hai tầng:
 │ TẦNG 1 - OPEN-CORE (HEADLESS PAAS)                                 │
 │  Apache APISIX ─ xác thực JWKS ─► Keycloak (SSO · RBAC)            │
 │     ├─► Hasura ─► PostgreSQL        dữ liệu cấu trúc               │
-│     ├─► MinIO                       hợp đồng · payslip · chứng từ   │
-│     ├─► Flowable                    6 quy trình BPMN                 │
-│     └─► NATS                        sự kiện realtime                │
+│     ├─► MinIO                       hợp đồng · payslip · chứng từ  │
+│     ├─► Flowable                    6 quy trình BPMN               │
+│     └─► NATS                        sự kiện realtime               │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
