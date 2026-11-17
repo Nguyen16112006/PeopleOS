@@ -29,6 +29,38 @@ if [[ ! -f .env ]]; then
   rm -f .env.bak
   echo ">> Đã tạo infrastructure/.env với mật khẩu ngẫu nhiên (xem trong tệp này; tệp đã nằm trong .gitignore)"
 fi
+# Bí mật PaaS: bổ sung nếu thiếu/để trống/còn giá trị mẫu (không ảnh hưởng volume, an toàn khi chạy lại)
+rand_hex32() {
+  if command -v openssl >/dev/null 2>&1; then openssl rand -hex 32
+  else python3 -c 'import secrets; print(secrets.token_hex(32))'; fi
+}
+ensure_secret() {   # $1 = tên biến
+  local cur; cur="$(grep -E "^$1=" .env | tail -n1 | cut -d= -f2- || true)"
+  if [[ -z "$cur" || "$cur" == *change_me* ]]; then
+    if grep -qE "^$1=" .env; then sed -i.bak "s|^$1=.*|$1=$(rand_hex32)|" .env; rm -f .env.bak
+    else echo "$1=$(rand_hex32)" >> .env; fi
+    echo ">> Đã sinh $1 ngẫu nhiên"
+  fi
+}
+ensure_secret EVENT_DISPATCHER_SECRET
+ensure_secret APISIX_ADMIN_KEY
+if ! grep -qE '^PLATFORM_SECRET_KEY=.+' .env; then   # khóa Fernet: base64 urlsafe của 32 byte
+  KEY="$(python3 -c 'import base64,secrets;print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())' 2>/dev/null \
+        || openssl rand -base64 32 | tr '+/' '-_')"
+  sed -i.bak '/^PLATFORM_SECRET_KEY=/d' .env; rm -f .env.bak; echo "PLATFORM_SECRET_KEY=$KEY" >> .env
+  echo ">> Đã sinh PLATFORM_SECRET_KEY"
+fi
+
+# .env có sẵn (vd copy tay từ .env.example) mà vẫn còn mật khẩu mẫu công khai trong repo -> cảnh báo to.
+# Không tự đổi vì mật khẩu PostgreSQL/Keycloak chỉ áp dụng ở lần khởi tạo volume đầu tiên.
+WEAK="$(grep -E '^(POSTGRES_PASSWORD|KEYCLOAK_ADMIN_PASSWORD|HASURA_ADMIN_SECRET|MINIO_ROOT_PASSWORD|INTERNAL_API_KEY)=' .env \
+        | grep -E '=(peopleos_pg_pass|admin_change_me|hasura_admin_secret_change_me|peopleos_minio_secret|internal_key_change_me)$' \
+        | cut -d= -f1 || true)"
+if [[ -n "$WEAK" ]]; then
+  echo "!! CẢNH BÁO: infrastructure/.env còn mật khẩu MẪU công khai trong repo: $(echo $WEAK)"
+  echo "   Môi trường thật: xóa volume (docker compose down -v) rồi xóa .env và chạy lại setup.sh để sinh mật khẩu mới."
+  [[ "${PEOPLEOS_ALLOW_DEFAULT_SECRETS:-}" == "1" ]] || { echo "   (Đặt PEOPLEOS_ALLOW_DEFAULT_SECRETS=1 để bỏ qua khi chỉ demo cục bộ.)"; exit 1; }
+fi
 KC_ADMIN_USER="$(grep -E '^KEYCLOAK_ADMIN=' .env | cut -d= -f2-)"
 KC_ADMIN_PASS="$(grep -E '^KEYCLOAK_ADMIN_PASSWORD=' .env | cut -d= -f2-)"
 

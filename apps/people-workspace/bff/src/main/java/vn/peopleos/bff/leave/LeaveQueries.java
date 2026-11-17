@@ -29,26 +29,24 @@ final class LeaveQueries {
               }
             }""";
 
+    /**
+     * Có điều kiện: chỉ cập nhật khi đơn VẪN pending và ở đúng giai đoạn đã kiểm tra quyền (chống duyệt trùng song song).
+     * Quỹ phép được trừ bởi trigger trg_leave_apply_balance trong cùng giao dịch (migration 1760000000013).
+     */
     static final String DECIDE = """
-            mutation Decide($id: uuid!, $status: String!, $approver: uuid, $note: String) {
-              update_leave_requests_by_pk(pk_columns: {id: $id},
-                _set: {status: $status, stage: "done", approver_id: $approver, decision_note: $note, decided_at: "now()"}) { id status }
+            mutation Decide($id: uuid!, $stage: String!, $status: String!, $approver: uuid, $note: String) {
+              update_leave_requests(where: {id: {_eq: $id}, status: {_eq: "pending"}, stage: {_eq: $stage}},
+                _set: {status: $status, stage: "done", approver_id: $approver, decision_note: $note, decided_at: "now()"}) { affected_rows }
             }""";
 
     /** Chuyển đơn sang giai đoạn duyệt kế tiếp (đơn vẫn ở trạng thái pending). */
     static final String STAGE = """
-            mutation LeaveStage($id: uuid!, $stage: String!) {
-              update_leave_requests_by_pk(pk_columns: {id: $id}, _set: {stage: $stage}) { id stage }
-            }""";
-
-    /** %s = used_days (phép năm) hoặc sick_days_used (nghỉ ốm). */
-    static final String USE_BALANCE = """
-            mutation UseBalance($eid: uuid!, $year: smallint!, $d: numeric!) {
-              update_leave_balances(where: {employee_id: {_eq: $eid}, year: {_eq: $year}}, _inc: {%s: $d}) { affected_rows }
+            mutation LeaveStage($id: uuid!, $from: String!, $stage: String!) {
+              update_leave_requests(where: {id: {_eq: $id}, status: {_eq: "pending"}, stage: {_eq: $from}}, _set: {stage: $stage}) { affected_rows }
             }""";
 
     static final String CANCEL = """
             mutation Cancel($id: uuid!) {
-              update_leave_requests_by_pk(pk_columns: {id: $id}, _set: {status: "cancelled"}) { id status }
+              update_leave_requests(where: {id: {_eq: $id}, status: {_eq: "pending"}}, _set: {status: "cancelled"}) { affected_rows }
             }""";
 }

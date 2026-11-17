@@ -117,7 +117,8 @@ public class TimesheetService {
         if (workDays != 0 && workDays != 0.5 && workDays != 1) throw ApiException.badRequest("Số công trong ngày phải là 0, 0,5 hoặc 1");
         if (!TimesheetCalculator.isWorkingDay(date)) workDays = 0;   // thứ 7, chủ nhật chỉ ghi nhận giờ làm thêm
         double overtime = req.overtimeHours() == null ? 0 : req.overtimeHours();
-        String overtimeType = req.overtimeType() == null ? TimesheetCalculator.defaultOvertimeType(date) : req.overtimeType();
+        // Nhân viên KHÔNG được tự chọn loại tăng ca (ngày lễ 300%): server suy ra từ ngày. Chỉ HR ghi nhận được tăng ca ngày lễ.
+        String overtimeType = asHr && req.overtimeType() != null ? req.overtimeType() : TimesheetCalculator.defaultOvertimeType(date);
         Map<String, Object> set = Params.of("status", req.status(), "work_days", workDays, "overtime_hours", overtime,
                 "overtime_type", overtimeType, "note", req.note(), "source", asHr ? "hr" : "self");
 
@@ -229,29 +230,36 @@ public class TimesheetService {
 
     // ------------------------------------------------------------------ 6. HR chốt công (gọi từ kỳ lương)
     /** Kết quả chốt công: tổng số bảng công đã khóa và số bảng đã được xác nhận trước khi chốt. */
-    public record CloseResult(int total, int confirmed) {}
+    public record CloseResult(int total, int confirmed, int unconfirmed) {}
 
     /**
      * Khóa bảng công của mọi nhân viên đang làm việc trong tháng. Số liệu được tính lại từ chấm công và đơn nghỉ đã duyệt tại thời điểm chốt;
-     * nhân viên chưa gửi hoặc chưa được xác nhận vẫn được chốt theo số liệu hệ thống (HR chịu trách nhiệm rà soát trước khi chốt).
+     * với nhân viên chưa được xác nhận bảng công, CHỈ tính bản ghi do HR ghi nhận và đơn nghỉ đã duyệt (bản ghi tự khai bị bỏ qua).
      */
     public CloseResult closeMonth(int year, int month) {
         LocalDate first = LocalDate.of(year, month, 1);
         LocalDate last = first.plusMonths(1).minusDays(1);
         JsonNode data = hasura.query(TimesheetQueries.CLOSE_DATA, Params.of("from", first.toString(), "to", last.toString(), "y", year, "m", month));
+        java.util.Set<String> confirmedEmp = new java.util.HashSet<>();
+        for (JsonNode t : data.path("timesheets")) {
+            if ("confirmed".equals(t.get("status").asText())) confirmedEmp.add(t.get("employee_id").asText());
+        }
         Map<String, List<Day>> daysByEmp = new HashMap<>();
-        for (JsonNode r : data.path("attendance_records")) daysByEmp.computeIfAbsent(r.get("employee_id").asText(), k -> new ArrayList<>()).add(day(r));
+        for (JsonNode r : data.path("attendance_records")) {
+            String eid = r.get("employee_id").asText();
+            // Bản ghi tự khai (source=self) chỉ vào lương khi quản lý/HR đã xác nhận bảng công; bản ghi HR ghi nhận luôn được tính.
+            if (!"hr".equals(Json.text(r, "source")) && !confirmedEmp.contains(eid)) continue;
+            daysByEmp.computeIfAbsent(eid, k -> new ArrayList<>()).add(day(r));
+        }
         Map<String, List<Leave>> leavesByEmp = new HashMap<>();
         for (JsonNode l : data.path("leave_requests")) leavesByEmp.computeIfAbsent(l.get("employee_id").asText(), k -> new ArrayList<>()).add(leave(l));
         int confirmed = 0;
-        for (JsonNode t : data.path("timesheets")) {
-            if ("confirmed".equals(t.get("status").asText())) confirmed++;
-        }
         String now = Instant.now().toString();
         LocalDate until = last.isAfter(today()) ? today() : null;
         List<Map<String, Object>> rows = new ArrayList<>();
         for (JsonNode e : data.path("employees")) {
             String id = e.get("id").asText();
+            if (confirmedEmp.contains(id)) confirmed++;
             Summary s = TimesheetCalculator.summarize(year, month, LocalDate.parse(e.get("hire_date").asText()), until,
                     daysByEmp.getOrDefault(id, List.of()), leavesByEmp.getOrDefault(id, List.of()));
             Map<String, Object> row = summaryColumns(s);
@@ -263,7 +271,7 @@ public class TimesheetService {
             rows.add(row);
         }
         if (!rows.isEmpty()) hasura.query(TimesheetQueries.CLOSE, Params.of("objs", rows));
-        return new CloseResult(rows.size(), confirmed);
+        return new CloseResult(rows.size(), confirmed, rows.size() - confirmed);
     }
 
     /** Bảng công đã chốt của một tháng, theo employee_id (đầu vào của bước tính lương). */
@@ -331,8 +339,9 @@ public class TimesheetService {
     }
 
     private static Day day(JsonNode r) {
-        return new Day(LocalDate.parse(r.get("work_date").asText()), r.get("status").asText(), r.path("work_days").asDouble(0),
-                r.path("overtime_hours").asDouble(0), Json.text(r, "overtime_type"));
+        LocalDate date = LocalDate.parse(r.get("work_date").asText());
+        String type = "hr".equals(Json.text(r, "source")) ? Json.text(r, "overtime_type") : TimesheetCalculator.defaultOvertimeType(date);
+        return new Day(date, r.get("status").asText(), r.path("work_days").asDouble(0), r.path("overtime_hours").asDouble(0), type);
     }
 
     private static Leave leave(JsonNode l) {

@@ -91,7 +91,9 @@ def test_keycloak_bootstrap_configures_and_is_idempotent():
     assert code == 0, out
     attr = next(a for a in S["profile"]["attributes"] if a["name"] == "tenant_id")
     assert attr["permissions"] == {"view": ["admin"], "edit": ["admin"]}                     # người dùng không tự đổi được tenant
-    assert len(S["mappers"]) == 1 and S["mappers"][0]["config"]["claim.name"] == "tenant_id"
+    by_name = {m["name"]: m for m in S["mappers"]}
+    assert set(by_name) == {"tenant_id", "aud-people-workspace"} and by_name["tenant_id"]["config"]["claim.name"] == "tenant_id"
+    assert by_name["aud-people-workspace"]["config"]["included.client.audience"] == "people-workspace"
     assert all(u["attributes"].get("tenant_id") for u in S["users"])
     assert S["users"][0]["attributes"]["tenant_id"] == ["x"]                                 # giá trị cũ không bị ghi đè
     assert "peopleos-platform" in S["realms"]
@@ -121,7 +123,7 @@ def make_apisix():
 def test_apisix_bootstrap_loads_old_and_paas_resources():
     srv, LOG = make_apisix()
     env = {"APISIX_ADMIN_URL": f"http://127.0.0.1:{srv.server_port}", "APISIX_ADMIN_KEY": "testkey",
-           "EVENT_DISPATCHER_SECRET": "evsecret", "CLICKHOUSE_ENDPOINT": "http://ch:8123"}
+           "EVENT_DISPATCHER_SECRET": "e" * 64, "CLICKHOUSE_ENDPOINT": "http://ch:8123"}
     code, out = run("apisix-paas-bootstrap.py", env)
     assert code == 0, out
     d = dict(LOG)
@@ -129,10 +131,12 @@ def test_apisix_bootstrap_loads_old_and_paas_resources():
     assert not any("id" in v for k, v in d.items() if k.startswith("routes/"))
     data = d["routes/paas-data-api"]["plugins"]
     assert data["key-auth"]["header"] == "X-API-Key" and "tenant_api_write" in data["serverless-post-function"]["functions"][0]
+    plat = d["routes/paas-platform-api"]
+    assert "uri" not in plat and plat["uris"] == ["/platform/v1/*", "/platform/healthz"]   # /internal/* không công khai
     free = d["consumer_groups/plan-free"]["plugins"]
     assert free["limit-count"]["count"] == 10_000 and free["limit-count"]["policy"] == "redis"
     g = d["global_rules/observability"]["plugins"]
-    assert g["http-logger"]["auth_header"] == "Bearer evsecret" and g["http-logger"]["uri"].endswith("/internal/usage")
+    assert g["http-logger"]["auth_header"] == "Bearer " + "e" * 64 and g["http-logger"]["uri"].endswith("/internal/usage")
     assert "clickhouse-logger" in g and "prometheus" in g
     srv.shutdown()
 
@@ -151,3 +155,11 @@ def test_plan_quota_matches_between_gateway_and_control_plane():
     src = (ROOT / "scripts/apisix-paas-bootstrap.py").read_text(encoding="utf-8")
     daily = {m.group(1): int(m.group(2).replace("_", "")) for m in re.finditer(r'"plan-(\w+)": \(\d+, \d+, ([\d_]+)\)', src)}
     assert daily == {k: v["daily_requests"] for k, v in DEFAULT_PLANS.items()}
+
+
+def test_apisix_bootstrap_rejects_default_event_secret():
+    srv, _ = make_apisix()
+    code, out = run("apisix-paas-bootstrap.py", {"APISIX_ADMIN_URL": f"http://127.0.0.1:{srv.server_port}",
+                                                 "APISIX_ADMIN_KEY": "testkey", "EVENT_DISPATCHER_SECRET": "event_secret_change_me"})
+    assert code != 0 and "EVENT_DISPATCHER_SECRET" in out
+    srv.shutdown()

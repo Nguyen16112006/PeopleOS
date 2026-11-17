@@ -75,7 +75,7 @@ def _defaults_undo(ctx: Ctx, t: dict, **_):
 
 def _keycloak_do(ctx: Ctx, t: dict, redirect_uris=(), **_):
     cid = f"app-{t['short_id']}"
-    ctx.keycloak.create_client(ctx.settings.end_user_realm, cid, list(redirect_uris))
+    ctx.keycloak.create_client(ctx.settings.end_user_realm, cid, list(redirect_uris), tenant_id=str(t["id"]))
     with ctx.db.tx() as c:
         c.execute("UPDATE platform.tenants SET keycloak_client_id = %s WHERE id = %s", (cid, t["id"]))
 

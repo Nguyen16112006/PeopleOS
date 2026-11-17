@@ -34,7 +34,7 @@ final class TimesheetQueries {
     static final String MONTH = """
             query TsMonth($eid: uuid!, $from: date!, $to: date!, $y: smallint!, $m: smallint!) {
               attendance_records(where: {employee_id: {_eq: $eid}, work_date: {_gte: $from, _lte: $to}}) {
-                work_date status work_days overtime_hours overtime_type
+                work_date status work_days overtime_hours overtime_type source
               }
               leave_requests(where: {employee_id: {_eq: $eid}, status: {_eq: "approved"}, start_date: {_lte: $to}, end_date: {_gte: $from}}) {
                 leave_type start_date end_date
@@ -86,7 +86,7 @@ final class TimesheetQueries {
             query TsCloseData($from: date!, $to: date!, $y: smallint!, $m: smallint!) {
               employees(where: {status: {_eq: "active"}, hire_date: {_lte: $to}}) { id hire_date }
               attendance_records(where: {work_date: {_gte: $from, _lte: $to}}) {
-                employee_id work_date status work_days overtime_hours overtime_type
+                employee_id work_date status work_days overtime_hours overtime_type source
               }
               leave_requests(where: {status: {_eq: "approved"}, start_date: {_lte: $to}, end_date: {_gte: $from}}) {
                 employee_id leave_type start_date end_date
