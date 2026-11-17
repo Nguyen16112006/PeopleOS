@@ -77,7 +77,7 @@ mỗi khi có thông báo cho người dùng. Gửi chuỗi `ping` để giữ k
 |---|---|
 | `POST /ai/chat` | `{message, history?: [{role, content}]}` → `{intent, answer, sources[], mode}` |
 | `GET /ai/health` | Số đoạn tri thức, trạng thái Ollama/Qdrant, `vector_ready` |
-| `POST /ai/reindex` | Nạp lại `ai/knowledge` và ghi lại Qdrant |
+| `POST /reindex` (chỉ nội bộ, gateway chặn `/ai/reindex`) | Nạp lại `ai/knowledge` và ghi lại Qdrant |
 
 `intent`: `net_calc` · `leave_status` · `leave_balance` · `payslip` · `rag`.
 `mode`: `calculator` · `tool` · `llm+vector` · `llm+lexical` · `extractive+…` (LLM chưa sẵn sàng, trả đoạn trích) · `error`.

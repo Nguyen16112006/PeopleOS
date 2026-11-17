@@ -30,6 +30,8 @@ TENANT = {"tenant_id": {"_eq": SV}}
 ROLES = ("bff_service", "tenant_api_read", "tenant_api_write")
 NO_API_ACCESS = {"audit_logs"}                 # developer không đọc/ghi nhật ký hệ thống
 NO_API_WRITE = {"audit_logs", "users"}
+# Cột do hệ thống quản lý (đường dẫn tệp trong MinIO dùng chung): API key chỉ được đọc, không được ghi.
+SYSTEM_COLUMNS = {"contracts": {"file_key"}, "payrolls": {"file_key"}}
 AUDIT_INSERT_COLS = ["occurred_text", "actor_id", "actor_name", "actor_role", "action", "entity_type", "entity_id", "details"]
 
 
@@ -86,8 +88,9 @@ def plan(table, kind, cols):
         out["tenant_api_read"]["select"] = sel(cols, 1000)
         out["tenant_api_write"]["select"] = sel(cols, 1000)
         if is_table and table not in NO_API_WRITE:
-            out["tenant_api_write"]["insert"] = ins(writable)
-            out["tenant_api_write"]["update"] = upd(updatable)
+            locked = SYSTEM_COLUMNS.get(table, set())
+            out["tenant_api_write"]["insert"] = ins([c for c in writable if c not in locked])
+            out["tenant_api_write"]["update"] = upd([c for c in updatable if c not in locked])
             out["tenant_api_write"]["delete"] = dele()
     return out
 

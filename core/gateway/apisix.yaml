@@ -337,6 +337,21 @@ routes:
         send: 60
         read: 60
 
+  # --- Chặn tác vụ vận hành của RAG (nạp lại toàn bộ kho tri thức) ------
+  # Chỉ gọi nội bộ: docker compose exec rag-service curl -X POST localhost:8001/reindex
+  - id: block-ai-reindex
+    uri: /ai/reindex*
+    priority: 100
+    plugins:
+      fault-injection:
+        abort:
+          http_status: 404
+          body: "Not Found"
+    upstream:
+      type: roundrobin
+      nodes:
+        "rag-service:8001": 1
+
   # --- AI Assistant (RAG) -----------------------------------------------
   - id: ai
     uri: /ai/*
