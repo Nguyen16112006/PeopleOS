@@ -23,7 +23,7 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-EXCLUDE_DIRS = {".git", "node_modules", "dist", "build", "__pycache__", ".pytest_cache", ".venv", ".idea", ".vscode", "target"}
+EXCLUDE_DIRS = {".git", "node_modules", "dist", "build", "__pycache__", ".pytest_cache", ".venv", ".idea", ".vscode", "target", ".docusaurus"}
 EXCLUDE_PREFIX = ("backups/", "infrastructure/data/")
 KEEP_IN_EXCLUDED = {"backups/README.md", "backups/.gitkeep"}
 EXCLUDE_NAMES = {".env", ".DS_Store", "Thumbs.db"}

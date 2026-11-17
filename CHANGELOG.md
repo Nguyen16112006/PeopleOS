@@ -25,6 +25,7 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 - `package.json` (frontend, developer-portal, website) và `pom.xml` (BFF, workflow engine) khai báo giấy phép `Apache-2.0`; trước đây công cụ quét giấy phép báo `UNLICENSED`.
 - README: luồng duyệt đề xuất lương ghi đúng Quản lý đề xuất → HR → Kế toán → Giám đốc (trước ghi thiếu bước Kế toán).
 - Bổ sung liên kết so sánh phiên bản 2.2.1, 2.2.2, 2.3.0 ở cuối CHANGELOG.
+- `scripts/make-release.py` loại thư mục tạm `website/.docusaurus` (sinh ra khi build trang tài liệu) khỏi gói phát hành.
 ### Changed
 - **Giao diện mới cho People Workspace và Developer Portal** (cùng một bộ nhận diện): menu bên trái xanh dương mực, nền xám lạnh, phông Be Vietnam Pro
   (hiển thị đúng dấu tiếng Việt), cỡ chữ lớn hơn, số tiền và ngày tháng thẳng cột; có chế độ nền tối (nút trên thanh trên cùng, ghi nhớ lựa chọn).
