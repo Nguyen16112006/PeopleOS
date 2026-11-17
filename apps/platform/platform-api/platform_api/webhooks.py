@@ -10,7 +10,7 @@ import httpx
 
 from .context import Ctx
 from .db import ApiError
-from .security import decrypt, encrypt, new_webhook_secret, sign_payload
+from .security import decrypt, encrypt, new_webhook_secret, pinned_request, sign_payload
 
 ENTITIES = {"employees": "employee", "contracts": "contract", "leave_requests": "leave_request", "payrolls": "payroll"}
 OPS = {"INSERT": "created", "UPDATE": "updated", "DELETE": "deleted"}
@@ -137,13 +137,15 @@ def deliver_due(ctx: Ctx, limit: int = 20, now: datetime | None = None) -> dict:
                 stats["dead"] += 1
                 continue
             try:
-                ctx.check_url(d["url"])
+                # Kết nối thẳng tới IP vừa kiểm tra (chống DNS-rebinding), giữ Host/SNI theo tên miền gốc
+                target, extra_headers, ext = pinned_request(d["url"], ctx.check_url(d["url"]))
                 body = json.dumps(d["payload"], separators=(",", ":"), ensure_ascii=False)
                 ts = int(now.timestamp())
-                r = ctx.http.post(d["url"], content=body.encode(), timeout=10, follow_redirects=False, headers={
+                r = ctx.http.post(target, content=body.encode(), timeout=10, follow_redirects=False, extensions=ext, headers={
                     "Content-Type": "application/json", "User-Agent": "PeopleOS-Webhooks/1",
                     "X-PeopleOS-Event": d["event_type"], "X-PeopleOS-Delivery": str(d["id"]),
-                    "X-PeopleOS-Signature": sign_payload(decrypt(ctx.settings.secret_key, d["secret_enc"]), ts, body)})
+                    "X-PeopleOS-Signature": sign_payload(decrypt(ctx.settings.secret_key, d["secret_enc"]), ts, body),
+                    **extra_headers})
                 status_code = r.status_code
                 if 200 <= r.status_code < 300:
                     c.execute("""UPDATE platform.webhook_deliveries SET status='delivered', attempts=%s, last_status=%s,

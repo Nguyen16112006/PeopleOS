@@ -53,10 +53,11 @@ def _bad_ip(ip: ipaddress._BaseAddress) -> bool:
             or ip.is_reserved or ip.is_unspecified)
 
 
-def assert_public_url(url: str, allow_private: bool = False, allow_http: bool = False) -> None:
+def assert_public_url(url: str, allow_private: bool = False, allow_http: bool = False) -> str | None:
     """Chặn URL trỏ vào mạng nội bộ. Gọi lúc đăng ký VÀ ngay trước mỗi lần giao.
-    Lưu ý: vẫn còn khoảng hở DNS-rebinding giữa lúc kiểm tra và lúc kết nối; khi chạy thật nên
-    cho worker đi qua egress proxy chỉ cho phép địa chỉ công cộng."""
+
+    Trả về IP công cộng đã kiểm tra (None khi allow_private) để nơi gọi KẾT NỐI THẲNG tới IP đó (pinned_request),
+    đóng khoảng hở DNS-rebinding: tên miền không thể phân giải lần hai sang địa chỉ nội bộ lúc kết nối."""
     u = urlparse(url)
     if u.scheme not in (("https", "http") if allow_http else ("https",)):
         raise ApiError(422, "URL webhook phải dùng https")
@@ -64,7 +65,7 @@ def assert_public_url(url: str, allow_private: bool = False, allow_http: bool = 
     if not host or u.username or u.password:
         raise ApiError(422, "URL webhook không hợp lệ")
     if allow_private:
-        return
+        return None
     if host.lower() in ("localhost",) or host.lower().endswith((".local", ".internal")):
         raise ApiError(422, "URL webhook không được trỏ vào mạng nội bộ")
     try:
@@ -74,6 +75,19 @@ def assert_public_url(url: str, allow_private: bool = False, allow_http: bool = 
     for info in infos:
         if _bad_ip(ipaddress.ip_address(info[4][0])):
             raise ApiError(422, "URL webhook không được trỏ vào mạng nội bộ")
+    return infos[0][4][0]
+
+
+def pinned_request(url: str, ip: str | None) -> tuple[str, dict, dict]:
+    """(url, header bổ sung, extensions) để gửi tới ĐÚNG IP đã kiểm tra mà vẫn giữ Host và xác thực chứng chỉ TLS theo tên miền."""
+    if not ip:
+        return url, {}, {}
+    u = urlparse(url)
+    host = u.hostname
+    literal = f"[{ip}]" if ":" in ip else ip
+    netloc = literal + (f":{u.port}" if u.port else "")
+    host_header = host + (f":{u.port}" if u.port else "")
+    return u._replace(netloc=netloc).geturl(), {"Host": host_header}, {"sni_hostname": host}
 
 
 # ---- JWT của developer (realm peopleos-platform) -----------------------------------

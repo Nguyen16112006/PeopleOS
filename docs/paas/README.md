@@ -113,7 +113,7 @@ cd .. && python scripts/keycloak-paas-bootstrap.py
 2. **Gateway giữ `HASURA_ADMIN_SECRET`** để đóng vai role `tenant_api_*`. Bắt buộc NetworkPolicy chỉ cho gateway/BFF/platform-system tới Hasura (đã có trong manifest).
 3. **Compose dev dùng superuser** cho Hasura ⇒ RLS bị bỏ qua (lớp 1 và 3 vẫn có hiệu lực). Production: Hasura dùng `hasura_app`, migration chạy bằng owner qua `apply-sql-migrations.sh`/Job `db-migrate`.
 4. **FK tổng hợp là ràng buộc *thêm vào*** FK cũ (giữ nguyên để quan hệ trong metadata Hasura không đổi). Cần xác nhận Hasura không phàn nàn khi thấy thêm FK nhiều cột.
-5. **Chống SSRF** kiểm tra DNS trước khi gửi nhưng vẫn còn khoảng hở DNS-rebinding; production nên cho worker đi qua egress proxy chỉ cho phép IP công cộng.
+5. **Chống SSRF** kiểm tra DNS rồi ghim kết nối vào đúng IP đã kiểm (giữ Host/SNI, xác thực TLS theo tên miền), đóng khoảng hở DNS-rebinding; production vẫn nên có egress proxy làm lớp bổ sung.
 6. **Xóa project = xóa mềm.** Dữ liệu lõi (`public.*`) và `audit_logs` (bất biến, FK tới `tenants`) được giữ; cần chính sách lưu giữ/xóa dữ liệu cá nhân (pháp chế) trước khi đưa dữ liệu thật.
 7. **Giấy phép thành phần:** Flowable sử dụng Apache-2.0; MinIO có rủi ro phát hành image upstream - xem [docs/LICENSING.md](../LICENSING.md).
 8. **Chưa có:** thanh toán/billing (đo đếm sử dụng đã có), timer nền định kỳ tách riêng theo từng tenant (hiện chạy dưới tenant mặc định qua header `x-tenant-id`), role tùy biến cho end-user của developer, Organizations của Keycloak (hiện dùng thuộc tính user + client riêng mỗi project), Ingress/TLS và etcd trong manifest K8s.
