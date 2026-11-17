@@ -21,10 +21,9 @@ BEGIN
     RETURN NEW;
   END IF;
   IF NEW.leave_type = 'annual' THEN
+    -- Chưa có dòng quỹ phép năm đó thì bỏ qua (giữ hành vi cũ; BFF đã chặn tạo đơn khi quỹ = 0).
+    -- Nhờ vậy seed nạp đơn đã duyệt TRƯỚC leave_balances (used_days tính sẵn) không bị trừ hai lần.
     UPDATE leave_balances SET used_days = used_days + NEW.days WHERE employee_id = NEW.employee_id AND year = y;
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Không đủ ngày phép: nhân viên chưa có quỹ phép năm %', y USING ERRCODE = 'check_violation';
-    END IF;
   ELSIF NEW.leave_type = 'sick' THEN
     UPDATE leave_balances SET sick_days_used = sick_days_used + NEW.days WHERE employee_id = NEW.employee_id AND year = y;
   END IF;

@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,6 +29,7 @@ import vn.peopleos.bff.common.ApiException;
 import vn.peopleos.bff.employee.EmployeeLookup;
 import vn.peopleos.bff.integration.hasura.HasuraClient;
 import vn.peopleos.bff.integration.flowable.WorkflowClient;
+import vn.peopleos.bff.integration.hasura.HasuraException;
 import vn.peopleos.bff.leave.dto.CreateLeaveRequest;
 import vn.peopleos.bff.leave.dto.LeaveDecisionRequest;
 import vn.peopleos.bff.leave.dto.LeaveResult;
@@ -54,6 +56,17 @@ class LeaveServiceTest {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private static final JsonNode ONE_ROW = json("{\"update_leave_requests\":{\"affected_rows\":1}}");
+    private static final JsonNode NO_ROW = json("{\"update_leave_requests\":{\"affected_rows\":0}}");
+
+    /** Cập nhật có điều kiện (status=pending, đúng stage) mặc định thành công 1 dòng. */
+    @BeforeEach
+    void conditionalUpdatesSucceed() {
+        when(hasura.query(eq(LeaveQueries.DECIDE), any())).thenReturn(ONE_ROW);
+        when(hasura.query(eq(LeaveQueries.STAGE), any())).thenReturn(ONE_ROW);
+        when(hasura.query(eq(LeaveQueries.CANCEL), any())).thenReturn(ONE_ROW);
     }
 
     private static final String EMP_DUNG = """
@@ -151,8 +164,30 @@ class LeaveServiceTest {
         LeaveResult r = service.decide(cuong, "L1", new LeaveDecisionRequest("approve", "OK"));
 
         assertEquals("approved", r.status());
-        verify(hasura).query(eq(LeaveQueries.USE_BALANCE.formatted("used_days")), any());
+        verify(hasura).query(eq(LeaveQueries.DECIDE), any());     // quỹ phép do trigger CSDL trừ trong cùng giao dịch
         verify(workflows).trigger(eq("leave-decision"), any(), any());
+    }
+
+    @Test
+    void concurrentDecisionReturnsConflict() {
+        stubLeaveRequest("pending");
+        when(employees.findByUser("u-cuong")).thenReturn(json("{\"id\":\"e-cuong\",\"full_name\":\"Lê Minh Cường\"}"));
+        when(hasura.query(eq(LeaveQueries.DECIDE), any())).thenReturn(NO_ROW);   // người khác đã duyệt trước
+
+        ApiException e = assertThrows(ApiException.class, () -> service.decide(cuong, "L1", new LeaveDecisionRequest("approve", "OK")));
+        assertEquals(HttpStatus.CONFLICT, e.status());
+        verify(workflows, never()).trigger(eq("leave-decision"), any(), any());
+    }
+
+    @Test
+    void balanceConstraintViolationReturnsConflict() {
+        stubLeaveRequest("pending");
+        when(employees.findByUser("u-cuong")).thenReturn(json("{\"id\":\"e-cuong\",\"full_name\":\"Lê Minh Cường\"}"));
+        when(hasura.query(eq(LeaveQueries.DECIDE), any())).thenThrow(new HasuraException(
+                "Check constraint violation. new row for relation \"leave_balances\" violates check constraint \"leave_balances_used_within_entitled\""));
+
+        ApiException e = assertThrows(ApiException.class, () -> service.decide(cuong, "L1", new LeaveDecisionRequest("approve", "OK")));
+        assertEquals(HttpStatus.CONFLICT, e.status());
     }
 
     @Test
@@ -163,7 +198,7 @@ class LeaveServiceTest {
         LeaveResult r = service.decide(cuong, "L1", new LeaveDecisionRequest("reject", "Trùng đợt cao điểm"));
 
         assertEquals("rejected", r.status());
-        verify(hasura, never()).query(eq(LeaveQueries.USE_BALANCE.formatted("used_days")), any());
+        verify(hasura).query(eq(LeaveQueries.DECIDE), any());
     }
 
     @Test
@@ -217,6 +252,6 @@ class LeaveServiceTest {
         stubLeaveRequestAtStage("director");
         LeaveResult r = service.decide(director, "L1", new LeaveDecisionRequest("approve", "OK"));
         assertEquals("approved", r.status());
-        verify(hasura).query(eq(LeaveQueries.USE_BALANCE.formatted("used_days")), any());
+        verify(hasura).query(eq(LeaveQueries.DECIDE), any());
     }
 }
