@@ -83,12 +83,14 @@ public class DocumentService {
         if (Json.isMissing(c) || !allowed(user, c.get("employee"))) throw ApiException.notFound("Không tìm thấy hợp đồng");
         String filename = c.get("contract_no").asText() + ".pdf";
 
-        // Nếu HR đã tải lên bản ký, ưu tiên bản đó
+        // Nếu HR đã tải lên bản ký, ưu tiên bản đó. CHỈ đọc đúng đường dẫn do BFF tự sinh cho hợp đồng này:
+        // file_key nằm trong CSDL (API key ghi được) nên không được dùng nó làm đường dẫn MinIO tùy ý
+        // (nếu không, tenant khác có thể trỏ sang phiếu lương/hợp đồng của tenant khác trong bucket dùng chung).
         String fileKey = Json.text(c, "file_key");
-        if (fileKey != null && fileKey.contains("/")) {
-            int slash = fileKey.indexOf('/');
+        String signedKey = c.get("employee_id").asText() + "/" + c.get("contract_no").asText() + "-signed.pdf";
+        if (("contracts/" + signedKey).equals(fileKey)) {
             try {
-                Optional<byte[]> stored = storage.get(fileKey.substring(0, slash), fileKey.substring(slash + 1));
+                Optional<byte[]> stored = storage.get("contracts", signedKey);
                 if (stored.isPresent()) {
                     audit.record(user, "CONTRACT.DOWNLOADED", "contract", contractId, Params.of("variant", "signed"));
                     return new PdfFile(filename, stored.get());

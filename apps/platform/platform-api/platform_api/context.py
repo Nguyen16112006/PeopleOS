@@ -19,5 +19,5 @@ class Ctx:
     apisix: Apisix
     hasura: Hasura
     http: httpx.Client                       # dùng để giao webhook
-    check_url: Callable[[str], None]         # kiểm tra SSRF (có thể thay khi test)
+    check_url: Callable[[str], str | None]   # kiểm tra SSRF, trả IP đã kiểm (None: không ghim) - có thể thay khi test
     verify_jwt: Callable[[str], dict]

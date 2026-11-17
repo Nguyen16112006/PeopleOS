@@ -188,3 +188,24 @@ def test_parallel_workers_never_double_deliver(client, ctx, make_project, receiv
         pass
     assert len(receiver.requests) == 12 and len({r["headers"]["X-PeopleOS-Delivery"] for r in receiver.requests}) == 12
     assert q(ctx, "SELECT count(*) AS n FROM platform.webhook_deliveries WHERE status='delivered'")[0]["n"] == 12
+
+
+def test_delivery_is_pinned_to_checked_ip(monkeypatch):
+    """Chống DNS-rebinding: kết nối tới đúng IP đã kiểm tra, không phân giải lại tên miền lúc gửi."""
+    import socket
+    from platform_api import security
+    answers = iter([[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))],
+                    [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.5", 443))]])   # lần 2 trỏ vào mạng nội bộ
+    monkeypatch.setattr(security.socket, "getaddrinfo", lambda *a, **k: next(answers))
+    ip = security.assert_public_url("https://hook.example.com/x")
+    assert ip == "93.184.216.34"
+    url, headers, ext = security.pinned_request("https://hook.example.com/x", ip)
+    assert url == "https://93.184.216.34/x" and headers == {"Host": "hook.example.com"}
+    assert ext == {"sni_hostname": "hook.example.com"}
+
+
+def test_pinned_request_keeps_port_and_ipv6():
+    from platform_api.security import pinned_request
+    assert pinned_request("https://h.example:8443/a?b=1", "2001:db8::1") == (
+        "https://[2001:db8::1]:8443/a?b=1", {"Host": "h.example:8443"}, {"sni_hostname": "h.example"})
+    assert pinned_request("http://127.0.0.1:9/hook", None) == ("http://127.0.0.1:9/hook", {}, {})

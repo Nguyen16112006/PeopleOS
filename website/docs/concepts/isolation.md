@@ -52,6 +52,6 @@ Chúng tôi công bố rõ các điểm chưa hoàn hảo để bạn đánh gi�
 
 1. **Tên bảng riêng có thể lộ qua introspection.** Hasura v2 dùng một GraphQL schema chung, nên *tên* bảng `ext_*` của dự án khác có thể hiện trong introspection. **Dữ liệu** vẫn được RLS bảo vệ. Đừng đặt thông tin nhạy cảm trong tên bảng hay tên cột.
 2. **Môi trường dev bỏ qua RLS** vì Hasura chạy bằng superuser trong Docker Compose (lớp 1 và 3 vẫn hoạt động). Bản triển khai thật phải dùng role `hasura_app`.
-3. **Chống SSRF** còn khoảng hở DNS-rebinding; bản triển khai thật nên cho worker đi qua egress proxy.
+3. **Chống SSRF**: phân giải tên miền, chặn IP nội bộ rồi kết nối thẳng tới đúng IP đã kiểm (giữ Host/SNI) nên không bị DNS-rebinding; egress proxy vẫn là lớp phòng thủ bổ sung nên có ở bản triển khai thật.
 
 Danh sách đầy đủ: [`docs/paas/README.md` - Giới hạn đã biết](https://github.com/Nguyen16112006/PeopleOS/blob/main/docs/paas/README.md). Báo lỗ hổng bảo mật theo [SECURITY.md](https://github.com/Nguyen16112006/PeopleOS/blob/main/SECURITY.md), **không** mở issue công khai.

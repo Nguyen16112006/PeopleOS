@@ -227,7 +227,6 @@ insert_permissions:
     - base_salary
     - allowance
     - status
-    - file_key
     - created_at
     backend_only: false
 update_permissions:
@@ -261,7 +260,6 @@ update_permissions:
     - base_salary
     - allowance
     - status
-    - file_key
     - created_at
     filter:
       tenant_id:
