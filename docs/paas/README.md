@@ -93,13 +93,13 @@ cd .. && python scripts/keycloak-paas-bootstrap.py
 | Hạng mục | Mức kiểm chứng |
 |---|---|
 | Migration 007–011 (up/down, backfill), seed, sao lưu/khôi phục | Chạy trên PostgreSQL 16 thật; mô phỏng nguyên job `database` của CI |
-| Cô lập SQL: RLS, audit theo tenant, view, FK chéo tenant, GUC rỗng | `scripts/tests/tenant_isolation.sql` (15 ca) |
+| Cô lập SQL: RLS, audit theo tenant, view, FK chéo tenant, GUC rỗng | `scripts/tests/tenant_isolation.sql` (16 ca, gồm bảng công) |
 | `platform-api` (45 test: auth, project/saga, API key, schema, custom field, webhook, usage, song song) | Chạy thật với PostgreSQL thật; Keycloak/APISIX/Hasura là **mock HTTP**. Đã thử "đột biến" để chắc test bắt được lỗi |
 | Trình áp migration (owner) | Thật trên PostgreSQL: DB trống, chạy lại, baseline, rollback khi lỗi, đăng nhập `hasura_app` |
 | Lua gắn tenant; script bootstrap Keycloak/APISIX | Lua 5.4 với stub; script chạy với server giả; **chưa** thử với Keycloak/APISIX thật |
 | Manifest Kubernetes (30 resource) | `kubeconform --strict` (gồm CRD KEDA, CloudNativePG) + `kustomize build`; **chưa** áp lên cluster |
 | Frontend (`TaxYear.tsx`, Developer Portal) | `tsc` + `vite build` |
-| BFF Java | `mvn -B package`: 71 test đạt |
+| BFF Java | `mvn -B package`: 88 test đạt |
 | Flowable engine | `mvn -B package`: 3 test đạt, gồm deploy 6 BPMN và 2 timer jobs |
 | Hasura runtime (nạp metadata, migration FK tenant, JWT có claim tenant) | Đã kiểm tra cục bộ: metadata nhất quán, `/healthz` trả 200 và Hasura chấp nhận GraphQL bằng JWT Keycloak có `tenant_id` |
 | PaaS Event Trigger init và giao webhook đầu-cuối | Cấu hình bootstrap đã kiểm tra; **chưa xác nhận** chạy service init và giao webhook thành công trên toàn bộ PaaS stack |
