@@ -6,6 +6,11 @@ Ngày của từng phiên bản khớp với lịch sử Git: 1.1.0 và 2.0.1 th
 lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằng commit `5779d04`).
 
 ## [Unreleased]
+
+## [2.3.1] - 2026-11-17
+### Added
+- **Trang tài liệu cho developer** (`website/`, Docusaurus): hướng dẫn dùng PeopleOS PaaS theo bố cục kiểu reactnative.dev - bắt đầu nhanh, xác thực,
+  API key, thiết kế bảng bằng spec, webhook, tham chiếu API, blog phát hành.
 ### Removed
 - People Workspace: bỏ tùy chọn **Màu nhấn** ở trang Tùy chỉnh giao diện (`/settings`) vì đổi màu gần như không thấy được
   (menu, mục đang chọn và nhiều mảng nền không theo màu nhấn) ([#36](https://github.com/Nguyen16112006/PeopleOS/issues/36)).
@@ -17,6 +22,9 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
   (`core/data/unstructured/minio/Dockerfile`, image `peopleos/minio:RELEASE.2025-10-15T17-29-55Z`). CI build thêm image `minio` và `hasura-metadata`;
   `preflight.py --check-images` bỏ qua image `peopleos/*` build tại chỗ.
 - `THIRD_PARTY_LICENSES.md` viết lại: mỗi thành phần ghi rõ dùng ở tệp nào (có link), giấy phép và mức đáp ứng yêu cầu của dự án.
+- `package.json` (frontend, developer-portal, website) và `pom.xml` (BFF, workflow engine) khai báo giấy phép `Apache-2.0`; trước đây công cụ quét giấy phép báo `UNLICENSED`.
+- README: luồng duyệt đề xuất lương ghi đúng Quản lý đề xuất → HR → Kế toán → Giám đốc (trước ghi thiếu bước Kế toán).
+- Bổ sung liên kết so sánh phiên bản 2.2.1, 2.2.2, 2.3.0 ở cuối CHANGELOG.
 ### Changed
 - **Giao diện mới cho People Workspace và Developer Portal** (cùng một bộ nhận diện): menu bên trái xanh dương mực, nền xám lạnh, phông Be Vietnam Pro
   (hiển thị đúng dấu tiếng Việt), cỡ chữ lớn hơn, số tiền và ngày tháng thẳng cột; có chế độ nền tối (nút trên thanh trên cùng, ghi nhớ lựa chọn).
@@ -27,6 +35,7 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
   cỡ chữ, khoảng cách, nền sáng/tối/theo máy và các trang ghim lên đầu menu (gợi ý sẵn theo vai trò);
   trang Tổng quan có mục **Bạn hay mở** (số ngày mở mỗi trang trong 30 ngày). Cài đặt và lượt mở lưu theo tài khoản trên trình duyệt đang dùng (localStorage), chưa đồng bộ giữa các máy.
 - Phiếu lương trình bày như tờ phiếu giấy, có con dấu đỏ "Đã chi" kèm ngày chi khi kỳ lương đã chi (`components/Stamp.tsx`; con dấu chỉ dùng cho việc đã hoàn tất).
+- Số phiên bản các thành phần nâng lên 2.3.1.
 - Developer Portal: menu bên trái liệt kê dự án và các mục của dự án đang mở (thay cho hàng tab); trạng thái, quyền khóa, môi trường, kiểu trường hiển thị bằng
   tiếng Việt; khối mã `curl` có nút sao chép; khung **Xóa dự án** tách riêng; tạo dự án xong thì mở luôn dự án đó.
 
@@ -189,7 +198,11 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 - Tài liệu: architecture, api-reference, deployment, demo-script; scripts setup/init-db/seed-data; healthcheck.
 - Test: 7 (tính lương) + 21 (RAG) bằng pytest đã chạy; JUnit 5 + Mockito cho backend Java đã viết nhưng chưa chạy được trong môi trường phát triển.
 
-[Unreleased]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.3.0...v2.3.1
+[2.3.0]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.2.2...v2.3.0
+[2.2.2]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.2.1...v2.2.2
+[2.2.1]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/Nguyen16112006/PeopleOS/compare/v1.1.0...v2.0.1

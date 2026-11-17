@@ -124,7 +124,7 @@ PeopleOS/
 - Đăng nhập SSO Keycloak; menu và dữ liệu theo vai trò
 - **Cổng tự phục vụ:** hồ sơ cá nhân, hợp đồng lao động (tải PDF), bảng lương theo tháng (tải PDF), quá trình đóng BHXH/BHYT
 - **Bảng công cho cả 6 vai trò:** chấm công vào/ra, khai làm thêm giờ, gửi bảng công tháng → quản lý xác nhận → HR chốt công → **lương tính theo ngày công và giờ làm thêm** (150% / 200% / 300%)
-- **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý → HR → Giám đốc)
+- **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý đề xuất → HR → Kế toán → Giám đốc)
 - Thông báo realtime (toast + chuông) khi có người duyệt hoặc từ chối
 
 ### An ninh, vận hành & quản trị dữ liệu (xem [docs/governance.md](docs/governance.md))

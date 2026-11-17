@@ -33,7 +33,7 @@ const config = {
           editUrl: 'https://github.com/Nguyen16112006/PeopleOS/edit/main/website/',
           showLastUpdateTime: false,
           lastVersion: 'current',
-          versions: {current: {label: '2.3.0'}},
+          versions: {current: {label: '2.3.1'}},
         },
         blog: {
           blogTitle: 'Blog PeopleOS',
@@ -73,7 +73,7 @@ const config = {
       tableOfContents: {minHeadingLevel: 2, maxHeadingLevel: 3},
       announcementBar: {
         id: 'v230',
-        content: 'PeopleOS <b>2.3.0</b> - bản phát hành cho OLP PMNM 2026. ' +
+        content: 'PeopleOS <b>2.3.1</b> - bản phát hành cho OLP PMNM 2026. ' +
           '<a href="https://github.com/Nguyen16112006/PeopleOS">Xem trên GitHub</a>',
         backgroundColor: '#1e2f4f',
         textColor: '#dbe4f3',
