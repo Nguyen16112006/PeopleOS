@@ -358,7 +358,6 @@ insert_permissions:
     - net_salary
     - status
     - paid_at
-    - file_key
     - standard_days
     - paid_days
     - overtime_hours
@@ -414,7 +413,6 @@ update_permissions:
     - net_salary
     - status
     - paid_at
-    - file_key
     - standard_days
     - paid_days
     - overtime_hours
