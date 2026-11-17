@@ -5,8 +5,6 @@
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![SPDX](https://img.shields.io/badge/SPDX-Apache--2.0-informational)
 
-> **Bản 6 vai trò:** xem [HUONG_DAN_CHAY_6_VAI_TRO.md](HUONG_DAN_CHAY_6_VAI_TRO.md) và [docs/ROLES_AND_WORKFLOWS.md](docs/ROLES_AND_WORKFLOWS.md).
-
 > **Bản 2.0 - HR-PaaS (đa tenant):** developer bên thứ 3 đăng ký, lấy API key, tự định nghĩa schema và nhận webhook trên hạ tầng PeopleOS.
 > Kiến trúc, cách chạy (`docker-compose.paas.yml`), mức độ kiểm chứng và các giới hạn đã biết: [docs/paas/README.md](docs/paas/README.md).
 > **Đọc mục "Thứ tự bắt buộc" trước khi nâng cấp** môi trường đang chạy: migration đa tenant phải đi cùng bootstrap Keycloak và BFF/frontend mới.
@@ -124,7 +122,7 @@ PeopleOS/
 - Đăng nhập SSO Keycloak; menu và dữ liệu theo vai trò
 - **Cổng tự phục vụ:** hồ sơ cá nhân, hợp đồng lao động (tải PDF), bảng lương theo tháng (tải PDF), quá trình đóng BHXH/BHYT
 - **Bảng công cho cả 6 vai trò:** chấm công vào/ra, khai làm thêm giờ, gửi bảng công tháng → quản lý xác nhận → HR chốt công → **lương tính theo ngày công và giờ làm thêm** (150% / 200% / 300%)
-- **Quy trình:** Onboarding nhân viên mới · Nghỉ phép/Nghỉ ốm · Đề xuất tăng lương/phụ cấp duyệt nhiều cấp (Quản lý đề xuất → HR → Kế toán → Giám đốc)
+- **9 quy trình nghiệp vụ** cho 6 vai trò: Đề xuất tăng lương/thưởng/thăng chức (Quản lý → HR → Kế toán → Giám đốc) · Tính lương và chi trả hằng tháng · Nghỉ phép/Nghỉ ốm · Onboarding · Nghỉ việc (offboarding) · Tạm ứng, hoàn ứng, thanh toán chi phí · Đánh giá KPI theo quý · Thuế TNCN, BHXH và báo cáo năm · Cấp quyền tạm thời khi xử lý sự cố. Chi tiết vai trò, ma trận quyền và sơ đồ từng quy trình: [docs/ROLES_AND_WORKFLOWS.md](docs/ROLES_AND_WORKFLOWS.md)
 - Thông báo realtime (toast + chuông) khi có người duyệt hoặc từ chối
 
 ### An ninh, vận hành & quản trị dữ liệu (xem [docs/governance.md](docs/governance.md))
@@ -147,12 +145,15 @@ Yêu cầu: Docker 24+ (Compose v2), RAM 8 GB (16 GB nếu chạy AI; ClamAV dù
 
 ```bash
 cd PeopleOS
-./scripts/setup.sh            # tạo .env, build, khởi chạy, nạp dữ liệu mẫu
+./scripts/setup.sh            # tạo .env, build, khởi chạy, nạp dữ liệu mẫu (có AI)
+./scripts/setup.sh --no-ai    # máy yếu: bỏ Ollama/Qdrant/RAG (trang Trợ lý AI sẽ báo lỗi kết nối)
 # hoặc thủ công:
 cd infrastructure && cp .env.example .env
 docker compose up -d --build
 ../scripts/init-db.sh && ../scripts/seed-data.sh
 ```
+
+> **Nếu trước đây đã chạy bản cũ:** xóa dữ liệu cũ trước (`cd infrastructure && docker compose down -v`), vì realm Keycloak chỉ được nạp khi CSDL còn trống.
 
 | Dịch vụ | URL |
 |---|---|
@@ -163,9 +164,67 @@ docker compose up -d --build
 | MinIO Console | http://localhost:9001 |
 | Workflow Engine | Chỉ truy cập trong mạng Docker |
 
-**Tài khoản demo** (mật khẩu chung `Peopleos@123` - *chỉ để demo*, hãy đổi trước khi triển khai thật): `admin` (sysadmin), `hr`, `manager`, `director`, `accountant`, `employee` (Phạm Thu Dung), `employee2`.
+**Tài khoản demo** (mật khẩu chung `Peopleos@123` - *chỉ để demo*, hãy đổi trước khi triển khai thật):
+
+| Tài khoản | Vai trò | Họ tên |
+|---|---|---|
+| `employee` | Nhân viên | Phạm Thu Dung |
+| `employee2` | Nhân viên | Hoàng Văn Em |
+| `manager` | Quản lý | Lê Minh Cường |
+| `hr` | HR | Trần Thị Bình |
+| `accountant` | Kế toán | Vũ Thị Lan |
+| `director` | Giám đốc | Hoàng Quốc Hùng |
+| `admin` | Admin kỹ thuật (khóa vai trò `sysadmin`) | Nguyễn Văn An |
 
 Kiểm tra: `./infrastructure/monitoring/healthcheck.sh`. Chi tiết, khắc phục sự cố và hướng dẫn production: [docs/deployment.md](docs/deployment.md).
+
+### Chạy bản HR-PaaS (đa tenant)
+
+```bash
+cd infrastructure
+cp .env.example .env          # rồi thêm các biến trong .env.paas.example (bắt buộc: PLATFORM_SECRET_KEY)
+docker compose -f docker-compose.yml -f docker-compose.paas.yml up -d --build
+# Keycloak lên xong (một lần, idempotent): thuộc tính tenant_id, mapper, gán tenant cho user cũ, tạo realm developer
+cd .. && python scripts/keycloak-paas-bootstrap.py
+```
+
+| Dịch vụ | URL |
+|---|---|
+| Developer Portal (đăng ký developer ở realm `peopleos-platform`) | http://localhost:3100 |
+| Swagger control plane (`platform-api`) | http://localhost:8090/docs |
+| Gọi dữ liệu bằng API key | `POST http://localhost:9080/v1/data` với header `X-API-Key` |
+
+> **Thứ tự bắt buộc khi nâng cấp:** áp migration 007–011, bootstrap Keycloak và đưa BFF/frontend bản mới **cùng lúc** (token cũ không có `tenant_id` sẽ bị Hasura từ chối). Trước buổi demo chạy `python scripts/preflight.py --paas --check-images` rồi `python scripts/smoke-paas.py`. Kiến trúc, mức độ kiểm chứng, giới hạn đã biết và checklist production: [docs/paas/README.md](docs/paas/README.md).
+
+### Thử từng quy trình theo 6 vai trò
+
+| Quy trình | Thử như sau | Trang |
+|---|---|---|
+| Đề xuất lương | `manager` đề xuất → `hr` thẩm định → `accountant` kiểm ngân sách → `director` duyệt | Đề xuất tăng lương, Phê duyệt |
+| Nghỉ phép | `employee` gửi đơn → `manager` duyệt. Thử `manager` gửi đơn → `hr` → `director` | Nghỉ phép, Phê duyệt |
+| Onboarding | `hr` tạo nhân viên mới | Onboarding |
+| Nghỉ việc | `employee` xin nghỉ → `manager` chốt ngày → `hr` → bàn giao → chốt công → `accountant` lương cuối → `director` → chi trả → `hr` chấm dứt hợp đồng | Nghỉ việc |
+| Tạm ứng / chi phí | `employee` gửi 25.000.000 đ → `manager` → `director` (cấp 2) → `accountant` chi → `employee` hoàn ứng → `accountant` quyết toán | Tạm ứng và chi phí |
+| KPI quý | `hr` mở chu kỳ → `manager` giao mục tiêu (tổng 100%) và chấm → `director` giao/chấm cho `manager` → `hr` tổng hợp → `director` duyệt → `employee` xem và phản hồi | Đánh giá KPI |
+| Bảng công | mọi tài khoản chấm công vào/ra, khai làm thêm giờ → gửi bảng công tháng → `manager` (hoặc `hr`) xác nhận / trả lại → `hr` sửa công nếu cần | Bảng công |
+| Kỳ lương | `hr` chốt công tháng (khóa bảng công) → `accountant` tính theo ngày công → `hr` rà soát → `director` duyệt → `accountant` chi trả → `employee` khiếu nại phiếu lương → `hr` → `accountant` điều chỉnh | Kỳ lương, Bảng lương |
+| Thuế và báo cáo năm | `hr` xác nhận → `accountant` quyết toán (phát chứng từ) → lập báo cáo → `director` duyệt → ngân sách năm sau | Thuế và báo cáo năm |
+| Quyền tạm thời | `admin` tạo yêu cầu → `accountant` (hoặc `hr`) và `director` cùng duyệt | Quyền tạm thời |
+
+> **Về dữ liệu mẫu:** lương **đã chi trả từ tháng 1 đến tháng 9/2026**. Hệ thống không cho chốt công tháng đã có lương đã chi trả, nên khi thử kỳ lương hãy chọn **tháng 10/2026** (giao diện mặc định là tháng trước, tức tháng 9, sẽ báo trùng). Đã có sẵn chấm công tháng 10 và 11/2026: bảng công tháng 10 của 5 người đã xác nhận, của `employee2` đang chờ `manager` xác nhận, của `employee` chưa gửi (`employee` và `employee2` còn đơn nghỉ phép tháng 10 chờ `manager` duyệt; duyệt xong các ngày đó tự thành nghỉ hưởng lương). Trang Thuế và báo cáo năm dùng dữ liệu lương 2026 có sẵn.
+
+### Báo lỗi
+
+Gửi kèm lệnh vừa chạy, thông báo lỗi nguyên văn và log liên quan:
+
+```bash
+cd infrastructure
+docker compose ps
+docker compose logs --tail=100 bff flowable hasura keycloak apisix
+# kiểm tra riêng phần Java và giao diện
+cd ../apps/people-workspace/bff && mvn test
+cd ../frontend && npm ci && npm run build
+```
 
 ### Biên dịch từ mã nguồn (không qua Docker)
 
@@ -218,18 +277,32 @@ tar -xzf PeopleOS-X.Y.Z.tar.gz && cd PeopleOS-X.Y.Z && ./scripts/setup.sh
 
 Schema SQL và dữ liệu mẫu đã được chạy thử trên PostgreSQL 16 thật. Các lớp thuần Java (đếm ngày làm việc, tách tên, tham số) đã chạy thử trên JDK 21.
 
-> **Lưu ý kiểm chứng:** tích hợp Flowable/BFF cần được chạy cùng Docker Compose trước ngày demo; engine không có UI quản trị, nên chỉnh quy trình bằng BPMN trong mã nguồn và build lại. Lần chạy đầu hãy dùng `healthcheck.sh` và mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md).
+> **Lưu ý kiểm chứng:** toàn bộ ngăn xếp Docker và luồng tích hợp đầu-cuối (Flowable/BFF) cần được chạy cùng Docker Compose trước ngày demo; engine không có UI quản trị, nên chỉnh quy trình bằng BPMN trong mã nguồn và build lại. Lần chạy đầu hãy dùng `healthcheck.sh`, mục "Khắc phục sự cố" trong [docs/deployment.md](docs/deployment.md) và kiểm tra các điểm sau:
+>
+> 1. Spring Boot và Flowable khởi động (`docker compose logs bff flowable`): kết nối database, callback, timer jobs.
+> 2. Hasura nạp metadata (`docker compose logs hasura`): quan hệ hoặc quyền sai tên.
+> 3. Keycloak nạp realm mới (`docker compose logs keycloak`).
+> 4. Flowable tự triển khai 6 BPMN khi khởi động (`docker compose logs flowable`).
+> 5. APISIX nạp `apisix.yaml` với plugin `serverless-post-function` (`docker compose logs apisix`); nếu gateway trả 403/401 bất thường ở nhóm API có `guard-*` thì đây là chỗ cần xem.
+
+### Giới hạn đã biết
+
+- **Quyền tạm thời mới là bản ghi và nhật ký**: chưa có API nào dùng quyền đó để mở dữ liệu cho Admin (`TempAccessService.hasActiveGrant` chưa được nối).
+- Bảng công: chưa có lịch ngày lễ và ca làm việc (HR ghi nhận ngày lễ từng ngày), chưa nối máy chấm công, chưa xử lý làm thêm ban đêm và phần tiền làm thêm miễn thuế.
+- Việc khai và nộp thuế/BHXH định kỳ với cơ quan nhà nước nằm ngoài hệ thống.
+- Giám đốc và Kế toán đọc đủ cột hồ sơ nhân viên (Hasura chỉ cho một bộ cột mỗi vai trò).
+- Tài khoản Keycloak của nhân viên mới do hệ thống tạo tự động khi HR tạo hồ sơ (không qua bước Admin tạo tay như tài liệu mô tả ban đầu).
 
 ---
 
 ## 8. Tài liệu
 
-- [Kiến trúc](docs/architecture.md) · [Tham chiếu API](docs/api-reference.md) · [Triển khai](docs/deployment.md) · [Kịch bản demo 15 phút](docs/demo-script.md) · [An ninh, vận hành, quản trị dữ liệu](docs/governance.md)
+- [Vai trò và quy trình nghiệp vụ](docs/ROLES_AND_WORKFLOWS.md) · [Kiến trúc](docs/architecture.md) · [Tham chiếu API](docs/api-reference.md) · [Triển khai](docs/deployment.md) · [Kịch bản demo 15 phút](docs/demo-script.md) · [An ninh, vận hành, quản trị dữ liệu](docs/governance.md)
 - README từng thành phần: `core/*/README.md`, `apps/people-workspace/*/README.md`, `ai/rag-service/README.md`
 
 ## 9. Hướng phát triển
 
-- Phân hệ Tuyển dụng, KPI/OKR, Đào tạo gắn vào cùng lõi
+- Phân hệ Tuyển dụng, OKR, Đào tạo gắn vào cùng lõi (KPI theo quý đã có)
 - Lịch ngày lễ và ca làm việc cho bảng công, nối máy chấm công; trừ ngày lễ trong tính ngày nghỉ; khoản miễn thuế, làm thêm ban đêm
 - Ký số hợp đồng điện tử; đồng bộ cổng BHXH/thuế
 - Kubernetes + Helm + Argo CD/Flux; Prometheus/Grafana/Loki; HA cho Keycloak và PostgreSQL
