@@ -3,12 +3,12 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
-import { Empty, ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'
-import { Badge } from '@/components/ui/badge'
+import { Empty, ErrorBox, errMsg, Loading, PageHeader, StatusBadge } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
+import { useConfirm } from '@/hooks/confirm'
 import { useToast } from '@/hooks/toast'
 import { useQuery } from '@/hooks/useQuery'
 import { api } from '@/lib/api'
@@ -45,15 +45,14 @@ function queueFilter(role: string, uid: string): any | null {
   return null
 }
 
-const StatusBadge = ({ r }: { r: any }) => (
-  <Badge variant={r.status === 'rejected' ? 'destructive' : r.status === 'approved' ? 'success' : 'warning'}>
-    {r.status === 'rejected' ? 'Bị từ chối' : STAGE_LABEL[r.stage] ?? r.stage}
-  </Badge>
-)
+const AdvanceBadge = ({ r }: { r: any }) => (r.status === 'rejected'
+  ? <StatusBadge status="rejected" />
+  : <StatusBadge status={r.stage} map={STAGE_LABEL} tone={['paid', 'settled', 'closed'].includes(r.stage) ? 'success' : 'warning'} />)
 
 export default function Advances() {
   const { user } = useAuth()
   const { push } = useToast()
+  const confirm = useConfirm()
   const mine = useQuery<any>(QM, { uid: user.sub })
   const filter = queueFilter(user.role, user.sub)
   const queue = useQuery<any>(QQ, { where: filter ?? { id: { _is_null: true } } })
@@ -74,8 +73,13 @@ export default function Advances() {
     setForm((f) => ({ ...f, amount: '', reason: '' }))
     setSending(false)
   }
-  const decide = (id: string, decision: 'approve' | 'reject') => {
-    const comment = decision === 'reject' ? window.prompt('Lý do từ chối (không bắt buộc)') ?? undefined : undefined
+  const decide = async (id: string, decision: 'approve' | 'reject') => {
+    let comment: string | undefined
+    if (decision === 'reject') {
+      const r = await confirm({ title: 'Từ chối yêu cầu này?', confirmLabel: 'Từ chối', tone: 'danger', note: { label: 'Lý do từ chối', required: true } })
+      if (!r) return
+      comment = r.note
+    }
     return run(() => api(`/api/advance-requests/${id}/decision`, 'POST', { decision, comment }), decision === 'approve' ? 'Đã duyệt' : 'Đã từ chối')
   }
 
@@ -85,7 +89,7 @@ export default function Advances() {
 
   return (
     <div>
-      <PageHeader title="Tạm ứng và thanh toán chi phí" description="Quản lý duyệt cấp 1, Giám đốc duyệt thêm cấp 2 khi trên 20.000.000 đ, Kế toán kiểm tra chứng từ và chi tiền." />
+      <PageHeader title="Tạm ứng và chi phí" description="Xin tạm ứng hoặc thanh toán chi phí đã bỏ ra cho công việc." howto={{ q: 'Ai duyệt yêu cầu của tôi?', a: 'Quản lý trực tiếp duyệt trước. Yêu cầu trên 20.000.000 đ cần Giám đốc duyệt thêm. Sau đó Kế toán kiểm tra chứng từ và chi tiền. Với tạm ứng, bạn nộp chứng từ quyết toán sau khi chi.' }} />
 
       {filter && (
         <Card className="mb-4">
@@ -148,7 +152,7 @@ export default function Advances() {
                   {mine.data.advance_requests.map((r: any) => (
                     <TR key={r.id}>
                       <TD>{fmtDate(r.created_at)}</TD><TD>{TYPE_LABEL[r.request_type]}</TD><TD>{vnd(r.amount)}</TD>
-                      <TD><StatusBadge r={r} /></TD>
+                      <TD><AdvanceBadge r={r} /></TD>
                       <TD className="whitespace-nowrap">
                         {r.request_type === 'advance' && r.stage === 'paid' && r.settled_amount == null && (
                           <span className="inline-flex items-center gap-2">

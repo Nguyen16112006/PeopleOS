@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 PeopleOS contributors
 
-import { Bell, LogOut, Menu, Moon, Search, SlidersHorizontal, Sun, X } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Moon, Search, SlidersHorizontal, Sun, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthProvider'
+import { PageErrorBoundary } from '@/components/common'
 import { useRealtime } from '@/hooks/realtime'
 import { fmtDateTime, ROLE_LABEL } from '@/lib/format'
 import { ALL_NAV, NAV_GROUPS, type NavItem } from '@/lib/nav'
@@ -31,7 +32,7 @@ function NoticeDropdown({ onClose }: { onClose: () => void }) {
             <span className="min-w-0">
               <span className={cn('block text-sm', !n.is_read && 'font-semibold')}>{n.title}</span>
               <span className="mt-0.5 block text-sm text-muted-foreground">{n.message}</span>
-              <span className="mt-1 block text-xs text-slate-500">{fmtDateTime(n.created_at)}</span>
+              <span className="mt-1 block text-[13px] text-muted-foreground">{fmtDateTime(n.created_at)}</span>
             </span>
           </button>
         ))}
@@ -88,18 +89,36 @@ export default function Layout() {
   const [noticeOpen, setNoticeOpen] = useState(false)
   const noticeRef = useRef<HTMLDivElement>(null)
 
-  const groups = useMemo(
-    () => NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => !n.roles || hasRole(...n.roles)) })).filter((g) => g.items.length),
-    [hasRole],
-  )
+  const groups = useMemo(() => {
+    const visible = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => !n.roles || hasRole(...n.roles)) })).filter((g) => g.items.length)
+    // Người có việc quản lý: đưa nhóm việc cần xử lý lên trước phần tự phục vụ
+    const work = visible.find((g) => g.label === 'Công việc quản lý')
+    return work ? [work, ...visible.filter((g) => g !== work)] : visible
+  }, [hasRole])
   const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups])
   const pinned = useMemo(
     () => prefs.pins.map((p) => ALL_NAV.find((i) => i.to === p)).filter((i): i is NavItem => !!i && allItems.includes(i)),
     [prefs.pins, allItems],
   )
+  // Mục đã ghim không lặp lại trong nhóm của nó
+  const navGroups = useMemo(
+    () => groups.map((g) => ({ ...g, items: g.items.filter((i) => !pinned.includes(i)) })).filter((g) => g.items.length),
+    [groups, pinned],
+  )
+  // Nhóm "Của tôi" dài: với người có nhiều nhóm, chỉ hiện vài mục đầu, phần còn lại sau nút "Xem thêm"
+  const COLLAPSE_AT = 5
+  const [moreOpen, setMoreOpen] = useState(false)
+  const navRef = useRef<HTMLDivElement>(null)
   const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
 
   useEffect(() => { setSidebarOpen(false); setNoticeOpen(false); recordVisit(location.pathname) }, [location.pathname, recordVisit])
+
+  // Trang đang mở nằm trong phần bị thu gọn thì mở ra; luôn cuộn mục đang chọn vào tầm nhìn
+  useEffect(() => {
+    const mine = navGroups.find((g) => g.label === 'Của tôi')
+    if (mine && navGroups.length > 1 && mine.items.slice(COLLAPSE_AT).some((i) => i.to === location.pathname)) setMoreOpen(true)
+    requestAnimationFrame(() => navRef.current?.querySelector('.po-nav-link.active')?.scrollIntoView({ block: 'nearest' }))
+  }, [location.pathname, navGroups])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -124,7 +143,7 @@ export default function Layout() {
           <button className="po-icon-btn po-sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Đóng menu"><X /></button>
         </div>
 
-        <div className="po-nav">
+        <div className="po-nav" ref={navRef}>
           {pinned.length > 0 && (
             <div className="po-nav-group">
               <p className="po-nav-label">Đã ghim</p>
@@ -137,18 +156,29 @@ export default function Layout() {
               </nav>
             </div>
           )}
-          {groups.map((g) => (
-            <div className="po-nav-group" key={g.label}>
-              <p className="po-nav-label">{g.label}</p>
-              <nav aria-label={g.label}>
-                {g.items.map(({ to, label, icon: Icon, end }) => (
-                  <NavLink key={to} to={to} end={end} className={({ isActive }) => cn('po-nav-link', isActive && 'active')}>
-                    <Icon aria-hidden="true" /> {label}
-                  </NavLink>
-                ))}
-              </nav>
-            </div>
-          ))}
+          {navGroups.map((g, gi) => {
+            const collapsible = g.label === 'Của tôi' && navGroups.length > 1 && g.items.length > COLLAPSE_AT + 1
+            const shown = collapsible && !moreOpen ? g.items.slice(0, COLLAPSE_AT) : g.items
+            return (
+              <div className="po-nav-group" key={g.label}>
+                <p className="po-nav-label">{g.label}</p>
+                <nav aria-label={g.label} id={`nav-group-${gi}`}>
+                  {shown.map(({ to, label, icon: Icon, end }) => (
+                    <NavLink key={to} to={to} end={end} className={({ isActive }) => cn('po-nav-link', isActive && 'active')}>
+                      <Icon aria-hidden="true" /> {label}
+                    </NavLink>
+                  ))}
+                  {collapsible && (
+                    <button type="button" className="po-nav-link po-nav-more" aria-expanded={moreOpen} aria-controls={`nav-group-${gi}`}
+                      onClick={() => setMoreOpen((o) => !o)}>
+                      <ChevronDown aria-hidden="true" className={cn(moreOpen && 'rotate-180')} />
+                      {moreOpen ? 'Thu gọn' : `Xem thêm ${g.items.length - COLLAPSE_AT} mục`}
+                    </button>
+                  )}
+                </nav>
+              </div>
+            )
+          })}
         </div>
 
         <NavLink to="/settings" className={({ isActive }) => cn('po-nav-link po-settings-link', isActive && 'active')}>
@@ -188,7 +218,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="po-content"><Outlet /></main>
+        <main className="po-content" id="main"><PageErrorBoundary resetKey={location.pathname}><Outlet /></PageErrorBoundary></main>
       </div>
 
       {paletteOpen && <CommandPalette items={[...allItems, { to: '/settings', label: 'Tùy chỉnh giao diện', icon: SlidersHorizontal }]} onClose={() => setPaletteOpen(false)} />}

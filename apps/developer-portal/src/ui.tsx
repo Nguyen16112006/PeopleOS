@@ -24,7 +24,7 @@ export function ErrorBox({ message }: { message: string | null }) {
 export function Card({ title, children, right, className }: { title: string; children: ReactNode; right?: ReactNode; className?: string }) {
   return (
     <section className={className ? `card ${className}` : 'card'}>
-      <header><h3>{title}</h3>{right}</header>
+      <header><h2>{title}</h2>{right}</header>
       <div className="card-body">{children}</div>
     </section>
   )

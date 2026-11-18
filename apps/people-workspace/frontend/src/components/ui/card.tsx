@@ -14,7 +14,7 @@ export const CardHeader = ({ className, ...p }: HTMLAttributes<HTMLDivElement>) 
   <div className={cn('flex flex-col space-y-1 p-5 pb-2', className)} {...p} />
 )
 export const CardTitle = ({ className, ...p }: HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={cn('text-[17px] font-semibold leading-snug', className)} {...p} />
+  <h2 className={cn('text-[17px] font-semibold leading-snug', className)} {...p} />
 )
 export const CardDescription = ({ className, ...p }: HTMLAttributes<HTMLParagraphElement>) => (
   <p className={cn('text-sm text-muted-foreground', className)} {...p} />

@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthProvider'
 import Layout from '@/components/Layout'
 import { RealtimeProvider } from '@/hooks/realtime'
 import { ToastProvider } from '@/hooks/toast'
+import { ConfirmProvider } from '@/hooks/confirm'
 import Advances from '@/pages/Advances'
 import Approvals from '@/pages/Approvals'
 import Audit from '@/pages/Audit'
@@ -39,6 +40,7 @@ function Guard({ roles, children }: { roles: string[]; children: ReactElement })
 export default function App() {
   return (
     <ToastProvider>
+    <ConfirmProvider>
       <AuthProvider>
         <PrefsProvider>
         <RealtimeProvider>
@@ -73,6 +75,7 @@ export default function App() {
         </RealtimeProvider>
         </PrefsProvider>
       </AuthProvider>
+    </ConfirmProvider>
     </ToastProvider>
   )
 }

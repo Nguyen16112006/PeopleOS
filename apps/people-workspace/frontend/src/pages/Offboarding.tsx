@@ -3,12 +3,13 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
-import { Empty, ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'
-import { Badge } from '@/components/ui/badge'
+import { Empty, ErrorBox, errMsg, Loading, PageHeader, StatusBadge, Stepper } from '@/components/common'
+import { Seal } from '@/components/Stamp'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
+import { useConfirm } from '@/hooks/confirm'
 import { useToast } from '@/hooks/toast'
 import { useQuery } from '@/hooks/useQuery'
 import { api } from '@/lib/api'
@@ -31,6 +32,11 @@ const STAGES_BY_ROLE: Record<string, string[]> = {
   hr: ['hr_review', 'handover', 'timesheet', 'terminate'],
   accountant: ['final_payroll', 'payment'],
 }
+const MY_STEPS = ['Xác nhận', 'HR kiểm tra', 'Bàn giao', 'Chốt công, lương cuối', 'Chi trả', 'Chấm dứt hợp đồng']
+const MY_STEP_INDEX: Record<string, number> = {
+  manager: 0, director_confirm: 0, hr_review: 1, director_decision: 1, handover: 2, timesheet: 3, final_payroll: 3, director_payroll: 3,
+  payment: 4, terminate: 5, done: 6, closed: 6,
+}
 const today = () => new Date().toISOString().slice(0, 10)
 
 const QM = `query MyOffboarding($uid: uuid!) {
@@ -50,6 +56,7 @@ const QT = `query MyTeam($uid: uuid!) {
 export default function Offboarding() {
   const { user } = useAuth()
   const { push } = useToast()
+  const confirm = useConfirm()
   const stages = STAGES_BY_ROLE[user.role]
   const mine = useQuery<any>(QM, { uid: user.sub })
   const queue = useQuery<any>(QQ, { stages: stages ?? ['__none__'], uid: user.sub })
@@ -69,15 +76,29 @@ export default function Offboarding() {
 
   const submitResign = async (e: React.FormEvent) => {
     e.preventDefault()
+    const ok = await confirm({
+      title: 'Gửi đơn xin nghỉ việc?',
+      body: 'Đơn được chuyển đi ngay để xác nhận. Tài khoản PeopleOS của bạn tự khoá vào ngày làm việc cuối; phiếu lương và giấy tờ vẫn được lưu và HR gửi cho bạn khi cần.',
+      summary: [{ label: 'Ngày làm việc cuối đề xuất', value: fmtDate(resign.lastWorkingDay) }, { label: 'Người xác nhận đầu tiên', value: user.role === 'employee' ? 'Quản lý trực tiếp' : user.role === 'director' ? 'HR' : 'Giám đốc' }],
+      confirmLabel: 'Gửi đơn',
+    })
+    if (!ok) return
     if (await run(() => api('/api/offboarding/resignations', 'POST', resign), 'Đã gửi đơn xin nghỉ việc')) setResign({ reason: '', lastWorkingDay: '' })
   }
   const submitTerm = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!await confirm({ title: 'Gửi đề xuất chấm dứt hợp đồng?', body: 'HR kiểm tra rồi chuyển Giám đốc quyết định. Nhân viên chưa được thông báo ở bước này.', confirmLabel: 'Gửi đề xuất', tone: 'danger',
+      summary: [{ label: 'Ngày làm việc cuối đề xuất', value: fmtDate(term.lastWorkingDay) }] })) return
     if (await run(() => api('/api/offboarding/terminations', 'POST', term), 'Đã gửi đề xuất chấm dứt hợp đồng')) setTerm({ employeeId: '', reason: '', lastWorkingDay: '' })
   }
-  const act = (c: any, decision: 'approve' | 'reject') => {
+  const act = async (c: any, decision: 'approve' | 'reject') => {
     const inp = inputs[c.id] ?? {}
-    const comment = decision === 'reject' ? window.prompt('Lý do (không bắt buộc)') ?? undefined : undefined
+    let comment: string | undefined
+    if (decision === 'reject') {
+      const r = await confirm({ title: `Từ chối hồ sơ nghỉ việc của ${c.employee?.full_name ?? 'nhân viên'}?`, confirmLabel: 'Từ chối', tone: 'danger', note: { label: 'Lý do', required: true } })
+      if (!r) return
+      comment = r.note
+    }
     const body: any = { decision, comment }
     if (decision === 'approve' && (c.stage === 'manager' || c.stage === 'director_confirm')) body.lastWorkingDay = inp.day || c.proposed_last_day
     if (decision === 'approve' && c.stage === 'final_payroll') {
@@ -93,7 +114,11 @@ export default function Offboarding() {
 
   return (
     <div>
-      <PageHeader title="Nghỉ việc" description="Quy trình: Quản lý (hoặc Giám đốc) xác nhận → HR kiểm tra → bàn giao → chốt công → Kế toán tính lương cuối → Giám đốc duyệt → chi trả → chấm dứt hợp đồng. Tài khoản tự khóa vào ngày làm việc cuối." />
+      <PageHeader title="Nghỉ việc" description="Gửi đơn xin nghỉ việc và theo dõi từng bước cho tới khi chấm dứt hợp đồng." />
+      <details className="po-howto">
+        <summary>Sau khi gửi đơn, điều gì sẽ xảy ra?</summary>
+        <p>Quản lý trực tiếp (hoặc Giám đốc) xác nhận ngày làm việc cuối, HR kiểm tra hợp đồng và thời gian báo trước, bạn bàn giao công việc và tài sản. Sau đó HR chốt công, Kế toán tính lương cuối kỳ, Giám đốc duyệt và Kế toán chi trả. Tài khoản PeopleOS tự khoá vào ngày làm việc cuối; phiếu lương và giấy tờ của bạn vẫn được lưu.</p>
+      </details>
 
       {stages && (
         <Card className="mb-4">
@@ -108,7 +133,7 @@ export default function Offboarding() {
                       <TD>{c.employee?.full_name}<div className="text-xs text-muted-foreground">{c.employee?.department} · {c.employee?.job_title}</div></TD>
                       <TD>{KIND_LABEL[c.kind]}</TD>
                       <TD className="max-w-[14rem] truncate text-muted-foreground">{c.reason}</TD>
-                      <TD>{STAGE_LABEL[c.stage]}{c.last_working_day && <div className="text-xs text-muted-foreground">Ngày làm việc cuối: {fmtDate(c.last_working_day)}</div>}</TD>
+                      <TD><StatusBadge status={c.stage} map={STAGE_LABEL} />{c.last_working_day && <div className="text-xs text-muted-foreground">Ngày làm việc cuối: {fmtDate(c.last_working_day)}</div>}</TD>
                       <TD>
                         {(c.stage === 'manager' || c.stage === 'director_confirm') && (
                           <Input type="date" className="h-8 w-40" value={inputs[c.id]?.day ?? c.proposed_last_day ?? ''} onChange={(e) => setInp(c.id, { day: e.target.value })} />
@@ -120,7 +145,7 @@ export default function Offboarding() {
                       </TD>
                       <TD className="whitespace-nowrap">
                         <Button size="sm" disabled={busy} onClick={() => act(c, 'approve')}>{APPROVE_LABEL[c.stage] ?? 'Duyệt'}</Button>{' '}
-                        {CAN_REJECT.includes(c.stage) && <Button size="sm" variant="ghost" disabled={busy} onClick={() => act(c, 'reject')}>{c.stage === 'director_payroll' ? 'Trả lại Kế toán' : 'Từ chối'}</Button>}
+                        {CAN_REJECT.includes(c.stage) && <Button size="sm" variant="outline" disabled={busy} onClick={() => act(c, 'reject')}>{c.stage === 'director_payroll' ? 'Trả lại Kế toán' : 'Từ chối'}</Button>}
                       </TD>
                     </TR>
                   ))}
@@ -139,7 +164,7 @@ export default function Offboarding() {
               <form onSubmit={submitResign} className="space-y-3">
                 <Field label="Ngày làm việc cuối đề xuất"><Input type="date" min={today()} value={resign.lastWorkingDay} onChange={(e) => setResign((f) => ({ ...f, lastWorkingDay: e.target.value }))} required /></Field>
                 <Field label="Lý do"><Textarea value={resign.reason} onChange={(e) => setResign((f) => ({ ...f, reason: e.target.value }))} required minLength={5} /></Field>
-                <Button type="submit" disabled={busy} className="w-full">Gửi đơn</Button>
+                <Button type="submit" disabled={busy} className="w-full">Xem lại và gửi đơn…</Button>
                 <p className="text-xs text-muted-foreground">{user.role === 'employee' ? 'Đơn do quản lý trực tiếp xác nhận trước.' : user.role === 'director' ? 'Đơn chuyển thẳng cho HR.' : 'Đơn do Giám đốc xác nhận trước.'}</p>
               </form>
             </CardContent>
@@ -168,19 +193,25 @@ export default function Offboarding() {
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Hồ sơ của tôi</CardTitle></CardHeader>
           <CardContent>
-            {mine.data.offboarding_cases.length === 0 ? <Empty text="Bạn chưa có hồ sơ nghỉ việc nào" /> : (
-              <Table>
-                <THead><TR><TH>Ngày gửi</TH><TH>Loại</TH><TH>Ngày làm việc cuối</TH><TH>Trạng thái</TH></TR></THead>
-                <TBody>
-                  {mine.data.offboarding_cases.map((c: any) => (
-                    <TR key={c.id}>
-                      <TD>{fmtDate(c.created_at)}</TD><TD>{KIND_LABEL[c.kind]}</TD>
-                      <TD>{fmtDate(c.last_working_day ?? c.proposed_last_day)}</TD>
-                      <TD><Badge variant={c.status === 'rejected' ? 'destructive' : c.status === 'completed' ? 'success' : 'warning'}>{c.status === 'rejected' ? 'Bị từ chối' : STAGE_LABEL[c.stage]}</Badge></TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
+            {mine.data.offboarding_cases.length === 0 ? <Empty text="Bạn chưa có hồ sơ nghỉ việc nào." /> : (
+              <ul className="po-list -mx-5">
+                {mine.data.offboarding_cases.map((c: any) => (
+                  <li key={c.id} className="!block">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="po-list-main">
+                        <strong>{KIND_LABEL[c.kind]} · gửi ngày {fmtDate(c.created_at)}</strong>
+                        <span>Ngày làm việc cuối: {fmtDate(c.last_working_day ?? c.proposed_last_day)}</span>
+                      </div>
+                      {c.status === 'rejected' ? <StatusBadge status="rejected" />
+                        : c.status === 'completed' ? <Seal label="Hoàn tất" />
+                        : <StatusBadge status={c.stage} map={STAGE_LABEL} />}
+                    </div>
+                    {c.status !== 'rejected' && (
+                      <div className="mt-3"><Stepper label="Tiến trình nghỉ việc" steps={MY_STEPS} current={MY_STEP_INDEX[c.stage] ?? 0} /></div>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>

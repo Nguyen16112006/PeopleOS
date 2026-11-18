@@ -32,7 +32,7 @@ export const DEFAULT_PINS: Record<string, string[]> = {
 }
 
 const defaults = (role: string): Prefs => ({
-  salutation: 'ten', size: 'md', density: 'comfy', theme: 'light',
+  salutation: 'ten', size: 'md', density: 'comfy', theme: 'system',
   pins: DEFAULT_PINS[role] ?? DEFAULT_PINS.employee,
 })
 

@@ -4,12 +4,14 @@
 import { useState } from 'react'
 import { call, type Delivery, type Webhook } from '../api'
 import { Card, ErrorBox, Secret, Status, fmt, useLoad } from '../ui'
+import { useConfirm } from '../confirm'
 
 const ENTITIES: [string, string][] = [['employee', 'Nhân viên'], ['contract', 'Hợp đồng'], ['leave_request', 'Đơn nghỉ phép'], ['payroll', 'Bảng lương']]
 const OPS = ['created', 'updated', 'deleted']
 
 export default function Webhooks({ projectId }: { projectId: string }) {
   const hooks = useLoad(() => call<Webhook[]>(`/v1/projects/${projectId}/webhooks`), [projectId])
+  const confirm = useConfirm()
   const log = useLoad(() => call<Delivery[]>(`/v1/projects/${projectId}/webhook-deliveries`), [projectId])
   const [url, setUrl] = useState('')
   const [events, setEvents] = useState<string[]>(['employee.created'])
@@ -48,7 +50,7 @@ export default function Webhooks({ projectId }: { projectId: string }) {
                     <td>{h.events.map(e => <code key={e} style={{ marginRight: 6 }}>{e}</code>)}</td>
                     <td className="actions">
                       <button className="ghost small" onClick={() => void act(() => call(`/v1/projects/${projectId}/webhooks/${h.id}/test`, { method: 'POST' }), 'Đã gửi sự kiện thử. Xem kết quả ở nhật ký bên dưới.')}>Gửi thử</button>
-                      <button className="danger small" onClick={() => { if (window.confirm(`Xóa webhook ${h.url}?`)) void act(() => call(`/v1/projects/${projectId}/webhooks/${h.id}`, { method: 'DELETE' }), 'Đã xóa webhook.') }}>Xóa</button>
+                      <button className="danger small" onClick={async () => { if (await confirm({ title: 'Xóa webhook này?', confirmLabel: 'Xóa webhook', body: <>PeopleOS sẽ ngừng gửi sự kiện tới <code>{h.url}</code>. Nhật ký gửi cũ vẫn được giữ.</> })) void act(() => call(`/v1/projects/${projectId}/webhooks/${h.id}`, { method: 'DELETE' }), 'Đã xóa webhook.') }}>Xóa</button>
                     </td>
                   </tr>
                 ))}

@@ -10,6 +10,7 @@ import Fields from './tabs/Fields'
 import Webhooks from './tabs/Webhooks'
 import Users from './tabs/Users'
 import Usage from './tabs/Usage'
+import { useConfirm } from './confirm'
 
 export const SECTIONS = [
   { key: 'overview', label: 'Tổng quan' },
@@ -37,10 +38,12 @@ export default function ProjectView({ id, section, onSection, onDeleted }: {
 }) {
   const { data: p, error } = useLoad(() => call<Project>(`/v1/projects/${id}`), [id])
   const [delError, setDelError] = useState<string | null>(null)
+  const confirm = useConfirm()
   const title = SECTIONS.find(s => s.key === section)?.label ?? ''
 
   async function remove() {
-    if (!p || !window.confirm(`Xóa dự án "${p.name}"? Mọi API key sẽ bị thu hồi và các bảng dữ liệu riêng bị xóa. Không thể hoàn tác.`)) return
+    if (!p || !await confirm({ title: `Xóa dự án "${p.name}"?`, confirmLabel: 'Xóa dự án vĩnh viễn', typeToConfirm: p.name,
+      body: 'Mọi API key bị thu hồi ngay, các bảng dữ liệu riêng và người dùng ứng dụng bị xóa. Không thể hoàn tác.' })) return
     try { await call<void>(`/v1/projects/${id}`, { method: 'DELETE' }); onDeleted() } catch (e) { setDelError((e as Error).message) }
   }
 

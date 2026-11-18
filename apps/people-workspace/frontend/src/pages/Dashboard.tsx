@@ -7,7 +7,7 @@ import { useAuth } from '@/auth/AuthProvider'
 import { ErrorBox, Loading } from '@/components/common'
 import { useMe } from '@/hooks/useMe'
 import { useQuery } from '@/hooks/useQuery'
-import { fmtDate, monthLabel, ROLE_LABEL, vnd } from '@/lib/format'
+import { fmtDate, fmtDays, monthLabel, ROLE_LABEL, vnd } from '@/lib/format'
 import { navLabel } from '@/lib/nav'
 import { callName, usePrefs } from '@/lib/prefs'
 import { cn } from '@/lib/utils'
@@ -104,13 +104,19 @@ export default function Dashboard() {
           <h1>{greeting(new Date())}, {callName(user.name, prefs.salutation)}</h1>
           <p>{me ? `${me.job_title}, ${me.department}` : `${ROLE_LABEL[user.role] ?? ''}. Tài khoản chưa liên kết với hồ sơ nhân sự.`}</p>
         </div>
-        <Link to="/leave" className="po-btn po-btn-primary"><Plus aria-hidden="true" /> Xin nghỉ phép</Link>
+        {/* Người duyệt: việc chính là xử lý hàng đợi; còn lại: xin nghỉ là việc hay làm nhất */}
+        {leaveToApprove + proposalsToApprove > 0
+          ? <div className="flex flex-wrap gap-2">
+              <Link to="/leave" className="po-btn po-btn-secondary"><Plus aria-hidden="true" /> Xin nghỉ phép</Link>
+              <Link to="/approvals" className="po-btn po-btn-primary"><CheckSquare aria-hidden="true" /> Duyệt {leaveToApprove + proposalsToApprove} việc đang chờ</Link>
+            </div>
+          : <Link to="/leave" className="po-btn po-btn-primary"><Plus aria-hidden="true" /> Xin nghỉ phép</Link>}
       </div>
 
       <div className="po-panel po-figures">
         <Link to="/leave" className="po-figure">
           <div className="po-figure-label">Phép năm còn lại</div>
-          <div className="po-figure-value">{bal ? remaining : '—'}<small>{bal ? `/ ${entitled} ngày` : ''}</small></div>
+          <div className="po-figure-value">{bal ? fmtDays(remaining) : '—'}<small>{bal ? `/ ${fmtDays(entitled)} ngày` : ''}</small></div>
           {bal && <div className="po-meter" role="img" aria-label={`Còn ${remaining} trên ${entitled} ngày`}><i style={{ width: `${entitled ? (remaining / entitled) * 100 : 0}%` }} /></div>}
         </Link>
         <Link to="/payslips" className="po-figure">

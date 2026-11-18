@@ -4,10 +4,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { ConfirmProvider } from './confirm'
 import './styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ConfirmProvider>
+      <App />
+    </ConfirmProvider>
   </StrictMode>,
 )

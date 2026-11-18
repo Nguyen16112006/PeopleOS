@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
-import { Empty, ErrorBox, errMsg, Loading, PageHeader, ProposalBadge, StepBadge } from '@/components/common'
+import { Empty, ErrorBox, errMsg, Loading, PageHeader, ProposalBadge, Stepper } from '@/components/common'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
@@ -48,7 +48,7 @@ export default function Proposals() {
   if (team.error || list.error) return <ErrorBox message={(team.error || list.error)!} />
   return (
     <div>
-      <PageHeader title="Đề xuất tăng lương / phụ cấp" description={user.role === 'manager' ? 'Đề xuất cho nhân viên trong nhóm của bạn. Quy trình duyệt: HR → Kế toán → Giám đốc.' : 'Theo dõi các đề xuất tăng lương. Quy trình duyệt: HR thẩm định → Kế toán kiểm ngân sách → Giám đốc duyệt cuối.'} />
+      <PageHeader title="Đề xuất tăng lương" description={user.role === 'manager' ? 'Đề xuất cho nhân viên trong nhóm của bạn. Đề xuất đi qua HR, Kế toán rồi Giám đốc.' : 'Theo dõi các đề xuất tăng lương. Quy trình duyệt: HR thẩm định → Kế toán kiểm ngân sách → Giám đốc duyệt cuối.'} />
       <div className="grid gap-4 lg:grid-cols-3">
         {user.role === 'manager' && <Card>
           <CardHeader><CardTitle>Tạo đề xuất</CardTitle></CardHeader>
@@ -81,16 +81,15 @@ export default function Proposals() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">{p.employee.full_name} · {p.proposal_type === 'raise' ? 'Lương cơ bản' : 'Phụ cấp'}</p>
-                    <p>{vnd(p.current_amount)} → <span className="font-semibold text-emerald-700">{vnd(p.proposed_amount)}</span></p>
+                    <p>{vnd(p.current_amount)} → <span className="font-semibold">{vnd(p.proposed_amount)}</span></p>
                     <p className="text-xs text-muted-foreground">{p.proposer.full_name} đề xuất ngày {fmtDate(p.created_at)} - {p.reason}</p>
                   </div>
                   <ProposalBadge status={p.status} />
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                  {p.approval_steps.map((s: any, i: number) => (
-                    <div key={s.id} className="flex items-center gap-1.5">{i > 0 && <span className="text-slate-300">→</span>}
-                      <span>{({ hr: 'HR', accountant: 'Kế toán', director: 'Giám đốc' } as Record<string, string>)[s.approver_role]}</span><StepBadge status={s.status} /></div>
-                  ))}
+                <div className="mt-3">
+                  <Stepper label="Các cấp duyệt" steps={p.approval_steps.map((s: any) => ({ hr: 'HR thẩm định', accountant: 'Kế toán kiểm ngân sách', director: 'Giám đốc duyệt' } as Record<string, string>)[s.approver_role] ?? s.approver_role)}
+                    current={(() => { const i = p.approval_steps.findIndex((s: any) => s.status !== 'approved'); return i === -1 ? p.approval_steps.length : i })()}
+                    returned={p.approval_steps.some((s: any) => s.status === 'rejected')} />
                 </div>
               </div>
             ))}

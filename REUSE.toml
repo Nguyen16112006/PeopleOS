@@ -47,3 +47,17 @@ path = "website/**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 PeopleOS contributors"
 SPDX-License-Identifier = "Apache-2.0"
+
+# Icon tab trình duyệt (favicon) của People Workspace và Developer Portal: ảnh không mang được header
+[[annotations]]
+path = [
+  "apps/people-workspace/frontend/public/favicon.svg",
+  "apps/people-workspace/frontend/public/favicon-32.png",
+  "apps/people-workspace/frontend/public/apple-touch-icon.png",
+  "apps/developer-portal/public/favicon.svg",
+  "apps/developer-portal/public/favicon-32.png",
+  "apps/developer-portal/public/apple-touch-icon.png",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 PeopleOS contributors"
+SPDX-License-Identifier = "Apache-2.0"

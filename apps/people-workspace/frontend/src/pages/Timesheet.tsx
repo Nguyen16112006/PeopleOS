@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select } from '@/components/ui/form'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
 import { useRealtime } from '@/hooks/realtime'
+import { useConfirm } from '@/hooks/confirm'
 import { useToast } from '@/hooks/toast'
 import { useMe } from '@/hooks/useMe'
 import { useQuery } from '@/hooks/useQuery'
@@ -85,6 +86,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'go
 export default function Timesheet() {
   const { user } = useAuth()
   const { push } = useToast()
+  const confirm = useConfirm()
   const { tick } = useRealtime()
   const me = useMe()
   const myId = me?.employee?.id ?? ''
@@ -129,7 +131,7 @@ export default function Timesheet() {
   }
 
   if (me === null) return <Loading />
-  if (!myId) return <ErrorBox message="Tài khoản chưa được liên kết với hồ sơ nhân sự nên chưa chấm công được." />
+  if (!myId) return <div><PageHeader title="Bảng công" /><Empty text={user.role === 'hr' ? 'Tài khoản này chưa được liên kết với hồ sơ nhân sự nên chưa chấm công được. Liên kết tài khoản ở trang hồ sơ nhân viên.' : 'Tài khoản của bạn chưa được liên kết với hồ sơ nhân sự nên chưa chấm công được. Hãy nhắn HR để được liên kết.'} /></div>
 
   const records: any[] = days.data?.attendance_records ?? []
   const leaves: any[] = days.data?.leave_requests ?? []
@@ -158,9 +160,13 @@ export default function Timesheet() {
     }), 'Đã lưu công ngày ' + edit.date.slice(8) + '/' + edit.date.slice(5, 7))
     if (done) setEdit(null)
   }
-  const decide = (id: string, decision: 'approve' | 'reject') => {
-    const note = decision === 'reject' ? window.prompt('Lý do trả lại bảng công') : undefined
-    if (decision === 'reject' && !note?.trim()) return
+  const decide = async (id: string, decision: 'approve' | 'reject') => {
+    let note: string | undefined
+    if (decision === 'reject') {
+      const r = await confirm({ title: 'Trả lại bảng công?', confirmLabel: 'Trả lại', tone: 'danger', note: { label: 'Lý do trả lại', required: true, placeholder: 'Ví dụ: ngày 12 thiếu giờ làm thêm.' } })
+      if (!r) return
+      note = r.note
+    }
     return act(() => api(`/api/timesheets/${id}/decision`, 'POST', { decision, note: note ?? undefined }), decision === 'approve' ? 'Đã xác nhận bảng công' : 'Đã trả lại bảng công')
   }
 
@@ -173,7 +179,7 @@ export default function Timesheet() {
   return (
     <div>
       <PageHeader title="Bảng công"
-        description="Chấm công hằng ngày và khai làm thêm giờ → gửi bảng công tháng → quản lý trực tiếp (hoặc HR) xác nhận → HR chốt công → Kế toán tính lương theo ngày công."
+        description="Chấm công hằng ngày, khai làm thêm giờ và gửi bảng công tháng." howto={{ q: 'Bảng công được dùng thế nào?', a: 'Cuối tháng bạn gửi bảng công. Quản lý trực tiếp (hoặc HR) xác nhận, HR chốt công, rồi Kế toán tính lương theo số ngày công đã chốt.' }}
         actions={
           <div className="flex items-end gap-2">
             <Field label="Năm"><Input type="number" className="h-9 w-24" min={2020} max={2100} value={period.year}
@@ -216,8 +222,10 @@ export default function Timesheet() {
           <div className="flex gap-2">
             {!own && <Button size="sm" variant="ghost" onClick={() => { setEdit(null); setTarget(null) }}>Về bảng công của tôi</Button>}
             {own && view?.status === 'open' && (
-              <Button size="sm" disabled={busy} onClick={() => {
-                if (missing.size > 0 && !window.confirm(`Còn ${missing.size} ngày chưa chấm công, sẽ bị tính vắng không lương. Vẫn gửi bảng công?`)) return
+              <Button size="sm" disabled={busy} onClick={async () => {
+                if (missing.size > 0 && !await confirm({ title: 'Gửi bảng công còn thiếu ngày?', confirmLabel: `Vẫn gửi (${missing.size} ngày trống)`,
+                  caution: `Còn ${missing.size} ngày chưa chấm công. Các ngày này sẽ bị tính là vắng không lương.`,
+                  body: 'Bạn có thể quay lại khai bù những ngày còn trống trước khi gửi.' })) return
                 act(() => api('/api/timesheets/submit', 'POST', period), 'Đã gửi bảng công để xác nhận')
               }}><Send className="h-4 w-4" /> Gửi bảng công</Button>
             )}
@@ -296,13 +304,15 @@ export default function Timesheet() {
               </Table>
               {editable && (
                 <p className="text-xs text-muted-foreground">
-                  Làm thêm vào thứ 7, chủ nhật: <button className="text-primary hover:underline" onClick={() => {
-                    const d = window.prompt(`Nhập ngày cuối tuần trong tháng ${period.month} (1-${lastDay})`)
-                    const n = Number(d)
-                    if (!d || !Number.isInteger(n) || n < 1 || n > lastDay) return
-                    const dow = new Date(period.year, period.month - 1, n).getDay()
-                    openEdit(`${period.year}-${pad(period.month)}-${pad(n)}`, dow === 0 || dow === 6)
-                  }}>khai thêm ngày</button>. Nghỉ phép, nghỉ ốm: tạo đơn ở mục Nghỉ phép, đơn được duyệt sẽ tự tính vào bảng công.
+                  Làm thêm vào thứ 7, chủ nhật: khai ngày{' '}
+                  <input type="date" aria-label="Chọn ngày cuối tuần để khai công" className="h-8 rounded-[7px] border border-input bg-card px-2"
+                    min={`${period.year}-${pad(period.month)}-01`} max={`${period.year}-${pad(period.month)}-${pad(lastDay)}`}
+                    onChange={(ev) => {
+                      if (!ev.target.value) return
+                      const dow = new Date(ev.target.value + 'T00:00:00').getDay()
+                      openEdit(ev.target.value, dow === 0 || dow === 6)
+                      ev.target.value = ''
+                    }} />. Nghỉ phép, nghỉ ốm: tạo đơn ở mục Nghỉ phép, đơn được duyệt sẽ tự tính vào bảng công.
                 </p>
               )}
             </>
