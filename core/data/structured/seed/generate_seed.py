@@ -59,10 +59,13 @@ out.append("-- Copyright (c) 2026 PeopleOS contributors")
 out.append("-- Sinh bởi generate_seed.py - KHÔNG sửa tay. Chạy lại sẽ XÓA dữ liệu demo cũ.")
 # Đa tenant: seed là dữ liệu DEMO của tenant first-party. TRUNCATE ... CASCADE bên dưới sẽ xóa dữ liệu của MỌI tenant,
 # nên từ chối chạy nếu DB đã có tenant khác (an toàn khi dùng chung DB với các project của developer).
+# Hai IF lồng nhau: PL/pgSQL không đảm bảo AND dừng sớm, nên `A AND EXISTS(... platform.tenants ...)` vẫn lỗi
+# "relation does not exist" khi bảng chưa có (DB mới, migration 007 chưa áp).
 out.append("DO $$ BEGIN\n"
-           "  IF to_regclass('platform.tenants') IS NOT NULL\n"
-           "     AND EXISTS (SELECT 1 FROM platform.tenants WHERE id <> '00000000-0000-0000-0000-000000000001') THEN\n"
-           "    RAISE EXCEPTION 'seed.sql chỉ dùng cho môi trường demo: phát hiện tenant khác, từ chối TRUNCATE dữ liệu của họ';\n"
+           "  IF to_regclass('platform.tenants') IS NOT NULL THEN\n"
+           "    IF EXISTS (SELECT 1 FROM platform.tenants WHERE id <> '00000000-0000-0000-0000-000000000001') THEN\n"
+           "      RAISE EXCEPTION 'seed.sql chỉ dùng cho môi trường demo: phát hiện tenant khác, từ chối TRUNCATE dữ liệu của họ';\n"
+           "    END IF;\n"
            "  END IF;\n"
            "END $$;")
 # Mọi dòng seed thuộc tenant first-party: cột tenant_id lấy mặc định từ phiên (platform.current_tenant()).
