@@ -112,6 +112,25 @@ def ensure_audience_mapper(token, client_id="people-workspace"):
     actions.append(f"client {client_id}: thêm mapper audience")
 
 
+def ensure_basic_scope(token, client_id):
+    """Keycloak 25+ chuyển claim `sub` sang client scope `basic`. Client khai báo defaultClientScopes tường minh
+    mà thiếu `basic` thì access token không có `sub` -> Hasura báo "x-hasura-user-id not found",
+    BFF/RAG không biết người dùng là ai. Gán `basic` làm default scope cho client (idempotent)."""
+    _, found = call("GET", f"/admin/realms/{REALM}/clients?clientId={urllib.parse.quote(client_id)}", token)
+    if not found:
+        return
+    uuid = found[0]["id"]
+    _, current = call("GET", f"/admin/realms/{REALM}/clients/{uuid}/default-client-scopes", token)
+    if any(s.get("name") == "basic" for s in (current or [])):
+        return
+    _, scopes = call("GET", f"/admin/realms/{REALM}/client-scopes", token)
+    basic = next((s for s in (scopes or []) if s.get("name") == "basic"), None)
+    if basic is None:   # Keycloak < 25: `sub` vẫn do lõi tự thêm, không cần scope này
+        return
+    call("PUT", f"/admin/realms/{REALM}/clients/{uuid}/default-client-scopes/{basic['id']}", token)
+    actions.append(f"client {client_id}: thêm default scope basic (claim sub)")
+
+
 def backfill_users(token):
     first, updated = 0, 0
     while True:
@@ -145,6 +164,7 @@ def main():
     ensure_user_profile(token)
     for c in CLIENTS:
         ensure_mapper(token, c)
+        ensure_basic_scope(token, c)
     ensure_audience_mapper(token)
     backfill_users(token)
     ensure_platform_realm(token)
