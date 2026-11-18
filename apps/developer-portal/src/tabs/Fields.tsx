@@ -4,12 +4,14 @@
 import { useState } from 'react'
 import { call, type CustomFieldDef } from '../api'
 import { Card, ErrorBox, useLoad } from '../ui'
+import { useConfirm } from '../confirm'
 
 const TYPES = ['string', 'number', 'boolean', 'date', 'enum'] as const
 const TYPE_LABEL: Record<string, string> = { string: 'Văn bản', number: 'Số', boolean: 'Có / không', date: 'Ngày', enum: 'Danh sách chọn' }
 
 export default function Fields({ projectId }: { projectId: string }) {
   const { data, error, reload } = useLoad(() => call<CustomFieldDef[]>(`/v1/projects/${projectId}/custom-fields`), [projectId])
+  const confirm = useConfirm()
   const [key, setKey] = useState('')
   const [type, setType] = useState<(typeof TYPES)[number]>('string')
   const [required, setRequired] = useState(false)
@@ -27,7 +29,7 @@ export default function Fields({ projectId }: { projectId: string }) {
     } catch (e) { setErr((e as Error).message) }
   }
   async function remove(f: CustomFieldDef) {
-    if (!window.confirm(`Gỡ trường "${f.key}"? Giá trị đã lưu trong hồ sơ nhân viên sẽ bị xóa.`)) return
+    if (!await confirm({ title: `Gỡ trường "${f.key}"?`, confirmLabel: 'Gỡ trường', body: 'Giá trị đã lưu trong hồ sơ của mọi nhân viên cho trường này sẽ bị xóa.' })) return
     try { await call(`/v1/projects/${projectId}/custom-fields/${f.entity}/${f.key}`, { method: 'DELETE' }); reload() } catch (e) { setErr((e as Error).message) }
   }
 

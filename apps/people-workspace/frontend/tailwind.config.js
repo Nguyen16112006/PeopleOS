@@ -28,7 +28,12 @@ export default {
         slate: scale('slate'),
         blue: scale('blue'),
         indigo: scale('blue'),
+        // Xanh lá chỉ dùng cho trạng thái "đã xong", không dùng tô tiền
+        emerald: scale('green'),
+        green: scale('green'),
       },
+      // 12px quá nhỏ cho chữ đọc; text-xs của PeopleOS là 13px
+      fontSize: { xs: ['13px', { lineHeight: '1.45' }] },
       borderRadius: { xl: '12px', lg: 'var(--radius)', md: '6px', sm: '4px' },
       boxShadow: {
         sm: '0 1px 2px rgb(27 36 51 / 5%)',

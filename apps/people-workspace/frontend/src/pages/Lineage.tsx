@@ -24,6 +24,8 @@ const TYPE_STYLE: Record<string, { label: string; fill: string; stroke: string }
   process: { label: 'Xử lý', fill: '#fef3c7', stroke: '#f59e0b' },
   output: { label: 'Đầu ra', fill: '#dcfce7', stroke: '#22c55e' },
 }
+const FALLBACK_TYPE = { label: 'Khác', fill: 'rgb(var(--slate-50))', stroke: 'rgb(var(--slate-400))' }
+const FALLBACK_CLASS = { label: 'Chưa phân loại', variant: 'secondary' as const }
 const CLASS_LABEL: Record<string, { label: string; variant: 'secondary' | 'default' | 'warning' | 'destructive' }> = {
   public: { label: 'Công khai', variant: 'secondary' }, internal: { label: 'Nội bộ', variant: 'default' },
   confidential: { label: 'Mật', variant: 'warning' }, pii: { label: 'Dữ liệu cá nhân (PII)', variant: 'destructive' },
@@ -91,7 +93,7 @@ export default function Lineage() {
 
   return (
     <div>
-      <PageHeader title="Phả hệ dữ liệu (Data lineage)" description="Dữ liệu đi từ đâu, qua xử lý nào, đến đâu. Bấm vào một nút để truy vết ngược (upstream) và xuôi (downstream)." />
+      <PageHeader title="Nguồn gốc dữ liệu" description="Dữ liệu đi từ đâu, qua xử lý nào, đến đâu. Bấm vào một ô để xem nó lấy dữ liệu từ đâu và dữ liệu của nó được dùng ở đâu." />
       <div className="mb-3 flex flex-wrap gap-3 text-xs">
         {Object.entries(TYPE_STYLE).map(([k, v]) => (
           <span key={k} className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border" style={{ background: v.fill, borderColor: v.stroke }} />{v.label}</span>
@@ -114,7 +116,7 @@ export default function Lineage() {
               )
             })}
             {assets.map((a) => {
-              const p = lay.pos[a.id]; const st = TYPE_STYLE[a.asset_type]
+              const p = lay.pos[a.id]; const st = TYPE_STYLE[a.asset_type] ?? FALLBACK_TYPE
               return (
                 <g key={a.id} transform={`translate(${p.x},${p.y})`} opacity={active(a.id) ? 1 : 0.2} className="cursor-pointer" onClick={() => setSelected(a.id === selected ? null : a.id)}>
                   <rect width={W} height={H} rx={8} fill={st.fill} stroke={a.classification === 'pii' ? '#ef4444' : st.stroke} strokeWidth={a.id === selected ? 3 : a.classification === 'pii' ? 2 : 1.2} />
@@ -131,8 +133,8 @@ export default function Lineage() {
             {!sel && <p className="text-muted-foreground">Chọn một nút trên sơ đồ để xem mô tả, phân loại dữ liệu và các nguồn/đích liên quan.</p>}
             {sel && <>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={CLASS_LABEL[sel.classification].variant}>{CLASS_LABEL[sel.classification].label}</Badge>
-                <Badge variant="outline">{TYPE_STYLE[sel.asset_type].label}</Badge>
+                <Badge variant={(CLASS_LABEL[sel.classification] ?? FALLBACK_CLASS).variant}>{(CLASS_LABEL[sel.classification] ?? FALLBACK_CLASS).label}</Badge>
+                <Badge variant="outline">{(TYPE_STYLE[sel.asset_type] ?? FALLBACK_TYPE).label}</Badge>
               </div>
               <p>{sel.description}</p>
               <p className="text-muted-foreground">Hệ thống: <b className="text-foreground">{sel.system}</b> · Chủ sở hữu: <b className="text-foreground">{sel.owner}</b></p>

@@ -4,12 +4,14 @@
 import { useState } from 'react'
 import { call, type ApiKey } from '../api'
 import { Card, ErrorBox, Secret, fmt, useLoad } from '../ui'
+import { useConfirm } from '../confirm'
 
 const SCOPE: Record<string, string> = { read: 'Chỉ đọc', write: 'Đọc và ghi' }
 const ENV: Record<string, string> = { sandbox: 'Thử nghiệm', live: 'Chính thức' }
 
 export default function Keys({ projectId }: { projectId: string }) {
   const { data, error, reload } = useLoad(() => call<ApiKey[]>(`/v1/projects/${projectId}/api-keys`), [projectId])
+  const confirm = useConfirm()
   const [name, setName] = useState('')
   const [scope, setScope] = useState<'read' | 'write'>('read')
   const [env, setEnv] = useState<'sandbox' | 'live'>('sandbox')
@@ -24,7 +26,8 @@ export default function Keys({ projectId }: { projectId: string }) {
     } catch (e) { setErr((e as Error).message) }
   }
   async function revoke(k: ApiKey) {
-    if (!window.confirm(`Thu hồi khóa "${k.name}" (${k.prefix}…)? Ứng dụng đang dùng khóa này sẽ bị từ chối ngay.`)) return
+    if (!await confirm({ title: `Thu hồi khóa "${k.name}"?`, confirmLabel: 'Thu hồi khóa',
+      body: <>Khóa <code>{k.prefix}…</code> ngừng hoạt động ngay; ứng dụng đang dùng khóa này sẽ nhận lỗi 401 cho tới khi đổi sang khóa mới.</> })) return
     try { await call<void>(`/v1/projects/${projectId}/api-keys/${k.id}`, { method: 'DELETE' }); reload() } catch (e) { setErr((e as Error).message) }
   }
 

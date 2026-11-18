@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
+import { useConfirm } from '@/hooks/confirm'
 import { useToast } from '@/hooks/toast'
 import { useQuery } from '@/hooks/useQuery'
 import { api } from '@/lib/api'
@@ -38,6 +39,7 @@ const Stat = ({ label, value }: { label: string; value: string }) => (
 export default function TaxYear() {
   const { user } = useAuth()
   const { push } = useToast()
+  const confirm = useConfirm()
   const thisYear = new Date().getFullYear()
   const [year, setYear] = useState(thisYear)
   const [busy, setBusy] = useState(false)
@@ -79,7 +81,7 @@ export default function TaxYear() {
 
   return (
     <div>
-      <PageHeader title="Thuế và báo cáo năm" description="Cuối năm: HR xác nhận người phụ thuộc và mã số thuế → Kế toán quyết toán, hệ thống phát hành chứng từ → Kế toán lập báo cáo tài chính năm → Giám đốc duyệt → ngân sách năm sau." />
+      <PageHeader title="Thuế và báo cáo năm" description="Chứng từ khấu trừ thuế TNCN của bạn và các việc quyết toán cuối năm." howto={{ q: 'Cuối năm có những bước nào?', a: 'HR xác nhận người phụ thuộc và mã số thuế của mọi người. Kế toán quyết toán thuế, hệ thống tự phát hành chứng từ khấu trừ cho từng nhân viên. Kế toán lập báo cáo tài chính năm, Giám đốc duyệt, rồi duyệt ngân sách nhân sự năm sau.' }} />
 
       <Card className="mb-4">
         <CardContent className="flex items-end gap-3 pt-4">
@@ -174,7 +176,10 @@ export default function TaxYear() {
                   {isDir && report.status === 'submitted' && (
                     <div className="flex gap-2">
                       <Button disabled={busy} onClick={() => post('/report/approve', 'Đã duyệt báo cáo')}>Duyệt báo cáo</Button>
-                      <Button variant="ghost" disabled={busy} onClick={() => { const comment = window.prompt('Lý do trả lại (không bắt buộc)') ?? undefined; post('/report/return', 'Đã trả lại Kế toán', { comment }) }}>Trả lại</Button>
+                      <Button variant="outline" disabled={busy} onClick={async () => {
+                        const r = await confirm({ title: 'Trả lại báo cáo năm cho Kế toán?', confirmLabel: 'Trả lại', tone: 'danger', note: { label: 'Lý do trả lại', required: true } })
+                        if (r) post('/report/return', 'Đã trả lại Kế toán', { comment: r.note })
+                      }}>Trả lại</Button>
                     </div>
                   )}
                 </>

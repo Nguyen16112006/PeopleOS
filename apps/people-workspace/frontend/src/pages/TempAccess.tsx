@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
+import { useConfirm } from '@/hooks/confirm'
 import { useToast } from '@/hooks/toast'
 import { useQuery } from '@/hooks/useQuery'
 import { api } from '@/lib/api'
@@ -32,6 +33,7 @@ const StatusBadge = ({ s }: { s: string }) => (
 export default function TempAccess() {
   const { user } = useAuth()
   const { push } = useToast()
+  const confirm = useConfirm()
   const isAdmin = user.role === 'sysadmin'
   // Admin chỉ thấy yêu cầu của mình (Hasura lọc); HR/Kế toán thấy yêu cầu thuộc dữ liệu của họ; Giám đốc thấy tất cả
   const { data, loading, error, reload } = useQuery<any>(Q, { where: {} })
@@ -49,8 +51,13 @@ export default function TempAccess() {
     setForm((f) => ({ ...f, reason: '' }))
     setSending(false)
   }
-  const decide = (id: string, decision: 'approve' | 'reject') => {
-    const comment = decision === 'reject' ? window.prompt('Lý do từ chối (không bắt buộc)') ?? undefined : undefined
+  const decide = async (id: string, decision: 'approve' | 'reject') => {
+    let comment: string | undefined
+    if (decision === 'reject') {
+      const r = await confirm({ title: 'Từ chối yêu cầu này?', confirmLabel: 'Từ chối', tone: 'danger', note: { label: 'Lý do từ chối', required: true } })
+      if (!r) return
+      comment = r.note
+    }
     return run(() => api(`/api/temp-access-requests/${id}/decision`, 'POST', { decision, comment }), decision === 'approve' ? 'Đã duyệt' : 'Đã từ chối')
   }
   const canDecide = (r: any) => {
@@ -65,7 +72,7 @@ export default function TempAccess() {
 
   return (
     <div>
-      <PageHeader title="Quyền truy cập tạm thời" description="Admin xin quyền khi xử lý sự cố. Cần cả chủ sở hữu dữ liệu và Giám đốc cùng duyệt; quyền tự hết hạn và mọi thao tác được ghi nhật ký." />
+      <PageHeader title="Quyền tạm thời" description="Quản trị hệ thống xin quyền xem dữ liệu khi xử lý sự cố. Cần cả người phụ trách dữ liệu và Giám đốc duyệt; quyền tự hết hạn và mọi thao tác được ghi vào nhật ký kiểm toán." />
       <div className={`grid gap-4 ${isAdmin ? 'lg:grid-cols-3' : ''}`}>
         {isAdmin && (
           <Card className="lg:col-span-1">

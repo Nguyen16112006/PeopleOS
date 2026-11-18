@@ -30,3 +30,8 @@ export function Stamp({ label, date, ring = 'PHÒNG NHÂN SỰ ★ PEOPLEOS ★ 
     </svg>
   )
 }
+
+/** Mộc nhỏ dạng khung chữ nhật, dùng trong danh sách cho việc đã hoàn tất (đơn đã duyệt, hợp đồng đã ký). */
+export function Seal({ label }: { label: string }) {
+  return <span className="po-seal" role="img" aria-label={`Con dấu: ${label}`}>{label}</span>
+}

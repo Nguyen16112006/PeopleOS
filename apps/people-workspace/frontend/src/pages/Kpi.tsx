@@ -3,12 +3,13 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/auth/AuthProvider'
-import { Empty, ErrorBox, errMsg, Loading, PageHeader } from '@/components/common'
+import { Empty, ErrorBox, errMsg, Loading, PageHeader, StatusBadge } from '@/components/common'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table'
+import { useConfirm } from '@/hooks/confirm'
 import { useToast } from '@/hooks/toast'
 import { useQuery } from '@/hooks/useQuery'
 import { api } from '@/lib/api'
@@ -39,6 +40,7 @@ const now = new Date()
 export default function Kpi() {
   const { user } = useAuth()
   const { push } = useToast()
+  const confirm = useConfirm()
   const cycles = useQuery<any>(QC, {})
   const [cycleId, setCycleId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -77,7 +79,7 @@ export default function Kpi() {
 
   return (
     <div>
-      <PageHeader title="Đánh giá KPI theo quý" description="HR mở chu kỳ → quản lý trực tiếp giao mục tiêu và chấm điểm → HR tổng hợp → Giám đốc duyệt → nhân viên xem kết quả và phản hồi." />
+      <PageHeader title="Đánh giá KPI" description="Mục tiêu và kết quả đánh giá theo từng quý." howto={{ q: 'Một chu kỳ KPI diễn ra thế nào?', a: 'HR mở chu kỳ. Quản lý trực tiếp giao mục tiêu (tổng trọng số 100%) và chấm mức hoàn thành từng mục tiêu. HR tổng hợp, Giám đốc duyệt; sau đó nhân viên xem được kết quả của mình và gửi phản hồi.' }} />
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-end gap-3 pt-4">
@@ -86,14 +88,20 @@ export default function Kpi() {
               {(cycles.data?.kpi_cycles ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </Field>
-          {cycle && <Badge variant={cycle.status === 'approved' ? 'success' : cycle.status === 'review' ? 'warning' : 'secondary'}>{CYCLE_STATUS[cycle.status]}</Badge>}
+          {cycle && <StatusBadge status={cycle.status} map={CYCLE_STATUS} tone={cycle.status === 'approved' ? 'success' : cycle.status === 'review' ? 'warning' : 'secondary'} />}
           {isHr && cycle?.status === 'open' && (
             <Button disabled={busy} onClick={() => run(() => api(`/api/kpi/cycles/${cycle.id}/consolidate`, 'POST'), 'Đã tổng hợp, chuyển Giám đốc duyệt')}>Tổng hợp và gửi duyệt</Button>
           )}
           {isDirector && cycle?.status === 'review' && (
             <>
-              <Button disabled={busy} onClick={() => run(() => api(`/api/kpi/cycles/${cycle.id}/approve`, 'POST'), 'Đã duyệt kết quả')}>Duyệt kết quả</Button>
-              <Button variant="ghost" disabled={busy} onClick={() => { const comment = window.prompt('Lý do trả lại (không bắt buộc)') ?? undefined; run(() => api(`/api/kpi/cycles/${cycle.id}/return`, 'POST', { comment }), 'Đã trả lại HR') }}>Trả lại</Button>
+              <Button disabled={busy} onClick={async () => {
+                if (await confirm({ title: `Duyệt kết quả KPI ${cycle.name}?`, body: 'Nhân viên sẽ thấy kết quả của mình ngay sau khi duyệt.', confirmLabel: 'Duyệt kết quả' }))
+                  run(() => api(`/api/kpi/cycles/${cycle.id}/approve`, 'POST'), 'Đã duyệt kết quả')
+              }}>Duyệt kết quả</Button>
+              <Button variant="outline" disabled={busy} onClick={async () => {
+                const r = await confirm({ title: `Trả lại chu kỳ ${cycle.name} cho HR?`, confirmLabel: 'Trả lại', tone: 'danger', note: { label: 'Lý do trả lại', required: true } })
+                if (r) run(() => api(`/api/kpi/cycles/${cycle.id}/return`, 'POST', { comment: r.note }), 'Đã trả lại HR')
+              }}>Trả lại</Button>
             </>
           )}
           {isHr && <Button variant="ghost" onClick={() => setShowOpen((v) => !v)}>{showOpen ? 'Đóng' : 'Mở chu kỳ mới'}</Button>}
@@ -143,7 +151,7 @@ function MyKpi({ q, cycle, busy, run }: { q: any; cycle: any; busy: boolean; run
                 <TR key={g.id}>
                   <TD>{g.title}{g.description && <div className="text-xs text-muted-foreground">{g.description}</div>}</TD>
                   <TD>{g.target ?? '—'}</TD><TD>{g.weight}%</TD>
-                  {ev && <TD>{scoreOf(g.id) ?? '—'}%</TD>}
+                  {ev && <TD>{scoreOf(g.id) != null ? `${scoreOf(g.id)}%` : <span className="text-muted-foreground">Chưa chấm</span>}</TD>}
                 </TR>
               ))}
             </TBody>
@@ -152,7 +160,7 @@ function MyKpi({ q, cycle, busy, run }: { q: any; cycle: any; busy: boolean; run
         {ev ? (
           <div className="mt-4 space-y-2 rounded-md border p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-lg font-semibold">{Number(ev.score).toFixed(1)} điểm</span>
+              <span className="text-lg font-semibold">{Number(ev.score).toFixed(1).replace('.', ',')} điểm</span>
               <Badge variant={ratingVariant(ev.rating)}>{RATING[ev.rating]}</Badge>
             </div>
             {ev.comment && <p className="text-sm text-muted-foreground">Nhận xét của quản lý: {ev.comment}</p>}
@@ -220,7 +228,7 @@ function TeamKpi({ q, cycle, busy, run }: { q: any; cycle: any; busy: boolean; r
                     <TD>{g.title}</TD><TD>{g.target ?? '—'}</TD><TD>{g.weight}%</TD>
                     <TD>
                       {isOpen ? <Input type="number" min={0} max={100} className="h-8 w-24" value={scores[g.id] ?? ''} onChange={(e) => setScores((s) => ({ ...s, [g.id]: e.target.value }))} />
-                        : (ev?.goal_scores ?? []).find((s: any) => s.goalId === g.id)?.achievement ?? '—'}
+                        : ((ev?.goal_scores ?? []).find((s: any) => s.goalId === g.id)?.achievement ?? 'Chưa chấm')}
                     </TD>
                     <TD>{isOpen && <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => api(`/api/kpi/goals/${g.id}`, 'DELETE'), 'Đã xóa mục tiêu')}>Xóa</Button>}</TD>
                   </TR>

@@ -134,7 +134,7 @@ function Projects({ list, onOpen }: { list: ReturnType<typeof useLoad<Project[]>
         description="Mỗi dự án là một công ty (tenant) riêng trên PeopleOS, có dữ liệu tách biệt, API key và webhook riêng. Ứng dụng của bạn gọi API bằng khóa của dự án." />
 
       <section className="card">
-        <header><h3>Dự án của bạn</h3></header>
+        <header><h2>Dự án của bạn</h2></header>
         <ErrorBox message={error} />
         {loading && !data && <p className="empty">Đang tải danh sách dự án…</p>}
         {data?.length === 0 && <p className="empty">Bạn chưa có dự án nào. Tạo dự án đầu tiên ở mục bên dưới.</p>}

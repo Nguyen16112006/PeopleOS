@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { call, type SchemaVersion, type TableInfo } from '../api'
 import { Card, ErrorBox, Icon, fmt, useLoad } from '../ui'
+import { useConfirm } from '../confirm'
 
 const TYPES = ['text', 'int', 'bigint', 'numeric', 'boolean', 'date', 'timestamptz', 'uuid', 'jsonb'] as const
 const ACTION: Record<string, string> = { create_table: 'Tạo bảng', drop_table: 'Xóa bảng', create: 'Tạo bảng', drop: 'Xóa bảng' }
@@ -12,6 +13,7 @@ const blank = (): Col => ({ name: '', type: 'text', nullable: true, unique: fals
 
 export default function Schema({ projectId, shortId }: { projectId: string; shortId: string }) {
   const tables = useLoad(() => call<TableInfo[]>(`/v1/projects/${projectId}/schema/tables`), [projectId])
+  const confirm = useConfirm()
   const versions = useLoad(() => call<SchemaVersion[]>(`/v1/projects/${projectId}/schema/versions`), [projectId])
   const [table, setTable] = useState('')
   const [cols, setCols] = useState<Col[]>([blank()])
@@ -31,7 +33,7 @@ export default function Schema({ projectId, shortId }: { projectId: string; shor
     } catch (e) { setErr((e as Error).message) }
   }
   async function drop(name: string) {
-    if (!window.confirm(`Xóa bảng "${name}" cùng toàn bộ dữ liệu trong đó? Không thể hoàn tác.`)) return
+    if (!await confirm({ title: `Xóa bảng "${name}"?`, confirmLabel: 'Xóa bảng', typeToConfirm: name, body: 'Toàn bộ dữ liệu trong bảng bị xóa. Không thể hoàn tác.' })) return
     try { await call(`/v1/projects/${projectId}/schema/tables/${name}`, { method: 'DELETE' }); refresh() } catch (e) { setErr((e as Error).message) }
   }
 

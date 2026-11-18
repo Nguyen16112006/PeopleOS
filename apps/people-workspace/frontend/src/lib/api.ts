@@ -44,10 +44,11 @@ export function toSnakeKeys(value: unknown): unknown {
 
 /** Gọi REST của BFF qua API Gateway. Khóa của body được chuẩn hóa sang snake_case. */
 export async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  const payload = body !== undefined ? JSON.stringify(toSnakeKeys(body)) : undefined
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(await authHeaders()) },
-    body: body !== undefined ? JSON.stringify(toSnakeKeys(body)) : undefined,
+    body: payload,
   })
   const json = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(errorText(json, res.status))

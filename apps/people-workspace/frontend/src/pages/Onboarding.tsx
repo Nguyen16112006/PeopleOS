@@ -55,7 +55,7 @@ export default function Onboarding() {
   if (error) return <ErrorBox message={error} />
   return (
     <div>
-      <PageHeader title="Onboarding nhân viên mới" description="Tạo hồ sơ + hợp đồng + tài khoản SSO; quy trình BPMN sinh checklist và gửi thông báo." />
+      <PageHeader title="Tiếp nhận nhân viên mới" description="Tạo hồ sơ, hợp đồng và tài khoản đăng nhập cho người mới. Hệ thống tự tạo danh sách việc cần làm và báo cho người liên quan." />
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle>Thêm nhân viên</CardTitle></CardHeader>
