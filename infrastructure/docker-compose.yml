@@ -82,7 +82,8 @@ services:
       HASURA_GRAPHQL_DATABASE_URL: postgres://${POSTGRES_USER:-peopleos}:${POSTGRES_PASSWORD:-peopleos_pg_pass}@postgres:5432/${POSTGRES_DB:-peopleos}
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_ADMIN_SECRET:-hasura_admin_secret_change_me}
       HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
-      HASURA_GRAPHQL_DEV_MODE: "true"
+      # DEV_MODE trả chi tiết lỗi SQL nội bộ cho MỌI vai trò (kể cả API key PaaS) -> mặc định tắt; bật khi phát triển.
+      HASURA_GRAPHQL_DEV_MODE: "${HASURA_DEV_MODE:-false}"
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       # Xác thực bằng JWT của Keycloak: vai trò lấy từ realm_access.roles; client chọn role bằng header x-hasura-role
       HASURA_GRAPHQL_JWT_SECRET: '{"audience":"people-workspace","jwk_url":"http://keycloak:8080/realms/peopleos/protocol/openid-connect/certs","claims_map":{"x-hasura-allowed-roles":{"path":"$$.realm_access.roles"},"x-hasura-default-role":{"path":"$$.default_role","default":"employee"},"x-hasura-user-id":{"path":"$$.sub"},"x-hasura-tenant-id":{"path":"$$.tenant_id"}}}'
