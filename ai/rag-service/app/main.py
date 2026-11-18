@@ -5,7 +5,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Literal, Optional
 
 import httpx
 from fastapi import FastAPI, Header
@@ -30,9 +30,16 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="PeopleOS RAG Service", version="2.3.1", lifespan=lifespan)
 
 
+class HistoryItem(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=8000)
+
+
 class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
-    history: list[dict] = []
+    # Giới hạn kích thước: chỉ 6 lượt cuối được đưa vào LLM, nhưng không để một người dùng đẩy hàng MB văn bản
+    # vào mô hình dùng chung (Ollama) qua lịch sử chat.
+    history: list[HistoryItem] = Field(default_factory=list, max_length=50)
 
 
 @app.get("/health")
@@ -64,7 +71,7 @@ async def chat(body: ChatIn, authorization: Optional[str] = Header(default=None)
     except Exception as exc:  # lỗi tra cứu nội bộ -> báo rõ, không trả lời bịa
         logging.getLogger("peopleos.chat").warning("Tool lỗi: %s", exc)
         return {"intent": intent, "answer": "Mình chưa tra cứu được dữ liệu lúc này, bạn thử lại sau ít phút nhé.", "sources": [], "mode": "error"}
-    res = await kb.answer(body.message, body.history)
+    res = await kb.answer(body.message, [h.model_dump() for h in body.history[-6:]])
     return {"intent": "rag", **res}
 
 

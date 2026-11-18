@@ -57,6 +57,7 @@ export default function Assistant() {
     const history = msgs
       .filter((m) => m.role === 'user' || m.mode?.startsWith('llm'))
       .map(({ role, content }) => ({ role, content }))
+      .slice(-6) // máy chủ chỉ dùng 6 lượt cuối
 
     setMsgs((m) => [...m, { role: 'user', content: message }])
     setInput('')
