@@ -14,7 +14,7 @@
 
   <groupId>vn.peopleos</groupId>
   <artifactId>people-workspace-bff</artifactId>
-  <version>2.3.1</version>
+  <version>2.3.2</version>
   <name>PeopleOS People Workspace - Backend (BFF)</name>
   <description>Backend nghiệp vụ của People Workspace: nghỉ phép, đề xuất lương, onboarding, tài liệu, realtime</description>
 

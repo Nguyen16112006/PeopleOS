@@ -27,7 +27,7 @@ async def lifespan(_: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="PeopleOS RAG Service", version="2.3.1", lifespan=lifespan)
+app = FastAPI(title="PeopleOS RAG Service", version="2.3.2", lifespan=lifespan)
 
 
 class HistoryItem(BaseModel):

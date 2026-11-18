@@ -54,7 +54,7 @@ def build_ctx(settings: Settings) -> Ctx:
 
 
 def create_app(ctx: Ctx | None = None) -> FastAPI:
-    app = FastAPI(title="PeopleOS Platform API", version="2.3.1",
+    app = FastAPI(title="PeopleOS Platform API", version="2.3.2",
                   description="Control plane của HR-PaaS: project, API key, schema, custom field, webhook.")
     holder: dict = {"ctx": ctx}
 
