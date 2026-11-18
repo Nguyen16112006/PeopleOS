@@ -1,9 +1,336 @@
 # PeopleOS
 
-**Hệ điều hành Chuyển đổi số Quản trị Con người & Đãi ngộ toàn diện - DX-OS Open-Core**
-
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![SPDX](https://img.shields.io/badge/SPDX-Apache--2.0-informational)
+
+**[English](#english) · [Tiếng Việt](#tieng-viet)**
+
+<a id="english"></a>
+
+**Digital Transformation Operating System for Human Capital & Total Rewards - DX-OS Open-Core**
+
+> **Version 2.0 - HR-PaaS (multi-tenant):** third-party developers sign up, get an API key, define their own schema and receive webhooks on PeopleOS infrastructure.
+> Architecture, how to run it (`docker-compose.paas.yml`), verification level and known limitations: [docs/paas/README.md](docs/paas/README.md).
+> **Read the "Required order" note before upgrading** a running environment: the multi-tenant migrations must ship together with the Keycloak bootstrap and the new BFF/frontend.
+
+> **Note:** the detailed documents under `docs/` and the in-app interface are in Vietnamese.
+
+---
+
+## 1. Introduction
+
+PeopleOS is an **open-source** platform with two tiers:
+
+- **Tier 1 - Open-Core (Headless PaaS):** the shared core, *with no end-user interface*: Identity/SSO, API Gateway, structured & unstructured data, workflow engine, Event Bus.
+- **Tier 2 - People Workspace:** a reference application focused on **human capital, compensation and social insurance** (Human Capital & Total Rewards), plus a locally running **AI Assistant**.
+
+### The "two extremes" problem
+
+| Extreme | Problem | How PeopleOS solves it |
+|---|---|---|
+| **Data silos** | Every module has its own database and its own login system | Every module runs on **one shared core**: 1 SSO, 1 Gateway, 1 data store, 1 workflow engine, 1 event bus. The AI also reads data through the same authorization layer |
+| **Vendor lock-in** | Locked into a single vendor | Prefers **OSI open-source** components that talk through open standards (OIDC, GraphQL, S3, webhooks, NATS); any component can be swapped without rewriting the system |
+
+---
+
+## 2. Architecture
+
+```text
+┌────────────────────────────────────────────────────────────────────┐
+│ TIER 2 - PEOPLE WORKSPACE                                          │
+│  Frontend (React 19 · TS · Tailwind · shadcn/ui)                   │
+│  Backend (Java·Spring Boot): workflows · PDF · WS   RAG (Ollama)   │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ JWT (OIDC)
+┌───────────────────────────────▼────────────────────────────────────┐
+│ TIER 1 - OPEN-CORE (HEADLESS PAAS)                                 │
+│  Apache APISIX ─ JWKS validation ─► Keycloak (SSO · RBAC)          │
+│     ├─► Hasura ─► PostgreSQL        structured data                │
+│     ├─► MinIO                       contracts · payslips · records │
+│     ├─► Flowable                    6 BPMN processes               │
+│     └─► NATS                        realtime events                │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+Detailed diagrams, authentication flow, realtime and the permission matrix: [docs/architecture.md](docs/architecture.md).
+
+---
+
+## 3. Technology
+
+| Layer | Technology |
+|---|---|
+| Identity / SSO | Keycloak 26 (OIDC, PKCE) |
+| API Gateway | Apache APISIX 3.9 (standalone; etcd mode for PaaS; `openid-connect`, `key-auth` plugins) |
+| Structured data | PostgreSQL 16 + Hasura 2.40 (GraphQL, row/column permissions) |
+| Unstructured data | MinIO (AGPL-3.0; built from the official source - see [docs/LICENSING.md](docs/LICENSING.md)) |
+| Workflow | Flowable 7.1.0 (BPMN, Apache-2.0, headless service) |
+| Event Bus | NATS 2.10 |
+| Orchestration | Docker Compose (healthcheck, autoheal) |
+| Security & operations | ClamAV (malware scanning), GitHub Actions (CI), GitOps agent, pg_dump/mc mirror backups |
+| Frontend | React 19, TypeScript, Tailwind CSS, shadcn/ui, Vite |
+| Business backend | **Java 21 + Spring Boot 3** (Spring Security OAuth2, WebSocket, Maven) |
+| Realtime | WebSocket + NATS |
+| AI | Ollama (`qwen2.5:1.5b` Apache-2.0, `bge-m3` MIT), LangChain (text splitter), Qdrant, RAG |
+
+> **About languages:** the business backend (BFF) is written in **Java 21 / Spring Boot**, with one package per feature (see `apps/people-workspace/bff/README.md`). The AI service (RAG) stays in Python because of the Ollama/Qdrant/LangChain ecosystem; the shared payroll module lives in `core/shared`.
+
+---
+
+## 4. Repository layout
+
+```text
+PeopleOS/
+├── core/                      # Tier 1: Open-Core
+│   ├── identity/              # Keycloak: realm, roles, demo accounts
+│   ├── gateway/               # APISIX: routes, JWT validation
+│   ├── data/structured/       # PostgreSQL + Hasura: migrations, metadata (permissions), seed
+│   ├── data/unstructured/     # MinIO: buckets
+│   ├── workflow/engine/       # Flowable: 6 BPMN processes + headless engine
+│   ├── event-bus/             # NATS
+│   └── shared/python/         # peopleos_shared.payroll (Gross→Net calculation)
+├── apps/
+│   ├── platform/platform-api/ # HR-PaaS: control plane (FastAPI) - projects, API keys, schema, webhooks
+│   ├── developer-portal/      # HR-PaaS: developer portal (React)
+│   └── people-workspace/      # reference application
+│       ├── frontend/          # React + TS + Tailwind + shadcn/ui
+│       └── bff/               # Java backend (Spring Boot), one package per feature: config, security, integration, leave, proposal, onboarding, document...
+├── ai/
+│   ├── rag-service/           # RAG: Ollama + Qdrant
+│   └── knowledge/             # Labour Code, social insurance, personal income tax, internal policies
+├── infrastructure/            # docker-compose(.dev).yml, .env.example, monitoring/healthcheck.sh
+├── docs/                      # architecture, api-reference, deployment, demo-script, governance, LICENSING, paas/
+├── scripts/                   # setup, init-db, seed-data, backup, restore, verify-backup, audit-verify.sql
+│   ├── backup/                #   PostgreSQL and MinIO backup loop
+│   └── gitops/                #   GitOps agent
+├── NOTICE · THIRD_PARTY_LICENSES.md · SECURITY.md · CODE_OF_CONDUCT.md
+└── .github/                   # workflows/ci.yml (CI), ISSUE_TEMPLATE/, PULL_REQUEST_TEMPLATE.md
+```
+
+---
+
+## 5. Features
+
+### Open-Core
+- SSO + RBAC with 6 roles: **System Admin, HR, Manager, Director, Accountant, Employee**
+- APISIX protects every API (JWT required) and blocks internal APIs
+- PostgreSQL + Hasura auto-generate GraphQL with row/column permissions per role
+- MinIO stores employment contracts and payslips (PDF)
+- 6 BPMN processes on Flowable (leave request, leave approval, salary proposal, onboarding, temporary-access expiry, locking accounts of departed employees); NATS pushes realtime events
+- The whole system starts with `docker compose up -d`
+
+### HR-PaaS (version 2.0) - see [docs/paas/README.md](docs/paas/README.md)
+- **Multi-tenant** with three layers of data isolation (Hasura permissions, Row-Level Security, composite foreign keys)
+- **Developer Portal:** sign-up, projects, API keys (only the hash is stored), table design from a spec (no raw SQL), custom fields, HMAC-signed webhooks, usage statistics
+- The gateway issues and revokes API keys dynamically, with rate limits and quotas per plan
+
+### People Workspace
+- Keycloak SSO login; menus and data depend on the role
+- **Self-service portal:** personal profile, employment contract (PDF download), monthly payslips (PDF download), social and health insurance contribution history
+- **Timesheets for all 6 roles:** clock in/out, log overtime, submit the monthly timesheet → manager confirms → HR closes the period → **pay is calculated from days worked and overtime hours** (150% / 200% / 300%)
+- **9 business processes** across 6 roles: Raise/bonus/promotion proposal (Manager → HR → Accountant → Director) · Monthly payroll and payment · Annual/sick leave · Onboarding · Resignation (offboarding) · Cash advances, settlements and expense claims · Quarterly KPI review · Personal income tax, social insurance and annual report · Temporary access for incident handling. Roles, permission matrix and a diagram of every process: [docs/ROLES_AND_WORKFLOWS.md](docs/ROLES_AND_WORKFLOWS.md)
+- Realtime notifications (toast + bell) when a request is approved or rejected
+
+### Security, operations & data governance (see [docs/governance.md](docs/governance.md))
+- **ClamAV malware scanning** of every upload before it is stored in MinIO
+- **GitOps** (CI + an agent that reconciles state with Git), **self-healing** (healthcheck + autoheal), scheduled **backups** + restore + verification
+- **Audit & immutable log:** SHA-256 hash chain, updates/deletes blocked, direct data changes recorded too, Admin verifies the chain in the UI
+- **Data lineage** (backward/forward tracing, PII classification) and an **executive dashboard**
+
+### AI Assistant
+- Answers questions about the Vietnamese Labour Code, social insurance and personal income tax using RAG (with cited sources)
+- "My gross salary is X, what is my net?" - calculated exactly under the 2026 rules (and Net → Gross the other way)
+- "What is the status of my leave request?" - looked up with the asker's own permissions
+- Runs fully locally; falls back to keyword search if the model is not ready
+
+---
+
+## 6. Getting started
+
+Requirements: Docker 24+ (Compose v2), 8 GB RAM (16 GB with AI; ClamAV needs another ~1-2 GB), ~10-20 GB of disk.
+
+```bash
+cd PeopleOS
+./scripts/setup.sh            # create .env, build, start, load sample data (with AI)
+./scripts/setup.sh --no-ai    # low-spec machine: skip Ollama/Qdrant/RAG (the AI Assistant page will show a connection error)
+# or manually:
+cd infrastructure && cp .env.example .env
+docker compose up -d --build
+../scripts/init-db.sh && ../scripts/seed-data.sh
+```
+
+> **If you ran an older version before:** delete the old data first (`cd infrastructure && docker compose down -v`), because the Keycloak realm is only imported into an empty database.
+
+| Service | URL |
+|---|---|
+| **People Workspace** | http://localhost:3000 |
+| API Gateway | http://localhost:9080 |
+| Keycloak | http://localhost:8080 |
+| Hasura Console | http://localhost:8081 |
+| MinIO Console | http://localhost:9001 |
+| Workflow Engine | Only reachable inside the Docker network |
+
+**Demo accounts** (shared password `Peopleos@123` - *demo only*, change it before any real deployment):
+
+| Account | Role | Name |
+|---|---|---|
+| `employee` | Employee | Phạm Thu Dung |
+| `employee2` | Employee | Hoàng Văn Em |
+| `manager` | Manager | Lê Minh Cường |
+| `hr` | HR | Trần Thị Bình |
+| `accountant` | Accountant | Vũ Thị Lan |
+| `director` | Director | Hoàng Quốc Hùng |
+| `admin` | Technical admin (role key `sysadmin`) | Nguyễn Văn An |
+
+Health check: `./infrastructure/monitoring/healthcheck.sh`. Details, troubleshooting and production guidance: [docs/deployment.md](docs/deployment.md).
+
+### Running HR-PaaS (multi-tenant)
+
+```bash
+cd infrastructure
+cp .env.example .env          # then add the variables from .env.paas.example (required: PLATFORM_SECRET_KEY)
+docker compose -f docker-compose.yml -f docker-compose.paas.yml up -d --build
+# once Keycloak is up (one-off, idempotent): tenant_id attribute, mapper, tenant for existing users, developer realm
+cd .. && python scripts/keycloak-paas-bootstrap.py
+```
+
+| Service | URL |
+|---|---|
+| Developer Portal (developers sign up in the `peopleos-platform` realm) | http://localhost:3100 |
+| Control plane Swagger (`platform-api`) | http://localhost:8090/docs |
+| Data access with an API key | `POST http://localhost:9080/v1/data` with the `X-API-Key` header |
+
+> **Required order when upgrading:** apply migrations 007–011, run the Keycloak bootstrap and roll out the new BFF/frontend **at the same time** (old tokens without `tenant_id` are rejected by Hasura). Before a demo, run `python scripts/preflight.py --paas --check-images` and then `python scripts/smoke-paas.py`. Architecture, verification level, known limitations and the production checklist: [docs/paas/README.md](docs/paas/README.md).
+
+### Trying each process with the 6 roles
+
+Page names below are translated; the interface itself is in Vietnamese.
+
+| Process | Try it like this | Page |
+|---|---|---|
+| Salary proposal | `manager` proposes → `hr` reviews → `accountant` checks the budget → `director` approves | Salary proposals, Approvals |
+| Leave | `employee` submits a request → `manager` approves. Try `manager` submitting → `hr` → `director` | Leave, Approvals |
+| Onboarding | `hr` creates a new employee | Onboarding |
+| Resignation | `employee` resigns → `manager` sets the last day → `hr` → handover → timesheet closed → `accountant` final pay → `director` → payment → `hr` terminates the contract | Resignation |
+| Advances / expenses | `employee` requests 25,000,000 VND → `manager` → `director` (level 2) → `accountant` pays out → `employee` settles → `accountant` closes | Advances and expenses |
+| Quarterly KPI | `hr` opens the cycle → `manager` sets goals (100% in total) and scores them → `director` sets/scores goals for `manager` → `hr` consolidates → `director` approves → `employee` views and responds | KPI review |
+| Timesheet | every account clocks in/out and logs overtime → submits the monthly timesheet → `manager` (or `hr`) confirms / returns it → `hr` corrects entries if needed | Timesheet |
+| Pay period | `hr` closes the month (locks timesheets) → `accountant` calculates from days worked → `hr` reviews → `director` approves → `accountant` pays → `employee` disputes a payslip → `hr` → `accountant` adjusts | Pay periods, Payroll |
+| Tax and annual report | `hr` confirms → `accountant` settles (issues certificates) → prepares the report → `director` approves → next year's budget | Tax and annual report |
+| Temporary access | `admin` creates a request → `accountant` (or `hr`) and `director` both approve | Temporary access |
+
+> **About the sample data:** salaries are **paid from January to September 2026**. The system does not allow closing a month that already has paid salaries, so pick **October 2026** when trying a pay period (the UI defaults to the previous month, September, which will be reported as a duplicate). Clock-in data for October and November 2026 is included: the October timesheets of 5 people are confirmed, `employee2`'s is waiting for `manager`, and `employee`'s has not been submitted (`employee` and `employee2` also have October leave requests waiting for `manager`; once approved, those days become paid leave). The Tax and annual report page uses the 2026 payroll data that is already there.
+
+### Reporting a bug
+
+Include the command you ran, the exact error message and the related logs:
+
+```bash
+cd infrastructure
+docker compose ps
+docker compose logs --tail=100 bff flowable hasura keycloak apisix
+# check the Java backend and the frontend on their own
+cd ../apps/people-workspace/bff && mvn test
+cd ../frontend && npm ci && npm run build
+```
+
+### Building from source (without Docker)
+
+Use this to build/run individual components or to contribute code. Tools needed: **JDK 21**, **Maven 3.9+**, **Node.js 22 + npm**, **Python 3.12**; PostgreSQL 16, Keycloak, Hasura, MinIO... are still best run with `docker compose up -d postgres keycloak hasura minio nats` (see `infrastructure/docker-compose.yml`).
+
+| Component | Build command | Output / run |
+|---|---|---|
+| BFF (Java, Spring Boot) | `cd apps/people-workspace/bff && mvn -B -DskipTests package` | `target/app.jar` → `java -jar target/app.jar` |
+| Workflow Engine (Flowable) | `cd core/workflow/engine && mvn -B -DskipTests package` | `target/app.jar` → `java -jar target/app.jar` |
+| People Workspace (React) | `cd apps/people-workspace/frontend && npm ci && npm run build` | `dist/` folder (serve with nginx or `npm run dev`) |
+| Developer Portal (React) | `cd apps/developer-portal && npm ci && npm run build` | `dist/` folder |
+| platform-api (FastAPI) | `cd apps/platform/platform-api && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt` | `uvicorn platform_api.api:app --port 8090` |
+| RAG service | `cd ai/rag-service && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt` | `uvicorn app.main:app --port 8001` |
+
+**Configuration before building/running:** environment variables only (`infrastructure/.env`, `application.yml`); no source files or headers need editing. Load the variables into your shell with `set -a; . infrastructure/.env; set +a`. The Python scripts (`scripts/*.py`) read their passwords from the same variables. When running outside Docker, point `POSTGRES_*`, `HASURA_ADMIN_SECRET`, `KEYCLOAK_*`, `MINIO_*` at the matching services.
+
+**Dependencies:** declared in `pom.xml`, `package-lock.json`, `requirements.txt` and downloaded from the official registries (Maven Central, npm, PyPI); this repository **does not bundle or modify third-party source code** (exception: a few UI components in `apps/people-workspace/frontend/src/components/ui/` are adapted from shadcn/ui, MIT licensed, with attribution in each file's header). List and licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Infrastructure services (Keycloak, Hasura, APISIX...) use images pinned to exact versions in `docker-compose.yml`.
+
+**Checking a build:** run the commands in section 7; check per-file licenses with `python scripts/spdx-headers.py --check` and the whole repository against the REUSE standard with `pipx run reuse lint`.
+
+**RAG outside Docker:** the service reads its knowledge base from `ai/knowledge`; set `KNOWLEDGE_DIR` to use another folder. It needs Ollama (`OLLAMA_URL`) and Qdrant (`QDRANT_URL`); without a model it falls back to keyword search.
+
+### Releases
+
+Each version is an annotated git tag `vX.Y.Z` and a GitHub Release with `PeopleOS-X.Y.Z.tar.gz` + `SHA256SUMS` produced by `python scripts/make-release.py` (reproducible). The "Source code (zip)" file on the Release page is generated by GitHub and is not the project's official release format. To check a download:
+
+```bash
+sha256sum -c SHA256SUMS
+tar -xzf PeopleOS-X.Y.Z.tar.gz && cd PeopleOS-X.Y.Z && ./scripts/setup.sh
+```
+
+---
+
+## 7. Testing
+
+| Component | Tests | How to run |
+|---|---|---|
+| Payroll (Gross→Net, insurance caps, 2026 tax) | 7 (Python) | `cd core/shared/python && PYTHONPATH=. python -m pytest tests` |
+| Java backend (leave, multi-level approval, roles) | JUnit 5 + Mockito: 88 tests (including 17 for timesheets and pay by days worked) | `cd apps/people-workspace/bff && mvn test` |
+| BPMN workflow engine | 3 passing tests: internal API + deployment of 6 BPMN processes and 2 timers | `cd core/workflow/engine && mvn test` |
+| RAG (classification, payroll, retrieval, fallback) | 21 (Python) | `cd ai/rag-service && python -m pytest tests` |
+| Audit, backup, dashboard views (migrations, seed, DB↔Java hash chain, concurrent writes, tampering, restore) | scenarios run on a real PostgreSQL 16 | `scripts/audit-verify.sql` + CI job `database` |
+| ClamAV (INSTREAM protocol) | run against a simulated clamd; JUnit tests written | `mvn test` |
+| Frontend | type check + build | `cd apps/people-workspace/frontend && npm run build` |
+| HR-PaaS control plane (`platform-api`: auth, provisioning saga, API keys, schema, custom fields, webhooks, usage) | 45 (Python, real PostgreSQL; Keycloak/APISIX/Hasura mocked) | `cd apps/platform/platform-api && python -m pytest tests` |
+| Multi-tenant isolation at the SQL layer (RLS, per-tenant audit, views, cross-tenant FKs, timesheets) | 16 cases on a real PostgreSQL 16 | `scripts/test-tenant-isolation.sh` |
+| Gateway Lua + Keycloak/APISIX bootstrap scripts | 6 Lua cases + 4 tests (fake server) | `lua5.4 core/gateway/paas/test_api_key_to_hasura.lua` · `python -m pytest scripts/tests` |
+| Developer Portal | type check + build | `cd apps/developer-portal && npm ci && npm run build` |
+| Kubernetes manifests | `kustomize build` + `kubeconform --strict` | see `infrastructure/k8s/README.md` |
+
+The SQL schema and sample data have been run on a real PostgreSQL 16. The plain Java classes (working-day counting, name splitting, parameters) have been run on JDK 21.
+
+> **Verification note:** the full Docker stack and the end-to-end integration flow (Flowable/BFF) must be run with Docker Compose before demo day; the engine has no admin UI, so processes are changed in the BPMN source and rebuilt. On the first run, use `healthcheck.sh`, the "Troubleshooting" section of [docs/deployment.md](docs/deployment.md), and check the following:
+>
+> 1. Spring Boot and Flowable start up (`docker compose logs bff flowable`): database connection, callbacks, timer jobs.
+> 2. Hasura loads its metadata (`docker compose logs hasura`): wrongly named relationships or permissions.
+> 3. Keycloak imports the new realm (`docker compose logs keycloak`).
+> 4. Flowable deploys the 6 BPMN processes on startup (`docker compose logs flowable`).
+> 5. APISIX loads `apisix.yaml` with the `serverless-post-function` plugin (`docker compose logs apisix`); if the gateway returns unexpected 403/401 errors on the API groups with `guard-*`, look here first.
+
+### Known limitations
+
+- **Temporary access is only a record and a log entry so far**: no API uses it yet to open data to the Admin (`TempAccessService.hasActiveGrant` is not wired in).
+- Timesheets: no public-holiday calendar or shift schedule yet (HR records holidays day by day), no time-clock integration, no night overtime and no tax-exempt overtime pay.
+- Periodic tax/social-insurance filing and payment to government agencies is outside the system.
+- The Director and the Accountant can read every column of employee profiles (Hasura allows only one column set per role).
+- A new employee's Keycloak account is created automatically when HR creates the profile (not by the Admin by hand, as the original design described).
+
+---
+
+## 8. Documentation
+
+- [Roles and business processes](docs/ROLES_AND_WORKFLOWS.md) · [Architecture](docs/architecture.md) · [API reference](docs/api-reference.md) · [Deployment](docs/deployment.md) · [15-minute demo script](docs/demo-script.md) · [Security, operations, data governance](docs/governance.md)
+- Per-component READMEs: `core/*/README.md`, `apps/people-workspace/*/README.md`, `ai/rag-service/README.md`
+
+## 9. Roadmap
+
+- Recruitment, OKR and Training modules on the same core (quarterly KPI already exists)
+- Public-holiday calendar and shifts for timesheets, time-clock integration; exclude holidays from leave counting; tax exemptions, night overtime
+- Digital signing of employment contracts; sync with the social-insurance/tax portals
+- Kubernetes + Helm + Argo CD/Flux; Prometheus/Grafana/Loki; HA for Keycloak and PostgreSQL
+- Anchor the audit chain in external WORM storage; separate database roles; encrypted off-site backups
+- Multiple languages, mobile app; payment/billing for HR-PaaS (usage metering already exists)
+- Consider moving from MinIO to an actively developed S3-compatible store such as SeaweedFS (see [docs/LICENSING.md](docs/LICENSING.md))
+- RAG quality evaluation (a standard question set) and support for larger models
+
+## 10. Contributing & License
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md).
+PeopleOS source code is released under **Apache-2.0** ([LICENSE](LICENSE), [NOTICE](NOTICE)); every source file carries an SPDX header.
+Third-party licenses: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) - lists every component, which files use it and whether it is compatible with Apache-2.0. Policy and the changes made: [docs/LICENSING.md](docs/LICENSING.md).
+The legal content in `ai/knowledge` is for reference only and is not a substitute for legal or accounting advice.
+
+---
+
+<a id="tieng-viet"></a>
+
+**Hệ điều hành Chuyển đổi số Quản trị Con người & Đãi ngộ toàn diện - DX-OS Open-Core**
 
 > **Bản 2.0 - HR-PaaS (đa tenant):** developer bên thứ 3 đăng ký, lấy API key, tự định nghĩa schema và nhận webhook trên hạ tầng PeopleOS.
 > Kiến trúc, cách chạy (`docker-compose.paas.yml`), mức độ kiểm chứng và các giới hạn đã biết: [docs/paas/README.md](docs/paas/README.md).
