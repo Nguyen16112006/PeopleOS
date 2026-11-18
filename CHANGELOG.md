@@ -7,6 +7,41 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-11-18
+### Security
+- **API nội bộ của platform-api bị lộ qua gateway** (#42): route `/platform/*` chuyển tiếp cả `/internal/hasura-events` và `/internal/usage` mà không xác thực,
+  chỉ được bảo vệ bằng `EVENT_DISPATCHER_SECRET` có giá trị mặc định. Gateway giờ chỉ cho phép `/platform/v1/*` và `/platform/healthz` (danh sách cho phép,
+  không lọt qua `//`, `%2F`, `./`); platform-api và `apisix-paas-bootstrap.py` từ chối chạy nếu secret ngắn hơn 32 ký tự hoặc còn giá trị mẫu.
+- **Token OIDC ràng buộc theo client** (#42): client `app-*` của tenant bắt buộc màn hình đồng ý và mang claim `client_tenant_id`; BFF thêm `ClientBindingValidator`
+  (chỉ nhận `azp=people-workspace` hoặc token `app-*` cùng tenant với user); Hasura chỉ nhận token có `aud=people-workspace`.
+- **Chấm công tự khai không còn đi thẳng vào bảng lương** (#42): server tự suy ra loại tăng ca từ ngày, chỉ HR ghi được tăng ca ngày lễ (300%);
+  `closeMonth` chỉ tính bản ghi tự khai khi bảng công đã `confirmed`.
+- **Chống race khi duyệt phép năm** (#42): migration `1760000000013_leave_balance_guard` trừ quỹ phép trong cùng giao dịch với lúc đổi trạng thái đơn,
+  thêm ràng buộc `used_days <= entitled_days`; duyệt/huỷ đơn không còn ở `pending` hoặc sai giai đoạn trả 409.
+- NATS, Qdrant, Ollama (không có xác thực) chỉ lắng nghe `127.0.0.1` (#42). `setup.sh` tự sinh `EVENT_DISPATCHER_SECRET`, `APISIX_ADMIN_KEY`,
+  `PLATFORM_SECRET_KEY` nếu thiếu, và dừng khi `.env` còn mật khẩu mẫu (đặt `PEOPLEOS_ALLOW_DEFAULT_SECRETS=1` để bỏ qua khi demo cục bộ).
+- **Đọc PDF chéo tenant qua `contracts.file_key`** (#43): BFF chỉ đọc đúng `contracts/<employee_id>/<contract_no>-signed.pdf`;
+  API key ghi (`tenant_api_write`) không còn ghi được cột `file_key` của `contracts`, `payrolls`.
+- `/ai/reindex` không còn gọi được qua gateway, chỉ gọi nội bộ (#43).
+- Webhook chống SSRF qua DNS-rebinding: worker kết nối thẳng tới IP đã kiểm tra, giữ Host/SNI và xác thực TLS theo tên miền gốc (#43).
+- Hasura dev mode tắt mặc định (`HASURA_DEV_MODE=false`), không còn trả chi tiết lỗi SQL nội bộ cho mọi người dùng (#44).
+- `/ai/chat` giới hạn lịch sử hội thoại (chỉ vai trò `user`/`assistant`, tối đa 50 mục × 8000 ký tự, 6 lượt cuối vào LLM) (#44).
+### Fixed
+- Cài mới bằng `setup.sh` báo `relation "platform.tenants" does not exist` khi nạp dữ liệu mẫu: `init-db.sh` chờ `/healthz` của Hasura
+  và bảng `platform.tenants`; guard tenant trong `seed.sql` tách thành hai `IF` lồng nhau ([#48](https://github.com/Nguyen16112006/PeopleOS/issues/48), #45).
+- Đăng nhập People Workspace báo `x-hasura-user-id not found` với Keycloak 26: realm thêm client scope `basic` để token có claim `sub`;
+  `keycloak-paas-bootstrap.py` sửa được realm đã import mà không cần xóa volume; `setup.sh` kiểm claim `sub` trong token thử
+  ([#49](https://github.com/Nguyen16112006/PeopleOS/issues/49), #46).
+### Changed
+- **People Workspace** (#47): hộp xác nhận dùng chung thay `window.prompt`/`window.confirm`, bắt buộc ghi lý do khi từ chối hoặc trả lại;
+  phiếu lương có dòng tổng khấu trừ, công thức thực nhận, giải thích BHXH/BHYT/BHTN, khiếu nại ngay trên phiếu và thanh thao tác dính đáy trên điện thoại;
+  trang Phê duyệt hiện số phép còn lại, người cùng phòng nghỉ trùng ngày, duyệt hàng loạt và 5 giây để hoàn tác (đơn vượt hạn mức phải xác nhận riêng);
+  các trang cũ chuyển sang phong cách chứng từ; lỗi hiển thị một trang không còn làm trắng cả ứng dụng (`PageErrorBoundary`); theme mặc định theo hệ điều hành.
+- **Developer Portal** (#47): hộp xác nhận khi xoá dự án, bảng, trường, webhook và thu hồi khóa; xoá dự án và bảng phải gõ đúng tên.
+- README song ngữ Anh/Việt; gộp `HUONG_DAN_CHAY_6_VAI_TRO.md` vào README (tài khoản demo, chạy HR-PaaS, thử 10 quy trình theo 6 vai trò, giới hạn đã biết) (#41).
+- `.mailmap` gộp đủ tên hiển thị của các thành viên.
+- Số phiên bản các thành phần nâng lên 2.3.2.
+
 ## [2.3.1] - 2026-11-17
 ### Added
 - **Trang tài liệu cho developer** (`website/`, Docusaurus): hướng dẫn dùng PeopleOS PaaS theo bố cục kiểu reactnative.dev - bắt đầu nhanh, xác thực,
@@ -199,7 +234,8 @@ lần đầu được commit (2.0.0 và 2.0.1 cùng được đưa vào kho bằ
 - Tài liệu: architecture, api-reference, deployment, demo-script; scripts setup/init-db/seed-data; healthcheck.
 - Test: 7 (tính lương) + 21 (RAG) bằng pytest đã chạy; JUnit 5 + Mockito cho backend Java đã viết nhưng chưa chạy được trong môi trường phát triển.
 
-[Unreleased]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.3.2...HEAD
+[2.3.2]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/Nguyen16112006/PeopleOS/compare/v2.2.1...v2.2.2
