@@ -97,8 +97,12 @@ TOKEN_JSON="$(curl -fs -X POST http://localhost:8080/realms/peopleos/protocol/op
 if echo "$TOKEN_JSON" | grep -q access_token; then
   PAYLOAD="$(echo "$TOKEN_JSON" | sed -E 's/.*"access_token":"[^."]+\.([^."]+)\..*/\1/' | tr '_-' '/+')"
   PAYLOAD="$PAYLOAD$(printf '%*s' $(( (4 - ${#PAYLOAD} % 4) % 4 )) '' | tr ' ' '=')"
-  if echo "$PAYLOAD" | base64 -d 2>/dev/null | grep -q tenant_id; then echo "   Token có tenant_id: OK"
+  CLAIMS="$(echo "$PAYLOAD" | base64 -d 2>/dev/null || true)"
+  if echo "$CLAIMS" | grep -q tenant_id; then echo "   Token có tenant_id: OK"
   else echo "!! Token vẫn THIẾU tenant_id - giao diện sẽ báo lỗi JWT claim. Xem docs/paas/README.md"; fi
+  # Keycloak 25+: claim sub nằm trong client scope "basic"; thiếu thì Hasura báo "x-hasura-user-id not found"
+  if echo "$CLAIMS" | grep -q '"sub"'; then echo "   Token có sub: OK"
+  else echo "!! Token THIẾU sub - giao diện sẽ báo 'x-hasura-user-id not found'. Chạy lại: python scripts/keycloak-paas-bootstrap.py"; fi
 else
   echo "!! Không lấy được token thử (Keycloak chưa sẵn sàng?)"
 fi
