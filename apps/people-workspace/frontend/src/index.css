@@ -651,7 +651,8 @@ html[data-density="compact"] .po-nav-link { min-height: 34px; padding-top: 5px; 
 }
 
 /* Stepper đầy đủ: chuyển sang dạng dọc khi khung hẹp, thay vì xuống dòng lởm chởm */
-.po-list > li, .po-approval > div { container-type: inline-size; }
+/* Chỉ khối nội dung là container; KHÔNG áp lên .po-approval-actions (container-type co khối nút về 0px -> nút tràn khỏi thẻ, trang cuộn ngang) */
+.po-list > li, .po-approval > div:not(.po-approval-actions) { container-type: inline-size; }
 @container (max-width: 720px) {
   .po-stepper:not(.compact) { flex-direction: column; gap: 6px; overflow: visible; white-space: normal; }
   .po-stepper:not(.compact) li + li::before { content: none; }
